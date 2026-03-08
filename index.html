@@ -2152,24 +2152,51 @@ function darkMapStyle() {
     <div id="eval-list"></div>
   </div>
 
-  <!-- Rating Guide Tab -->
+  <!-- Rating Guide Tab ---->
   <div id="portal-panel-ratings" style="display:none;padding:20px;max-width:700px;margin:0 auto;width:100%">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px">Star Rating Standards</div>
     <div style="display:flex;flex-direction:column;gap:10px">
-      ${[
-        { stars:5, color:'#fbbf24', title:'Elite Closer', desc:'Close rate above 15%. Consistently high volume with strong results. This rep is a top performer — mentor material. Focus: Keep them motivated, give them leadership opportunities and territory expansion.' },
-        { stars:4, color:'#f97316', title:'Strong Performer', desc:'Close rate 8–15%. Good numbers, solid work ethic. May have occasional inconsistency but generally reliable. Focus: Fine-tune objection handling and push for consistency every single day.' },
-        { stars:3, color:'#a78bfa', title:'Developing Rep', desc:'Close rate 3–8%. Shows potential but needs more reps. Likely inconsistent — good days and bad days. Focus: Closing training, shadowing top reps, accountability check-ins.' },
-        { stars:2, color:'#94a3b8', title:'Needs Improvement', desc:'Close rate 1–3% or very low door count. Either struggling to close or not knocking enough. Focus: Evaluate if the issue is activity or skill. Assign a mentor, set minimum daily door targets.' },
-        { stars:1, color:'#ef4444', title:'At Risk', desc:'Close rate under 1% or minimal activity. This rep is either not putting in the work or not absorbing training. Focus: Immediate intervention — performance improvement plan or reassignment.' },
-      ].map(r => `
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;gap:14px;align-items:flex-start">
-          <div style="font-size:22px;flex-shrink:0">${'⭐'.repeat(r.stars)}</div>
-          <div>
-            <div style="font-size:15px;font-weight:700;color:${r.color};margin-bottom:4px">${r.title}</div>
-            <div style="font-size:13px;color:var(--muted);line-height:1.6">${r.desc}</div>
-          </div>
-        </div>`).join('')}
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;gap:14px;align-items:flex-start">
+        <div style="font-size:22px;flex-shrink:0">⭐⭐⭐⭐⭐</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#fbbf24;margin-bottom:4px">Elite Closer</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6">Close rate above 15%. Consistently high volume with strong results. This rep is a top performer — mentor material. Focus: Keep them motivated, give them leadership opportunities and territory expansion.</div>
+        </div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;gap:14px;align-items:flex-start">
+        <div style="font-size:22px;flex-shrink:0">⭐⭐⭐⭐</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#f97316;margin-bottom:4px">Strong Performer</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6">Close rate 8–15%. Good numbers, solid work ethic. May have occasional inconsistency but generally reliable. Focus: Fine-tune objection handling and push for consistency every single day.</div>
+        </div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;gap:14px;align-items:flex-start">
+        <div style="font-size:22px;flex-shrink:0">⭐⭐⭐</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#a78bfa;margin-bottom:4px">Developing Rep</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6">Close rate 3–8%. Shows potential but needs more reps. Likely inconsistent — good days and bad days. Focus: Closing training, shadowing top reps, accountability check-ins.</div>
+        </div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;gap:14px;align-items:flex-start">
+        <div style="font-size:22px;flex-shrink:0">⭐⭐</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#94a3b8;margin-bottom:4px">Needs Improvement</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6">Close rate 1–3% or very low door count. Either struggling to close or not knocking enough. Focus: Evaluate if the issue is activity or skill. Assign a mentor, set minimum daily door targets.</div>
+        </div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;gap:14px;align-items:flex-start">
+        <div style="font-size:22px;flex-shrink:0">⭐</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#ef4444;margin-bottom:4px">At Risk</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6">Close rate under 1% or minimal activity. This rep is either not putting in the work or not absorbing training. Focus: Immediate intervention — performance improvement plan or reassignment.</div>
+        </div>
+      </div>
+
     </div>
     <div style="margin-top:20px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">📌 Law of Averages Reminder</div>
