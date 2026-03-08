@@ -176,6 +176,26 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
 .dash-pill-tab.dash-pill-active { animation:pill-pop 0.22s cubic-bezier(.4,0,.2,1) forwards; }
 @keyframes fadeSlideIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
+/* Dashboard card tabs */
+.dash-card-tab {
+  position:relative; background:var(--surface2);
+  border:1px solid var(--border); border-radius:16px;
+  padding:22px 18px 20px; cursor:pointer;
+  transition:border-color 0.18s, transform 0.18s, box-shadow 0.18s;
+  animation:fadeSlideIn 0.25s ease both;
+}
+.dash-card-tab:nth-child(1){animation-delay:0s}
+.dash-card-tab:nth-child(2){animation-delay:0.06s}
+.dash-card-tab:nth-child(3){animation-delay:0.12s}
+.dash-card-tab:hover { border-color:var(--green); transform:translateY(-2px); box-shadow:0 6px 24px rgba(34,197,94,0.12); }
+.dash-card-tab:active { transform:scale(0.97); }
+.dct-full { grid-column:1/-1; }
+.dct-arrow { position:absolute; top:14px; right:16px; font-size:16px; color:var(--muted); transition:color 0.18s,transform 0.18s; }
+.dash-card-tab:hover .dct-arrow { color:var(--green); transform:translate(2px,-2px); }
+.dct-icon { font-size:28px; margin-bottom:12px; }
+.dct-title { font-family:'Exo 2',sans-serif; font-size:20px; font-weight:800; color:var(--text); margin-bottom:6px; letter-spacing:0.3px; }
+.dct-sub { font-family:'Inter',sans-serif; font-size:12px; color:var(--muted); line-height:1.5; }
+
 /* ═══════════════════════════════
    MAP SHELL — the key fix
    Use absolute positioning so map
@@ -577,26 +597,39 @@ textarea#knock-notes:focus { border-color:var(--accent); }
   <div id="dashboard-content">
     <div id="dash-rep-banner" style="display:none;padding:10px 20px;background:linear-gradient(90deg,#22c55e22,transparent);border-bottom:1px solid var(--border)">
       <span style="font-size:13px;font-weight:700;color:var(--green)" id="dash-rep-banner-text"></span>
-      <span style="font-size:12px;color:var(--muted);margin-left:10px;cursor:pointer" onclick="document.getElementById('dashboard-rep-select').value='';renderDashboard()">✕ Clear</span>
+      <span style="font-size:12px;color:var(--muted);margin-left:10px;cursor:pointer" onclick="document.getElementById('dashboard-rep-select').value='';renderDashboard();returnToDashCards()">✕ Clear</span>
     </div>
 
-    <!-- Floating Pill Tabs -->
-    <div style="display:flex;justify-content:center;padding:18px 20px 4px;background:var(--surface);border-bottom:1px solid var(--border)">
-      <div id="dash-tab-pills" style="display:inline-flex;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:40px;padding:4px">
-        <button id="dtab-overview" onclick="switchDashTab('overview')" class="dash-pill-tab dash-pill-active">
-          <span class="dtab-icon">📊</span><span class="dtab-label">Overview</span>
-        </button>
-        <button id="dtab-dispositions" onclick="switchDashTab('dispositions')" class="dash-pill-tab">
-          <span class="dtab-icon">📋</span><span class="dtab-label">Results</span>
-        </button>
-        <button id="dtab-reps" onclick="switchDashTab('reps')" class="dash-pill-tab">
-          <span class="dtab-icon">👥</span><span class="dtab-label">Reps</span>
-        </button>
+    <!-- Card Tab Selector (shows when no tab active) -->
+    <div id="dash-tab-cards" style="padding:24px 20px;display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:700px;margin:0 auto;width:100%;box-sizing:border-box">
+      <div class="dash-card-tab" onclick="switchDashTab('overview')" id="dtab-overview">
+        <div class="dct-arrow">↗</div>
+        <div class="dct-icon">📊</div>
+        <div class="dct-title">Overview</div>
+        <div class="dct-sub">Team stats, close rate &amp; performance at a glance.</div>
+      </div>
+      <div class="dash-card-tab" onclick="switchDashTab('dispositions')" id="dtab-dispositions">
+        <div class="dct-arrow">↗</div>
+        <div class="dct-icon">📋</div>
+        <div class="dct-title">Results</div>
+        <div class="dct-sub">Breakdown by disposition. See every outcome type.</div>
+      </div>
+      <div class="dash-card-tab dct-full" onclick="switchDashTab('reps')" id="dtab-reps">
+        <div class="dct-arrow">↗</div>
+        <div class="dct-icon">👥</div>
+        <div class="dct-title">Reps</div>
+        <div class="dct-sub">Individual rep performance, rankings &amp; profiles.</div>
       </div>
     </div>
 
+    <!-- Active Tab Header (shows when a tab is open) -->
+    <div id="dash-tab-back-bar" style="display:none;align-items:center;gap:10px;padding:12px 18px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5">
+      <button onclick="returnToDashCards()" style="display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:12px;font-weight:700;cursor:pointer">← Back</button>
+      <div id="dash-tab-back-label" style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:800;letter-spacing:1.5px;color:var(--green)"></div>
+    </div>
+
     <!-- Tab: Overview -->
-    <div id="dash-panel-overview" style="padding:16px">
+    <div id="dash-panel-overview" style="display:none;padding:16px">
       <div id="company-stats-grid" class="stats-grid"></div>
     </div>
 
@@ -2328,12 +2361,19 @@ function buildHeatmap() {
 }
 
 // ── DASHBOARD TABS ──
-let currentDashTab = 'overview';
+let currentDashTab = null;
 window.switchDashTab = function(tab) {
   currentDashTab = tab;
+  const labels = { overview:'📊 Overview', dispositions:'📋 Results', reps:'👥 Reps' };
+
+  // Hide card grid, show back bar + panel
+  document.getElementById('dash-tab-cards').style.display = 'none';
+  const backBar = document.getElementById('dash-tab-back-bar');
+  backBar.style.display = 'flex';
+  document.getElementById('dash-tab-back-label').textContent = labels[tab] || tab;
+
   ['overview','dispositions','reps'].forEach(t => {
     const panel = document.getElementById(`dash-panel-${t}`);
-    const btn = document.getElementById(`dtab-${t}`);
     if (panel) {
       if (t === tab) {
         panel.style.display = 'block';
@@ -2342,9 +2382,16 @@ window.switchDashTab = function(tab) {
         panel.style.display = 'none';
       }
     }
-    if (btn) {
-      btn.classList.toggle('dash-pill-active', t === tab);
-    }
+  });
+};
+
+window.returnToDashCards = function() {
+  currentDashTab = null;
+  document.getElementById('dash-tab-cards').style.display = 'grid';
+  document.getElementById('dash-tab-back-bar').style.display = 'none';
+  ['overview','dispositions','reps'].forEach(t => {
+    const panel = document.getElementById(`dash-panel-${t}`);
+    if (panel) panel.style.display = 'none';
   });
 };
 
