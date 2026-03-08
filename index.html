@@ -597,39 +597,18 @@ textarea#knock-notes:focus { border-color:var(--accent); }
   <div id="dashboard-content">
     <div id="dash-rep-banner" style="display:none;padding:10px 20px;background:linear-gradient(90deg,#22c55e22,transparent);border-bottom:1px solid var(--border)">
       <span style="font-size:13px;font-weight:700;color:var(--green)" id="dash-rep-banner-text"></span>
-      <span style="font-size:12px;color:var(--muted);margin-left:10px;cursor:pointer" onclick="document.getElementById('dashboard-rep-select').value='';renderDashboard();returnToDashCards()">✕ Clear</span>
+      <span style="font-size:12px;color:var(--muted);margin-left:10px;cursor:pointer" onclick="document.getElementById('dashboard-rep-select').value='';renderDashboard()">✕ Clear</span>
     </div>
 
-    <!-- Card Tab Selector (shows when no tab active) -->
-    <div id="dash-tab-cards" style="padding:24px 20px;display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:700px;margin:0 auto;width:100%;box-sizing:border-box">
-      <div class="dash-card-tab" onclick="switchDashTab('overview')" id="dtab-overview">
-        <div class="dct-arrow">↗</div>
-        <div class="dct-icon">📊</div>
-        <div class="dct-title">Overview</div>
-        <div class="dct-sub">Team stats, close rate &amp; performance at a glance.</div>
-      </div>
-      <div class="dash-card-tab" onclick="switchDashTab('dispositions')" id="dtab-dispositions">
-        <div class="dct-arrow">↗</div>
-        <div class="dct-icon">📋</div>
-        <div class="dct-title">Results</div>
-        <div class="dct-sub">Breakdown by disposition. See every outcome type.</div>
-      </div>
-      <div class="dash-card-tab dct-full" onclick="switchDashTab('reps')" id="dtab-reps">
-        <div class="dct-arrow">↗</div>
-        <div class="dct-icon">👥</div>
-        <div class="dct-title">Reps</div>
-        <div class="dct-sub">Individual rep performance, rankings &amp; profiles.</div>
-      </div>
-    </div>
-
-    <!-- Active Tab Header (shows when a tab is open) -->
-    <div id="dash-tab-back-bar" style="display:none;align-items:center;gap:10px;padding:12px 18px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5">
-      <button onclick="returnToDashCards()" style="display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:12px;font-weight:700;cursor:pointer">← Back</button>
-      <div id="dash-tab-back-label" style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:800;letter-spacing:1.5px;color:var(--green)"></div>
+    <!-- 3 Dashboard Tabs -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0">
+      <button class="dash-tab active-dash-tab" id="dtab-overview" onclick="switchDashTab('overview')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--green);border-bottom:2px solid var(--green)">📊 Overview</button>
+      <button class="dash-tab" id="dtab-dispositions" onclick="switchDashTab('dispositions')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">📋 Results</button>
+      <button class="dash-tab" id="dtab-reps" onclick="switchDashTab('reps')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">👥 Reps</button>
     </div>
 
     <!-- Tab: Overview -->
-    <div id="dash-panel-overview" style="display:none;padding:16px">
+    <div id="dash-panel-overview" style="padding:16px">
       <div id="company-stats-grid" class="stats-grid"></div>
     </div>
 
@@ -2361,37 +2340,16 @@ function buildHeatmap() {
 }
 
 // ── DASHBOARD TABS ──
-let currentDashTab = null;
+let currentDashTab = 'overview';
 window.switchDashTab = function(tab) {
   currentDashTab = tab;
-  const labels = { overview:'📊 Overview', dispositions:'📋 Results', reps:'👥 Reps' };
-
-  // Hide card grid, show back bar + panel
-  document.getElementById('dash-tab-cards').style.display = 'none';
-  const backBar = document.getElementById('dash-tab-back-bar');
-  backBar.style.display = 'flex';
-  document.getElementById('dash-tab-back-label').textContent = labels[tab] || tab;
-
   ['overview','dispositions','reps'].forEach(t => {
-    const panel = document.getElementById(`dash-panel-${t}`);
-    if (panel) {
-      if (t === tab) {
-        panel.style.display = 'block';
-        panel.style.animation = 'fadeSlideIn 0.2s ease forwards';
-      } else {
-        panel.style.display = 'none';
-      }
+    document.getElementById(`dash-panel-${t}`).style.display = t === tab ? 'block' : 'none';
+    const btn = document.getElementById(`dtab-${t}`);
+    if (btn) {
+      btn.style.color = t === tab ? 'var(--green)' : 'var(--muted)';
+      btn.style.borderBottom = t === tab ? '2px solid var(--green)' : '2px solid transparent';
     }
-  });
-};
-
-window.returnToDashCards = function() {
-  currentDashTab = null;
-  document.getElementById('dash-tab-cards').style.display = 'grid';
-  document.getElementById('dash-tab-back-bar').style.display = 'none';
-  ['overview','dispositions','reps'].forEach(t => {
-    const panel = document.getElementById(`dash-panel-${t}`);
-    if (panel) panel.style.display = 'none';
   });
 };
 
