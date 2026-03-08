@@ -935,7 +935,8 @@ async function initMap() {
     disableDefaultUI: false,
     zoomControl: true,
     mapTypeControl: false,
-    streetViewControl: false,
+    streetViewControl: true,
+    streetViewControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
     fullscreenControl: false,
   });
   geocoder = new google.maps.Geocoder();
@@ -1306,6 +1307,7 @@ function openBottomSheet(knock) {
     </div>` : ''}
     <div class="bs-actions">
       <button class="bs-edit-btn" onclick="editKnock('${knock.id}')">✏️ Edit Details</button>
+      <button onclick="openStreetView(${knock.lat},${knock.lng})" style="padding:11px 14px;background:#fff;color:#4f8ef7;border:1.5px solid #4f8ef7;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer">🧭 Street View</button>
       <button class="bs-delete-btn" onclick="deleteKnock('${knock.id}');closeBottomSheet()">🗑 Delete</button>
     </div>`;
   document.getElementById('bottom-sheet').classList.add('open');
@@ -1324,6 +1326,13 @@ window.assignRepFromSheet = async function(knockId, repName) {
   document.getElementById('bottom-sheet').classList.add('open');
   document.getElementById('bottom-sheet-overlay').classList.add('open');
 }
+window.openStreetView = function(lat, lng) {
+  const sv = map.getStreetView();
+  sv.setPosition({ lat, lng });
+  sv.setPov({ heading: 0, pitch: 0 });
+  sv.setVisible(true);
+};
+
 function closeBottomSheet() {
   document.getElementById('bottom-sheet').classList.remove('open');
   document.getElementById('bottom-sheet-overlay').classList.remove('open');
