@@ -615,6 +615,10 @@ textarea#knock-notes:focus { border-color:var(--accent); }
         <button id="pin-drop-btn" onclick="togglePinMode()" style="padding:7px 14px;border-radius:8px;border:2px solid transparent;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;backdrop-filter:blur(8px);background:rgba(26,29,39,0.85);color:#aaa;border-color:rgba(255,255,255,0.1);display:flex;align-items:center;gap:5px">
           📍 Drop Pin
         </button>
+        <button class="map-type-btn inactive" id="btn-knocks-tab" onclick="toggleKnocksPanel()" style="position:relative">
+          📋 Knocks
+          <span id="knocks-tab-badge" style="display:none;position:absolute;top:-5px;right:-5px;background:#22c55e;color:#000;border-radius:10px;font-size:9px;font-weight:900;padding:1px 5px;min-width:14px;text-align:center"></span>
+        </button>
         <button class="map-type-btn active-type" id="btn-roadmap" onclick="setMapType('roadmap')">🗺️ Map</button>
         <button class="map-type-btn inactive" id="btn-hybrid" onclick="setMapType('hybrid')">🛰️ Satellite</button>
       </div>
@@ -639,7 +643,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 
     <div id="sidebar">
       <div id="sidebar-header">
-        <h2>Status Legend</h2>
+        <h2>Pin Guide</h2>
         <div style="font-size:10px;color:var(--muted);margin-bottom:6px" id="legend-filter-hint">Tap a status to filter</div>
         <div id="legend-grid"></div>
       </div>
@@ -663,6 +667,24 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       <button id="export-btn">📊 Export CSV</button>
     </div>
   </div>
+</div>
+
+<!-- ═══ FLOATING KNOCKS PANEL ═══ -->
+<div id="knocks-panel" style="display:none;position:fixed;top:0;left:0;right:0;bottom:56px;z-index:900;background:rgba(12,14,20,0.97);display:none;flex-direction:column;overflow:hidden">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:800;letter-spacing:2px;color:var(--green)">📋 RECENT KNOCKS</div>
+      <div id="kp-streak-badge" style="display:none;align-items:center;gap:4px;background:rgba(250,120,30,0.15);border:1px solid rgba(250,120,30,0.4);border-radius:20px;padding:3px 9px;font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;color:#fa781e">🔥 <span id="kp-streak-count">0</span> today</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="exportCSV()" style="padding:6px 12px;background:rgba(99,130,247,0.15);border:1px solid rgba(99,130,247,0.4);border-radius:7px;color:#6382f7;font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;cursor:pointer">📊 CSV</button>
+      <button onclick="toggleKnocksPanel()" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+  </div>
+  <div style="padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
+    <input id="kp-search" type="text" placeholder="🔍 Search address or rep…" oninput="filterKnockList(this.value);document.getElementById('knock-search').value=this.value" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;box-sizing:border-box"/>
+  </div>
+  <div id="kp-knocks-list" style="flex:1;overflow-y:auto;padding:8px 12px"></div>
 </div>
 
 <!-- ═══ MOBILE BOTTOM NAV ═══ -->
@@ -734,7 +756,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
   <div class="mobile-drawer-overlay" onclick="closeMobileDrawer('legend')"></div>
   <div class="mobile-drawer-sheet">
     <div class="mobile-drawer-handle"></div>
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">Status Legend</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">Pin Guide</div>
     <div id="mobile-legend-grid"></div>
     <div style="height:8px"></div>
   </div>
@@ -1234,14 +1256,13 @@ function renderList() {
   const list = document.getElementById('knocks-list');
   const empty = document.getElementById('empty-state');
   const filtered = activeFilter ? knocks.filter(k => k.status === activeFilter) : knocks;
-  if (filtered.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
-  list.innerHTML = filtered.map(k => {
+
+  const renderCards = (items) => items.map(k => {
     const s = STATUSES.find(x => x.key === k.status);
     const color = s ? s.color : '#888';
     const timeStr = new Date(k.time).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
     const dateStr = new Date(k.time).toLocaleDateString([], { month:'short', day:'numeric' });
-    return `<div class="knock-card" style="border-left-color:${color}" onclick="flyToKnock('${k.id}')">
+    return `<div class="knock-card" style="border-left-color:${color}" onclick="flyToKnockAndClose('${k.id}')">
       <button class="knock-delete" onclick="event.stopPropagation();deleteKnock('${k.id}')">✕</button>
       <div class="knock-card-header">
         <div class="knock-address">${k.address.split(',').slice(0,2).join(',')}</div>
@@ -1252,6 +1273,22 @@ function renderList() {
       <div class="knock-time">${dateStr} · ${timeStr}</div>
     </div>`;
   }).join('');
+
+  if (filtered.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; }
+  else { empty.style.display = 'none'; list.innerHTML = renderCards(filtered); }
+
+  // Also populate floating panel
+  const kpList = document.getElementById('kp-knocks-list');
+  if (kpList) kpList.innerHTML = filtered.length === 0
+    ? '<div style="text-align:center;color:var(--muted);padding:30px;font-size:13px">No knocks yet — drop a pin on the map!</div>'
+    : renderCards(filtered);
+
+  // Update badge count
+  const badge = document.getElementById('knocks-tab-badge');
+  if (badge) { badge.textContent = knocks.length; badge.style.display = knocks.length > 0 ? 'inline-block' : 'none'; }
+
+  // Update streak in panel
+  updateKnocksPanelStreak();
 }
 
 window.flyToKnock = function(id) {
@@ -1483,18 +1520,20 @@ function updateStreak() {
 // ── KNOCK LIST SEARCH ──
 window.filterKnockList = function(query) {
   const q = query.toLowerCase().trim();
+  // Sync both search inputs
+  const si = document.getElementById('knock-search'); if (si && si.value !== query) si.value = query;
+  const kpi = document.getElementById('kp-search'); if (kpi && kpi.value !== query) kpi.value = query;
   const list = document.getElementById('knocks-list');
   const empty = document.getElementById('empty-state');
   const filtered = (activeFilter ? knocks.filter(k => k.status === activeFilter) : knocks)
     .filter(k => !q || k.address.toLowerCase().includes(q) || (k.rep||'').toLowerCase().includes(q));
-  if (filtered.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
-  list.innerHTML = filtered.map(k => {
+
+  const renderCards = (items) => items.map(k => {
     const s = STATUSES.find(x => x.key === k.status);
     const color = s ? s.color : '#888';
     const timeStr = new Date(k.time).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
     const dateStr = new Date(k.time).toLocaleDateString([], { month:'short', day:'numeric' });
-    return `<div class="knock-card" style="border-left-color:${color}" onclick="flyToKnock('${k.id}')">
+    return `<div class="knock-card" style="border-left-color:${color}" onclick="flyToKnockAndClose('${k.id}')">
       <button class="knock-delete" onclick="event.stopPropagation();deleteKnock('${k.id}')">✕</button>
       <div class="knock-card-header">
         <div class="knock-address">${k.address.split(',').slice(0,2).join(',')}</div>
@@ -1505,6 +1544,48 @@ window.filterKnockList = function(query) {
       <div class="knock-time">${dateStr} · ${timeStr}</div>
     </div>`;
   }).join('');
+
+  if (filtered.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; }
+  else { empty.style.display = 'none'; list.innerHTML = renderCards(filtered); }
+
+  const kpList = document.getElementById('kp-knocks-list');
+  if (kpList) kpList.innerHTML = filtered.length === 0
+    ? '<div style="text-align:center;color:var(--muted);padding:30px;font-size:13px">No results found.</div>'
+    : renderCards(filtered);
+};
+
+function updateKnocksPanelStreak() {
+  const today = new Date().toDateString();
+  const todayCount = knocks.filter(k => new Date(k.time).toDateString() === today).length;
+  const badge = document.getElementById('kp-streak-badge');
+  const count = document.getElementById('kp-streak-count');
+  if (badge && count) {
+    count.textContent = todayCount;
+    badge.style.display = todayCount > 0 ? 'flex' : 'none';
+  }
+}
+
+let knocksPanelOpen = false;
+window.toggleKnocksPanel = function() {
+  knocksPanelOpen = !knocksPanelOpen;
+  const panel = document.getElementById('knocks-panel');
+  const btn = document.getElementById('btn-knocks-tab');
+  if (!panel) return;
+  panel.style.display = knocksPanelOpen ? 'flex' : 'none';
+  if (btn) {
+    btn.className = knocksPanelOpen ? 'map-type-btn active-type' : 'map-type-btn inactive';
+  }
+  if (knocksPanelOpen) { renderList(); }
+};
+
+window.flyToKnockAndClose = function(id) {
+  // Close panel then fly
+  if (knocksPanelOpen) toggleKnocksPanel();
+  flyToKnock(id);
+};
+
+window.exportCSV = function() {
+  document.getElementById('export-btn')?.click();
 };
 
 // ── DETAIL PAGE ──
