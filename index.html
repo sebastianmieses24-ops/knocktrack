@@ -528,35 +528,33 @@ textarea#knock-notes:focus { border-color:var(--accent); }
     </div>
   </div>
 
+
   <div id="dashboard-content">
     <div id="dash-rep-banner" style="display:none;padding:10px 20px;background:linear-gradient(90deg,#22c55e22,transparent);border-bottom:1px solid var(--border)">
       <span style="font-size:13px;font-weight:700;color:var(--green)" id="dash-rep-banner-text"></span>
+      <span style="font-size:12px;color:var(--muted);margin-left:10px;cursor:pointer" onclick="document.getElementById('dashboard-rep-select').value='';renderDashboard()">✕ Clear</span>
     </div>
 
-    <div class="dash-section-title" onclick="toggleSection('co-perf')">
-      <div class="section-dot" style="background:var(--accent)"></div><span id="dash-perf-title">Company Wide Performance</span>
-      <span class="collapse-arrow" id="arrow-co-perf">▼</span>
+    <!-- 3 Dashboard Tabs -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0">
+      <button class="dash-tab active-dash-tab" id="dtab-overview" onclick="switchDashTab('overview')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--green);border-bottom:2px solid var(--green)">📊 Overview</button>
+      <button class="dash-tab" id="dtab-dispositions" onclick="switchDashTab('dispositions')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">📋 Results</button>
+      <button class="dash-tab" id="dtab-reps" onclick="switchDashTab('reps')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">👥 Reps</button>
     </div>
-    <div id="co-perf" class="collapsible-body collapsed">
+
+    <!-- Tab: Overview -->
+    <div id="dash-panel-overview" style="padding:16px">
       <div id="company-stats-grid" class="stats-grid"></div>
     </div>
 
-    <div class="dash-section-title" onclick="toggleSection('co-disp')">
-      <div class="section-dot" style="background:var(--accent)"></div><span id="dash-disp-title">Company Lead Dispositions</span>
-      <span class="collapse-arrow" id="arrow-co-disp">▼</span>
-    </div>
-    <div id="co-disp" class="collapsible-body collapsed">
-      <div class="disposition-table" id="company-dispositions" style="margin-bottom:14px"></div>
+    <!-- Tab: Results -->
+    <div id="dash-panel-dispositions" style="display:none;padding:16px">
+      <div class="disposition-table" id="company-dispositions"></div>
     </div>
 
-    <div id="rep-breakdown-section">
-      <div class="dash-section-title" onclick="toggleSection('rep-breakdown')">
-        <div class="section-dot" style="background:var(--green)"></div>Rep Breakdown
-        <span class="collapse-arrow" id="arrow-rep-breakdown">▼</span>
-      </div>
-      <div id="rep-breakdown" class="collapsible-body collapsed">
-        <div id="rep-breakdown-grid" style="margin-bottom:24px"></div>
-      </div>
+    <!-- Tab: Reps -->
+    <div id="dash-panel-reps" style="display:none;padding:16px">
+      <div id="rep-breakdown-grid"></div>
     </div>
   </div>
 </div>
@@ -1249,11 +1247,18 @@ function openBottomSheet(knock) {
   const line1 = addrParts.slice(0,2).join(',').trim();
   const line2 = addrParts.slice(2).join(',').trim();
   const history = knock.history || [];
+
+  // Build rep options
+  const repNames = new Set([...reps.map(r => r.name), ...knocks.map(k => k.rep).filter(Boolean)]);
+  const repOptions = ['<option value="">— Unassigned —</option>',
+    ...Array.from(repNames).map(n => `<option value="${n}" ${knock.rep === n ? 'selected' : ''}>${n}</option>`)
+  ].join('');
+
   document.getElementById('bs-content').innerHTML = `
     <div class="bs-header">
       <div class="bs-header-pin" id="bs-header-pin" style="background:${s.color}">${s.icon}</div>
       <div class="bs-header-info">
-        <h2>${knock.rep || 'No Name'}</h2>
+        <h2>${knock.rep || 'Unassigned'}</h2>
         <div class="bs-status-label" id="bs-header-status">${s.label}</div>
       </div>
       <button class="bs-see-activity" onclick="editKnock('${knock.id}')">Edit ✏️</button>
@@ -1262,6 +1267,12 @@ function openBottomSheet(knock) {
     ${knock.notes ? `<div class="bs-notes">📝 ${knock.notes}</div>` : ''}
     <div class="bs-meta">${new Date(knock.time).toLocaleString()}</div>
     <div class="bs-divider"></div>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:6px">Assign Rep</div>
+    <select id="bs-rep-select" onchange="assignRepFromSheet('${knock.id}', this.value)" style="width:100%;padding:9px 12px;border:1.5px solid #e5e5ea;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:14px;color:#111;background:#f7f7f7;margin-bottom:12px;outline:none">
+      ${repOptions}
+    </select>
+
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:8px">Change Status</div>
     <div class="bs-status-row">${STATUSES.map(st => `
       <div class="bs-status-item" onclick="quickStatus('${knock.id}','${st.key}')">
@@ -1291,6 +1302,20 @@ function openBottomSheet(knock) {
       <button class="bs-edit-btn" onclick="editKnock('${knock.id}')">✏️ Edit Details</button>
       <button class="bs-delete-btn" onclick="deleteKnock('${knock.id}');closeBottomSheet()">🗑 Delete</button>
     </div>`;
+  document.getElementById('bottom-sheet').classList.add('open');
+  document.getElementById('bottom-sheet-overlay').classList.add('open');
+}
+
+window.assignRepFromSheet = async function(knockId, repName) {
+  const idx = knocks.findIndex(k => k.id === knockId);
+  if (idx !== -1) {
+    knocks[idx].rep = repName;
+    await updateKnock(knocks[idx]);
+    renderList(); updateStats();
+    const h2 = document.querySelector('#bs-content .bs-header-info h2');
+    if (h2) h2.textContent = repName || 'Unassigned';
+  }
+};
   document.getElementById('bottom-sheet').classList.add('open');
   document.getElementById('bottom-sheet-overlay').classList.add('open');
 }
@@ -1495,27 +1520,18 @@ function renderDashboard() {
   const period = filterByPeriod(knocks, currentTimePeriod);
   const banner = document.getElementById('dash-rep-banner');
   const bannerText = document.getElementById('dash-rep-banner-text');
-  const perfTitle = document.getElementById('dash-perf-title');
-  const dispTitle = document.getElementById('dash-disp-title');
-  const repSection = document.getElementById('rep-breakdown-section');
+
+  const data = selectedRep ? period.filter(k => k.rep === selectedRep) : period;
 
   if (selectedRep) {
-    const repData = period.filter(k => k.rep === selectedRep);
-    if (banner) { banner.style.display = 'block'; bannerText.textContent = `👤 Viewing: ${selectedRep} · ${repData.length} knocks`; }
-    if (perfTitle) perfTitle.textContent = `${selectedRep}'s Performance`;
-    if (dispTitle) dispTitle.textContent = `${selectedRep}'s Lead Dispositions`;
-    if (repSection) repSection.style.display = 'none';
-    renderStatsGrid('company-stats-grid', repData);
-    renderDispositions('company-dispositions', repData);
+    if (banner) { banner.style.display = 'block'; bannerText.textContent = `👤 Viewing: ${selectedRep} · ${data.length} knocks`; }
   } else {
     if (banner) banner.style.display = 'none';
-    if (perfTitle) perfTitle.textContent = 'Company Wide Performance';
-    if (dispTitle) dispTitle.textContent = 'Company Lead Dispositions';
-    if (repSection) repSection.style.display = 'block';
-    renderStatsGrid('company-stats-grid', period);
-    renderDispositions('company-dispositions', period);
-    renderRepBreakdown(period);
   }
+
+  renderStatsGrid('company-stats-grid', data);
+  renderDispositions('company-dispositions', data);
+  renderRepBreakdown(period);
 }
 
 function renderRepBreakdown(data) {
@@ -1753,7 +1769,213 @@ function buildHeatmap() {
   });
 }
 
-// ── ALREADY KNOCKED CHECK ──
+// ── DASHBOARD TABS ──
+let currentDashTab = 'overview';
+window.switchDashTab = function(tab) {
+  currentDashTab = tab;
+  ['overview','dispositions','reps'].forEach(t => {
+    document.getElementById(`dash-panel-${t}`).style.display = t === tab ? 'block' : 'none';
+    const btn = document.getElementById(`dtab-${t}`);
+    if (btn) {
+      btn.style.color = t === tab ? 'var(--green)' : 'var(--muted)';
+      btn.style.borderBottom = t === tab ? '2px solid var(--green)' : '2px solid transparent';
+    }
+  });
+};
+
+// ── PORTAL TABS ──
+window.switchPortalTab = function(tab) {
+  ['reps','evals','ratings'].forEach(t => {
+    const panel = document.getElementById(`portal-panel-${t}`);
+    const btn = document.getElementById(`ptab-${t}`);
+    if (panel) panel.style.display = t === tab ? 'block' : 'none';
+    if (btn) {
+      btn.style.color = t === tab ? 'var(--green)' : 'var(--muted)';
+      btn.style.borderBottom = t === tab ? '2px solid var(--green)' : '2px solid transparent';
+    }
+  });
+  if (tab === 'evals') renderEvaluations();
+};
+
+// ── REP EVALUATIONS ──
+function getTenure(startDate) {
+  if (!startDate) return 'Unknown tenure';
+  const start = new Date(startDate);
+  const now = new Date();
+  const days = Math.floor((now - start) / 86400000);
+  if (days < 30) return `${days} days`;
+  if (days < 365) return `${Math.floor(days/30)} month${Math.floor(days/30)>1?'s':''}`;
+  const yrs = Math.floor(days/365), mos = Math.floor((days%365)/30);
+  return `${yrs}yr${yrs>1?'s':''} ${mos>0?mos+'mo':''}`.trim();
+}
+
+function getStarRating(closeRate, totalDoors) {
+  if (totalDoors < 20) return { stars: 0, label: 'Insufficient Data', color: '#7a8099' };
+  const rate = parseFloat(closeRate);
+  if (rate >= 15) return { stars: 5, label: 'Elite Closer', color: '#fbbf24' };
+  if (rate >= 8)  return { stars: 4, label: 'Strong Performer', color: '#f97316' };
+  if (rate >= 3)  return { stars: 3, label: 'Developing Rep', color: '#a78bfa' };
+  if (rate >= 1)  return { stars: 2, label: 'Needs Improvement', color: '#94a3b8' };
+  return { stars: 1, label: 'At Risk', color: '#ef4444' };
+}
+
+function generateEvalFeedback(m, rep) {
+  const rate = parseFloat(m.closeRate);
+  const doors = m.totalDoors;
+  const enrolled = m.enrolled;
+  const interactions = m.interactions;
+  const feedback = [];
+
+  // Activity assessment
+  if (doors < 20) {
+    feedback.push({ type:'warn', text:'Insufficient data to make a full evaluation. Encourage this rep to log more activity — minimum 20 doors needed for meaningful analysis.' });
+  } else if (doors < 50) {
+    feedback.push({ type:'warn', text:`Low door count (${doors} doors). The law of averages requires volume to work. Push for 50+ doors/week minimum before drawing conclusions about closing ability.` });
+  } else if (doors >= 200) {
+    feedback.push({ type:'good', text:`Strong activity — ${doors} doors knocked. This rep is putting in the work and giving themselves real opportunities to close.` });
+  }
+
+  // Closing assessment
+  if (doors >= 20) {
+    if (rate >= 15) {
+      feedback.push({ type:'good', text:`Elite close rate of ${m.closeRate}%. This rep is one of your best — they understand objections and convert at a high level. Don't overload them with training; focus on expanding their territory and volume.` });
+    } else if (rate >= 8) {
+      feedback.push({ type:'good', text:`Solid close rate of ${m.closeRate}%. Above average performance. Fine-tune objection handling and push for consistency. This rep has the fundamentals — just needs to tighten the mechanics.` });
+    } else if (rate >= 3) {
+      feedback.push({ type:'neutral', text:`Close rate of ${m.closeRate}% is below average. The rep is engaging homeowners but not converting well. Recommend closing script review, ride-alongs with top performers, and daily debrief sessions.` });
+    } else if (rate >= 1) {
+      feedback.push({ type:'warn', text:`Close rate of ${m.closeRate}% is significantly below standard. Likely struggling with objections or pitch delivery. Immediate closing training required — assign a mentor and track progress weekly.` });
+    } else if (doors >= 20) {
+      feedback.push({ type:'danger', text:`Close rate of ${m.closeRate}% is critical. ${enrolled === 0 ? 'Zero enrollments despite knocking '+doors+' doors.' : 'Almost no conversions.'} This rep needs an urgent performance intervention. Consider whether the issue is effort, pitch, or fit.` });
+    }
+  }
+
+  // Lead quality
+  if (m.qualityLeads > enrolled && doors >= 20) {
+    feedback.push({ type:'neutral', text:`${m.qualityLeads} quality leads vs ${enrolled} enrollments. There may be a follow-up or closing problem — leads are being generated but not converted to sales. Review the closing process for warm leads.` });
+  }
+
+  // Not home rate
+  if (interactions > 0 && m.notHome / doors > 0.6) {
+    feedback.push({ type:'warn', text:`High "Not Home" rate (${Math.round(m.notHome/doors*100)}%). This rep may be knocking in low-traffic time windows. Suggest shifting hours to evenings or weekends when homeowners are more likely home.` });
+  }
+
+  // Not interested rate
+  if (interactions > 0 && m.notInterested / interactions > 0.5) {
+    feedback.push({ type:'warn', text:`Over 50% of interactions result in "Not Interested." This could indicate a weak opening pitch. Review the first 30 seconds of the rep's approach — the opener is likely losing homeowners before the conversation begins.` });
+  }
+
+  // Appointments
+  if (m.appointments > 0) {
+    feedback.push({ type:'good', text:`${m.appointments} appointment${m.appointments>1?'s':''} set — good sign of pipeline building. Appt rate: ${m.apptRate}%.` });
+  }
+
+  if (feedback.length === 0) {
+    feedback.push({ type:'neutral', text:'Not enough data to generate a detailed evaluation yet. Have this rep continue logging their activity.' });
+  }
+
+  return feedback;
+}
+
+function renderEvaluations() {
+  const container = document.getElementById('eval-list');
+  if (!container) return;
+  const allRepNames = new Set([...reps.map(r => r.name), ...knocks.map(k => k.rep).filter(Boolean)]);
+
+  if (allRepNames.size === 0) {
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">No reps found. Add reps and drop pins first.</div>';
+    return;
+  }
+
+  container.innerHTML = Array.from(allRepNames).map(name => {
+    const repData = knocks.filter(k => k.rep === name);
+    const repObj = reps.find(r => r.name === name);
+    const m = calcMetrics(repData);
+    const rating = getStarRating(m.closeRate, m.totalDoors);
+    const feedback = generateEvalFeedback(m, name);
+    const storedRating = repObj?.rating || rating.stars;
+    const tenure = getTenure(repObj?.startDate);
+    const stars = storedRating;
+
+    const feedbackColors = { good:'#22c55e', neutral:'#f97316', warn:'#fbbf24', danger:'#ef4444' };
+    const feedbackIcons = { good:'✅', neutral:'💡', warn:'⚠️', danger:'🚨' };
+
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden">
+      <!-- Rep Header -->
+      <div style="padding:16px 18px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border)">
+        <div style="width:46px;height:46px;border-radius:50%;background:${rating.color}33;border:2px solid ${rating.color};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:${rating.color};flex-shrink:0">${name.charAt(0).toUpperCase()}</div>
+        <div style="flex:1">
+          <div style="font-size:16px;font-weight:700;color:var(--text)">${name}</div>
+          <div style="font-size:12px;color:var(--muted)">${repObj?.role || 'Field Rep'} · Tenure: ${tenure}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px">${stars > 0 ? '⭐'.repeat(stars) : '—'}</div>
+          <div style="font-size:11px;font-weight:700;color:${rating.color}">${rating.label}</div>
+        </div>
+      </div>
+
+      <!-- Manual Star Rating -->
+      <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Your Rating:</span>
+        ${[1,2,3,4,5].map(n => `<span onclick="setRepRating('${name}',${n})" style="font-size:22px;cursor:pointer;opacity:${(repObj?.rating||0)>=n?1:0.3};transition:opacity 0.15s" title="${n} star${n>1?'s':''}">⭐</span>`).join('')}
+        <span style="font-size:11px;color:var(--muted);margin-left:4px">(override auto)</span>
+      </div>
+
+      <!-- Quick Stats -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--border)">
+        ${[
+          { label:'Doors', value:m.totalDoors, color:'var(--text)' },
+          { label:'Enrolled', value:m.enrolled, color:'var(--green)' },
+          { label:'Close %', value:m.closeRate+'%', color:'var(--accent)' },
+          { label:'Leads', value:m.qualityLeads+m.leads, color:'#f97316' },
+        ].map((s,i) => `<div style="padding:12px 8px;text-align:center${i<3?';border-right:1px solid var(--border)':''}">
+          <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${s.color}">${s.value}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">${s.label}</div>
+        </div>`).join('')}
+      </div>
+
+      <!-- AI Feedback -->
+      <div style="padding:14px 18px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px">📊 Performance Analysis</div>
+        ${feedback.map(f => `<div style="display:flex;gap:10px;margin-bottom:8px;padding:10px 12px;background:${feedbackColors[f.type]}11;border-left:3px solid ${feedbackColors[f.type]};border-radius:0 8px 8px 0">
+          <span style="font-size:14px;flex-shrink:0">${feedbackIcons[f.type]}</span>
+          <span style="font-size:13px;color:var(--text);line-height:1.5">${f.text}</span>
+        </div>`).join('')}
+      </div>
+
+      <!-- Training Recommendation -->
+      <div style="padding:0 18px 16px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">🎯 Training Focus</div>
+        <div style="background:var(--surface2);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text);line-height:1.6">
+          ${getTrainingRecommendation(m)}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function getTrainingRecommendation(m) {
+  const rate = parseFloat(m.closeRate);
+  const doors = m.totalDoors;
+  if (doors < 20) return '📋 <strong>Focus:</strong> Activity. Get this rep knocking more doors and logging consistently before evaluating skills.';
+  if (doors < 50 && rate >= 8) return '💪 <strong>Focus:</strong> Volume. Closing skills are there — push for more doors. Law of averages will work in their favor.';
+  if (rate >= 15) return '🏆 <strong>Focus:</strong> Leadership & territory. Elite closer — consider mentorship role, larger territory, or team lead responsibilities.';
+  if (rate >= 8) return '🔧 <strong>Focus:</strong> Consistency. Good rep — sharpen objection handling and maintain daily quota. Push for 100+ doors/week.';
+  if (rate >= 3) return '🎓 <strong>Focus:</strong> Closing training. Ride-alongs with top reps, closing script review, and weekly one-on-ones to identify sticking points.';
+  if (rate >= 1) return '⚠️ <strong>Focus:</strong> Fundamentals. Return to basics — pitch delivery, opener, and objection handling. Assign a mentor immediately.';
+  return '🚨 <strong>Focus:</strong> Performance intervention. Set a 2-week improvement target with daily check-ins. If no improvement, reassess fit for the role.';
+}
+
+window.setRepRating = function(name, stars) {
+  const idx = reps.findIndex(r => r.name === name);
+  if (idx !== -1) { reps[idx].rating = stars; saveReps(); renderEvaluations(); }
+  else {
+    reps.push({ name, role:'Field Rep', rating:stars, added:new Date().toISOString() });
+    saveReps(); renderEvaluations();
+  }
+};
+
+
 function checkAlreadyKnocked(lat, lng) {
   const THRESHOLD = 0.0001;
   return knocks.find(k => Math.abs(k.lat - lat) < THRESHOLD && Math.abs(k.lng - lng) < THRESHOLD);
@@ -1790,26 +2012,61 @@ function renderRepsList() {
     return;
   }
   el.innerHTML = reps.map((r, i) => `
-    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)">
-      <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0">${r.name.charAt(0).toUpperCase()}</div>
-      <div style="flex:1">
-        <div style="font-size:14px;font-weight:700;color:var(--text)">${r.name}</div>
-        <div style="font-size:12px;color:var(--muted)">${r.role || 'Field Rep'}</div>
+    <div id="rep-row-${i}" style="border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0">${r.name.charAt(0).toUpperCase()}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${r.name}</div>
+          <div style="font-size:12px;color:var(--muted)">${r.role || 'Field Rep'} · ${knocks.filter(k => k.rep === r.name).length} knocks</div>
+        </div>
+        <button onclick="toggleEditRep(${i})" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;color:var(--text)">✏️ Edit</button>
+        <button onclick="removeRep(${i})" style="padding:5px 10px;background:rgba(224,92,92,0.15);color:#e05c5c;border:1px solid rgba(224,92,92,0.3);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer">Remove</button>
       </div>
-      <div style="font-size:12px;color:var(--muted)">${knocks.filter(k => k.rep === r.name).length} knocks</div>
-      <button onclick="removeRep(${i})" style="padding:5px 10px;background:rgba(224,92,92,0.15);color:#e05c5c;border:1px solid rgba(224,92,92,0.3);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer">Remove</button>
+      <div id="rep-edit-${i}" style="display:none;padding:0 16px 12px;display:none">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="edit-rep-name-${i}" value="${r.name}" placeholder="Full Name" style="flex:1;min-width:120px;padding:8px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none"/>
+          <input id="edit-rep-role-${i}" value="${r.role||''}" placeholder="Role" style="flex:1;min-width:120px;padding:8px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none"/>
+          <button onclick="saveRepEdit(${i})" style="padding:8px 14px;background:var(--green-dim);color:#000;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Save</button>
+        </div>
+      </div>
     </div>`).join('');
 }
+
+window.toggleEditRep = function(i) {
+  const el = document.getElementById(`rep-edit-${i}`);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+};
+
+window.saveRepEdit = function(i) {
+  const name = document.getElementById(`edit-rep-name-${i}`)?.value.trim();
+  const role = document.getElementById(`edit-rep-role-${i}`)?.value.trim();
+  if (!name) { alert('Name cannot be empty'); return; }
+  const oldName = reps[i].name;
+  reps[i].name = name;
+  reps[i].role = role;
+  // Update all knocks assigned to this rep
+  knocks.forEach((k, ki) => {
+    if (k.rep === oldName) {
+      knocks[ki].rep = name;
+      updateKnock(knocks[ki]);
+    }
+  });
+  saveReps();
+  renderList();
+};
 
 window.addRep = function() {
   const name = document.getElementById('new-rep-name').value.trim();
   const role = document.getElementById('new-rep-role').value.trim();
+  const startDate = document.getElementById('new-rep-start').value;
   if (!name) { alert('Please enter a rep name'); return; }
   if (reps.find(r => r.name.toLowerCase() === name.toLowerCase())) { alert('Rep already exists'); return; }
-  reps.push({ name, role, added: new Date().toISOString() });
+  reps.push({ name, role, startDate: startDate || new Date().toISOString().slice(0,10), added: new Date().toISOString() });
   saveReps();
   document.getElementById('new-rep-name').value = '';
   document.getElementById('new-rep-role').value = '';
+  document.getElementById('new-rep-start').value = '';
 };
 
 window.removeRep = function(i) {
@@ -1829,6 +2086,7 @@ window.submitPortalLogin = function() {
   if (pw === OWNER_PASSWORD) {
     document.getElementById('portal-login').style.display = 'none';
     document.getElementById('backend-portal').style.display = 'flex';
+    switchPortalTab('reps');
     renderRepsList();
   } else {
     document.getElementById('portal-error').style.display = 'block';
@@ -1863,18 +2121,59 @@ function darkMapStyle() {
     <div style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;letter-spacing:3px">🔐 <span style="color:var(--green)">OWNER</span> PORTAL</div>
     <button onclick="closeBackendPortal()" style="padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">✕ Close</button>
   </div>
-  <div style="padding:20px;max-width:600px;margin:0 auto;width:100%">
+
+  <!-- Portal Tabs -->
+  <div style="display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0">
+    <button class="dash-tab" id="ptab-reps" onclick="switchPortalTab('reps')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--green);border-bottom:2px solid var(--green)">👥 Manage Reps</button>
+    <button class="dash-tab" id="ptab-evals" onclick="switchPortalTab('evals')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">📝 Evaluations</button>
+    <button class="dash-tab" id="ptab-ratings" onclick="switchPortalTab('ratings')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">⭐ Rating Guide</button>
+  </div>
+
+  <!-- Manage Reps Tab -->
+  <div id="portal-panel-reps" style="padding:20px;max-width:700px;margin:0 auto;width:100%">
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:20px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px">Add New Rep</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <input id="new-rep-name" type="text" placeholder="Full Name" style="flex:1;min-width:140px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none"/>
         <input id="new-rep-role" type="text" placeholder="Role (e.g. Field Rep)" style="flex:1;min-width:140px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none"/>
+        <input id="new-rep-start" type="date" title="Start Date" style="flex:1;min-width:140px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none"/>
         <button onclick="addRep()" style="padding:9px 18px;background:var(--green-dim);color:#000;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">+ Add Rep</button>
       </div>
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
       <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)">Active Reps</div>
       <div id="reps-list"></div>
+    </div>
+  </div>
+
+  <!-- Evaluations Tab -->
+  <div id="portal-panel-evals" style="display:none;padding:20px;max-width:700px;margin:0 auto;width:100%">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px">Rep Performance Evaluations</div>
+    <div id="eval-list"></div>
+  </div>
+
+  <!-- Rating Guide Tab -->
+  <div id="portal-panel-ratings" style="display:none;padding:20px;max-width:700px;margin:0 auto;width:100%">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px">Star Rating Standards</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${[
+        { stars:5, color:'#fbbf24', title:'Elite Closer', desc:'Close rate above 15%. Consistently high volume with strong results. This rep is a top performer — mentor material. Focus: Keep them motivated, give them leadership opportunities and territory expansion.' },
+        { stars:4, color:'#f97316', title:'Strong Performer', desc:'Close rate 8–15%. Good numbers, solid work ethic. May have occasional inconsistency but generally reliable. Focus: Fine-tune objection handling and push for consistency every single day.' },
+        { stars:3, color:'#a78bfa', title:'Developing Rep', desc:'Close rate 3–8%. Shows potential but needs more reps. Likely inconsistent — good days and bad days. Focus: Closing training, shadowing top reps, accountability check-ins.' },
+        { stars:2, color:'#94a3b8', title:'Needs Improvement', desc:'Close rate 1–3% or very low door count. Either struggling to close or not knocking enough. Focus: Evaluate if the issue is activity or skill. Assign a mentor, set minimum daily door targets.' },
+        { stars:1, color:'#ef4444', title:'At Risk', desc:'Close rate under 1% or minimal activity. This rep is either not putting in the work or not absorbing training. Focus: Immediate intervention — performance improvement plan or reassignment.' },
+      ].map(r => `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;gap:14px;align-items:flex-start">
+          <div style="font-size:22px;flex-shrink:0">${'⭐'.repeat(r.stars)}</div>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:${r.color};margin-bottom:4px">${r.title}</div>
+            <div style="font-size:13px;color:var(--muted);line-height:1.6">${r.desc}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:20px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">📌 Law of Averages Reminder</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.6">A rep who knocks <strong style="color:var(--green)">500 doors</strong> and closes <strong style="color:var(--green)">1</strong> needs closing training — their activity is there but conversion is broken. A rep who knocks <strong style="color:#f97316">10 doors</strong> and closes <strong style="color:#f97316">5</strong> has elite closing skills but poor work ethic — push volume, not skill. The best reps knock <strong>100+ doors/week</strong> AND close above 8%.</div>
     </div>
   </div>
 </div>
