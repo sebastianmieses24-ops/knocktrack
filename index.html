@@ -160,6 +160,29 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
   background:transparent; color:var(--muted);
   font-family:'Exo 2',sans-serif; font-size:13px; font-weight:700;
   cursor:pointer; transition:all 0.22s cubic-bezier(.4,0,.2,1);
+  white-space:nowrap; letter-spacing:0.5px;
+}
+.dash-pill-tab:hover:not(.dash-pill-active) {
+  color:var(--text); background:rgba(255,255,255,0.05);
+}
+.dash-pill-tab.dash-pill-active {
+  background:var(--green); color:#000;
+  box-shadow:0 0 18px rgba(34,197,94,0.35), 0 2px 8px rgba(0,0,0,0.3);
+  transform:translateY(-1px);
+}
+.dash-pill-tab .dtab-icon { font-size:14px; transition:transform 0.2s; }
+.dash-pill-tab.dash-pill-active .dtab-icon { transform:scale(1.15); }
+@keyframes pill-pop { 0%{transform:scale(0.92) translateY(0)} 60%{transform:scale(1.04) translateY(-2px)} 100%{transform:scale(1) translateY(-1px)} }
+.dash-pill-tab.dash-pill-active { animation:pill-pop 0.22s cubic-bezier(.4,0,.2,1) forwards; }
+@keyframes fadeSlideIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* Floating pill dash tabs */
+.dash-pill-tab {
+  display:flex; align-items:center; gap:6px;
+  padding:9px 18px; border:none; border-radius:32px;
+  background:transparent; color:var(--muted);
+  font-family:'Exo 2',sans-serif; font-size:13px; font-weight:700;
+  cursor:pointer; transition:all 0.22s cubic-bezier(.4,0,.2,1);
   white-space:nowrap; letter-spacing:0.5px; position:relative;
 }
 .dash-pill-tab:hover:not(.dash-pill-active) {
@@ -600,11 +623,19 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       <span style="font-size:12px;color:var(--muted);margin-left:10px;cursor:pointer" onclick="document.getElementById('dashboard-rep-select').value='';renderDashboard()">✕ Clear</span>
     </div>
 
-    <!-- 3 Dashboard Tabs -->
-    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0">
-      <button class="dash-tab active-dash-tab" id="dtab-overview" onclick="switchDashTab('overview')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--green);border-bottom:2px solid var(--green)">📊 Overview</button>
-      <button class="dash-tab" id="dtab-dispositions" onclick="switchDashTab('dispositions')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">📋 Results</button>
-      <button class="dash-tab" id="dtab-reps" onclick="switchDashTab('reps')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">👥 Reps</button>
+    <!-- Floating Pill Tabs -->
+    <div style="display:flex;justify-content:center;padding:18px 20px 4px;background:var(--surface);border-bottom:1px solid var(--border)">
+      <div id="dash-tab-pills" style="display:inline-flex;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:40px;padding:4px">
+        <button id="dtab-overview" onclick="switchDashTab('overview')" class="dash-pill-tab dash-pill-active">
+          <span class="dtab-icon">📊</span><span class="dtab-label">Overview</span>
+        </button>
+        <button id="dtab-dispositions" onclick="switchDashTab('dispositions')" class="dash-pill-tab">
+          <span class="dtab-icon">📋</span><span class="dtab-label">Results</span>
+        </button>
+        <button id="dtab-reps" onclick="switchDashTab('reps')" class="dash-pill-tab">
+          <span class="dtab-icon">👥</span><span class="dtab-label">Reps</span>
+        </button>
+      </div>
     </div>
 
     <!-- Tab: Overview -->
@@ -2344,12 +2375,13 @@ let currentDashTab = 'overview';
 window.switchDashTab = function(tab) {
   currentDashTab = tab;
   ['overview','dispositions','reps'].forEach(t => {
-    document.getElementById(`dash-panel-${t}`).style.display = t === tab ? 'block' : 'none';
+    const panel = document.getElementById(`dash-panel-${t}`);
     const btn = document.getElementById(`dtab-${t}`);
-    if (btn) {
-      btn.style.color = t === tab ? 'var(--green)' : 'var(--muted)';
-      btn.style.borderBottom = t === tab ? '2px solid var(--green)' : '2px solid transparent';
+    if (panel) {
+      if (t === tab) { panel.style.display = 'block'; panel.style.animation = 'fadeSlideIn 0.2s ease forwards'; }
+      else { panel.style.display = 'none'; }
     }
+    if (btn) btn.classList.toggle('dash-pill-active', t === tab);
   });
 };
 
