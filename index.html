@@ -599,6 +599,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 
       <!-- Bottom left controls -->
       <div style="position:absolute;bottom:90px;left:12px;z-index:10;display:flex;flex-direction:column;gap:6px">
+        <button id="show-all-btn" onclick="clearFilter()" title="Show All Pins" style="display:none;width:40px;height:40px;border-radius:10px;border:none;background:#22c55e;color:#000;font-size:16px;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4);font-weight:700" title="Show All Pins">✦</button>
         <button onclick="goToMyLocation()" title="My Location" style="width:40px;height:40px;border-radius:10px;border:none;background:rgba(26,29,39,0.9);backdrop-filter:blur(8px);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4)">🧭</button>
         <button id="heatmap-btn" onclick="toggleHeatmap()" title="Heat Map" style="width:40px;height:40px;border-radius:10px;border:none;background:rgba(26,29,39,0.9);backdrop-filter:blur(8px);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4)">🔥</button>
       </div>
@@ -914,28 +915,31 @@ function selectStatus(key, btn) {
   btn.style.background = s.color + '28';
 }
 
+function clearFilter() {
+  activeFilter = null;
+  document.querySelectorAll('.legend-item').forEach(x => { x.classList.remove('active-filter'); x.style.opacity = '1'; });
+  const showAllBtn = document.getElementById('show-all-btn');
+  if (showAllBtn) showAllBtn.style.display = 'none';
+  const hint = document.getElementById('legend-filter-hint');
+  if (hint) hint.textContent = 'Tap a status to filter';
+  renderMarkers(); renderList();
+}
+
 function toggleFilter(key, el) {
   if (activeFilter === key) {
-    // Clicking same filter again clears it — show all
-    activeFilter = null;
-    document.querySelectorAll('.legend-item').forEach(x => {
-      x.classList.remove('active-filter');
-      x.style.opacity = '1';
-    });
+    clearFilter();
   } else {
     activeFilter = key;
-    document.querySelectorAll('.legend-item').forEach(x => {
-      x.classList.remove('active-filter');
-      x.style.opacity = '0.45';
-    });
+    document.querySelectorAll('.legend-item').forEach(x => { x.classList.remove('active-filter'); x.style.opacity = '0.45'; });
     el.classList.add('active-filter');
     el.style.opacity = '1';
+    const showAllBtn = document.getElementById('show-all-btn');
+    if (showAllBtn) showAllBtn.style.display = 'flex';
+    const hint = document.getElementById('legend-filter-hint');
+    if (hint) hint.textContent = 'Filtering: tap again to clear';
   }
   renderMarkers();
   renderList();
-  // Update filter hint
-  const hint = document.getElementById('legend-filter-hint');
-  if (hint) hint.textContent = activeFilter ? `Filtering: tap again to clear` : 'Tap a status to filter';
 }
 
 // ── INIT MAP ──
@@ -1606,13 +1610,15 @@ function renderRepBreakdown(data) {
   if (sorted.length === 0) { container.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px;text-align:center">No data yet</div>'; return; }
   container.innerHTML = sorted.map(([name, ks]) => {
     const m = calcMetrics(ks);
-    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer" onclick="selectRepFromBreakdown('${name}')">
+    const repObj = reps.find(r => r.name === name);
+    const rating = getStarRating(m.closeRate, m.totalDoors);
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'" onclick="openRepProfile('${name}')">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:38px;height:38px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff">${name.charAt(0).toUpperCase()}</div>
+          <div style="width:38px;height:38px;border-radius:50%;background:${rating.color}33;border:2px solid ${rating.color};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:${rating.color}">${name.charAt(0).toUpperCase()}</div>
           <div>
-            <div style="font-size:14px;font-weight:700;color:var(--text)">${name}</div>
-            <div style="font-size:11px;color:var(--muted)">${ks.length} doors · ${m.enrolled} enrolled</div>
+            <div style="font-size:14px;font-weight:700;color:var(--text)">${name} <span style="font-size:11px;color:var(--accent);font-weight:600">→ View Profile</span></div>
+            <div style="font-size:11px;color:var(--muted)">${repObj?.role || 'Field Rep'} · ${ks.length} doors · ${m.enrolled} enrolled</div>
           </div>
         </div>
         <div style="font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:var(--green)">${m.closeRate}%</div>
@@ -1634,6 +1640,115 @@ function renderRepBreakdown(data) {
     </div>`;
   }).join('');
 }
+
+window.openRepProfile = function(name) {
+  const repData = knocks.filter(k => k.rep === name);
+  const repObj = reps.find(r => r.name === name);
+  const m = calcMetrics(repData);
+  const rating = getStarRating(m.closeRate, m.totalDoors);
+  const tenure = getTenure(name, repObj?.startDate);
+
+  let overlay = document.getElementById('rep-profile-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'rep-profile-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:5000;display:flex;flex-direction:column;overflow-y:auto';
+    document.body.appendChild(overlay);
+  }
+
+  const statusBreakdown = STATUSES.map(s => {
+    const count = repData.filter(k => k.status === s.key).length;
+    return { s, count };
+  }).filter(x => x.count > 0).sort((a,b) => b.count - a.count);
+
+  const recentKnocks = [...repData].sort((a,b) => new Date(b.time) - new Date(a.time)).slice(0,10);
+
+  overlay.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:10">
+      <button onclick="document.getElementById('rep-profile-overlay').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">← Back</button>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:var(--green)">REP PROFILE</div>
+    </div>
+
+    <div style="padding:20px;max-width:700px;margin:0 auto;width:100%">
+
+      <!-- Header Card -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;display:flex;align-items:center;gap:16px">
+        <div style="width:60px;height:60px;border-radius:50%;background:${rating.color}33;border:3px solid ${rating.color};display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:${rating.color};flex-shrink:0">${name.charAt(0).toUpperCase()}</div>
+        <div style="flex:1">
+          <div style="font-size:20px;font-weight:700;color:var(--text)">${name}</div>
+          <div style="font-size:13px;color:var(--muted)">${repObj?.role || 'Field Rep'}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">📅 Since: ${tenure || 'No knocks yet'}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:22px">${(repObj?.rating||rating.stars) > 0 ? '⭐'.repeat(repObj?.rating||rating.stars) : '—'}</div>
+          <div style="font-size:12px;font-weight:700;color:${rating.color}">${rating.label}</div>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">Performance Stats</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+        ${[
+          {label:'Total Doors',value:m.totalDoors,color:'var(--text)'},
+          {label:'Interactions',value:m.interactions,color:'#a78bfa'},
+          {label:'Enrolled',value:m.enrolled,color:'var(--green)'},
+          {label:'Quality Leads',value:m.qualityLeads,color:'#38bdf8'},
+          {label:'Leads',value:m.leads,color:'#f97316'},
+          {label:'Appointments',value:m.appointments,color:'#bf8eff'},
+          {label:'Close %',value:m.closeRate+'%',color:'var(--green)'},
+          {label:'Appt Rate',value:m.apptRate+'%',color:'#bf8eff'},
+          {label:'Not Home',value:m.notHome,color:'#ef4444'},
+        ].map(c => `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:${c.color}">${c.value}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-top:3px">${c.label}</div>
+        </div>`).join('')}
+      </div>
+
+      <!-- Pin Type Breakdown -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">Pin Breakdown</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">
+        ${statusBreakdown.length === 0 ? '<div style="padding:16px;text-align:center;color:var(--muted)">No knocks yet</div>' :
+          statusBreakdown.map(({s,count}) => {
+            const pct = Math.round((count / repData.length) * 100);
+            return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer" onclick="showDispositionDrilldownForRep('${name}','${s.key}')">
+              <div style="width:28px;height:28px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:900;flex-shrink:0">${s.icon}</div>
+              <div style="flex:1;font-size:13px;font-weight:600;color:var(--text)">${s.label}</div>
+              <div style="width:80px;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;background:${s.color};width:${pct}%"></div></div>
+              <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:${s.color};min-width:28px;text-align:right">${count}</div>
+            </div>`;
+          }).join('')}
+      </div>
+
+      <!-- Recent Knocks -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">Recent Activity</div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        ${recentKnocks.length === 0 ? '<div style="padding:16px;text-align:center;color:var(--muted)">No activity yet</div>' :
+          recentKnocks.map(k => {
+            const s = STATUSES.find(x => x.key === k.status);
+            return `<div onclick="goToKnockFromProfile('${k.id}')" style="background:var(--surface);border:1px solid var(--border);border-left:3px solid ${s?.color||'#888'};border-radius:9px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px">
+              <div style="width:30px;height:30px;border-radius:50%;background:${s?.color||'#888'};display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:900;flex-shrink:0">${s?.icon||'?'}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${k.address.split(',').slice(0,2).join(',')}</div>
+                <div style="font-size:11px;color:var(--muted)">${s?.label||k.status} · ${new Date(k.time).toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'})}</div>
+              </div>
+              <div style="font-size:11px;color:var(--accent);font-weight:700;flex-shrink:0">Map →</div>
+            </div>`;
+          }).join('')}
+      </div>
+    </div>`;
+};
+
+window.showDispositionDrilldownForRep = function(repName, statusKey) {
+  window._dispositionData = knocks.filter(k => k.rep === repName);
+  showDispositionDrilldown(statusKey);
+};
+
+window.goToKnockFromProfile = function(id) {
+  const el = document.getElementById('rep-profile-overlay');
+  if (el) el.remove();
+  hideDashboard();
+  flyToKnock(id);
+};
 
 window.selectRepFromBreakdown = function(name) {
   const sel = document.getElementById('dashboard-rep-select');
@@ -1690,14 +1805,65 @@ function renderDispositions(containerId, data) {
     const isNI = NON_INTERACTIONS.has(s.key);
     return { s, count, pct:Math.round((count / (isNI ? total : interactions)) * 100), isNI };
   }).sort((a,b) => b.count - a.count);
+
+  // Store data reference for drill-down
+  window._dispositionData = data;
+
   document.getElementById(containerId).innerHTML = rows.map(({ s, count, pct, isNI }) => `
-    <div class="disposition-row" style="${isNI ? 'opacity:0.6' : ''}">
+    <div class="disposition-row" style="${isNI ? 'opacity:0.6' : ''};cursor:${count>0?'pointer':'default'}" onclick="${count>0 ? `showDispositionDrilldown('${s.key}')` : ''}">
       <div class="disp-pin" style="background:${s.color}">${s.icon}</div>
       <div class="disp-label">${s.label}${isNI ? '<span style="font-size:9px;color:var(--muted);margin-left:4px;background:var(--border);padding:1px 5px;border-radius:4px">excluded</span>' : ''}</div>
       <div class="disp-bar-wrap"><div class="disp-bar" style="width:${pct}%;background:${s.color}"></div></div>
-      <div class="disp-count" style="color:${s.color}">${count}</div>
+      <div class="disp-count" style="color:${s.color}">${count}${count>0?'<span style="font-size:9px;color:var(--muted);margin-left:3px">▶</span>':''}</div>
     </div>`).join('');
 }
+
+window.showDispositionDrilldown = function(statusKey) {
+  const data = window._dispositionData || knocks;
+  const s = STATUSES.find(x => x.key === statusKey);
+  const matches = data.filter(k => k.status === statusKey);
+  if (!matches.length) return;
+
+  // Show modal-style overlay
+  let overlay = document.getElementById('disp-drilldown');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'disp-drilldown';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:5000;display:flex;align-items:flex-end;justify-content:center';
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="width:36px;height:36px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:17px;color:#fff;font-weight:900">${s.icon}</div>
+        <div style="flex:1">
+          <div style="font-size:16px;font-weight:700;color:var(--text)">${s.label}</div>
+          <div style="font-size:12px;color:var(--muted)">${matches.length} knock${matches.length>1?'s':''}</div>
+        </div>
+        <button onclick="document.getElementById('disp-drilldown').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:6px 12px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">✕ Close</button>
+      </div>
+      <div style="overflow-y:auto;padding:10px 14px 20px">
+        ${matches.map(k => `
+          <div onclick="goToKnockOnMap('${k.id}')" style="display:flex;align-items:center;gap:12px;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid ${s.color};border-radius:9px;margin-bottom:7px;cursor:pointer">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${k.address.split(',').slice(0,2).join(',')}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">👤 ${k.rep || 'Unassigned'} · ${new Date(k.time).toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'})}</div>
+              ${k.notes ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">📝 ${k.notes}</div>` : ''}
+            </div>
+            <div style="font-size:11px;color:var(--accent);font-weight:700;flex-shrink:0">View on map →</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+};
+
+window.goToKnockOnMap = function(id) {
+  const el = document.getElementById('disp-drilldown');
+  if (el) el.remove();
+  hideDashboard();
+  flyToKnock(id);
+};
 
 // ── MOBILE NAV ──
 window.mobileNav = function(tab) {
@@ -1891,59 +2057,70 @@ function getStarRating(closeRate, totalDoors) {
   return { stars: 1, label: 'At Risk', color: '#ef4444' };
 }
 
-function generateEvalFeedback(m, rep) {
+function generateEvalFeedback(m, repName) {
   const rate = parseFloat(m.closeRate);
   const doors = m.totalDoors;
   const enrolled = m.enrolled;
   const interactions = m.interactions;
   const feedback = [];
 
-  // Activity assessment
+  // ── ACTIVITY ──
+  if (doors === 0) {
+    feedback.push({ type:'danger', text:`Zero doors logged. There is nothing to evaluate here — this rep hasn't shown up. Grant Cardone said it best: "The #1 reason people fail is they don't show up enough." If this rep isn't knocking, they're not selling, they're not earning, and they're taking up a roster spot. Address this immediately.` });
+    return feedback;
+  }
   if (doors < 20) {
-    feedback.push({ type:'warn', text:'Insufficient data to make a full evaluation. Encourage this rep to log more activity — minimum 20 doors needed for meaningful analysis.' });
+    feedback.push({ type:'danger', text:`Only ${doors} doors logged — that's not a sample, that's an excuse. You cannot judge a rep's ability on ${doors} doors. The law of averages doesn't work on small numbers. Push for 50+ doors minimum before drawing any conclusions. Either the rep isn't working or isn't logging — both are problems.` });
   } else if (doors < 50) {
-    feedback.push({ type:'warn', text:`Low door count (${doors} doors). The law of averages requires volume to work. Push for 50+ doors/week minimum before drawing conclusions about closing ability.` });
-  } else if (doors >= 200) {
-    feedback.push({ type:'good', text:`Strong activity — ${doors} doors knocked. This rep is putting in the work and giving themselves real opportunities to close.` });
+    feedback.push({ type:'warn', text:`${doors} doors is a start, but it's not enough volume to make the law of averages work for you. Jeb Blount calls this "activity anemia" — the rep shows up but doesn't put in the reps. Top performers knock 80–120 doors per week. This rep is at about half that. More doors fixes almost everything.` });
+  } else if (doors < 100) {
+    feedback.push({ type:'neutral', text:`${doors} doors shows effort, but top reps in this industry put up 100+ per week. There's more in the tank here. Push this rep to increase daily output — the close rate will naturally improve as they get more at-bats.` });
+  } else {
+    feedback.push({ type:'good', text:`${doors} doors knocked — this rep is putting in the work. Volume like this is what separates professionals from amateurs. Jordan Belfort: "The only way to consistently hit your numbers is relentless activity." Keep this energy going.` });
   }
 
-  // Closing assessment
+  // ── CLOSING ──
   if (doors >= 20) {
-    if (rate >= 15) {
-      feedback.push({ type:'good', text:`Elite close rate of ${m.closeRate}%. This rep is one of your best — they understand objections and convert at a high level. Don't overload them with training; focus on expanding their territory and volume.` });
-    } else if (rate >= 8) {
-      feedback.push({ type:'good', text:`Solid close rate of ${m.closeRate}%. Above average performance. Fine-tune objection handling and push for consistency. This rep has the fundamentals — just needs to tighten the mechanics.` });
-    } else if (rate >= 3) {
-      feedback.push({ type:'neutral', text:`Close rate of ${m.closeRate}% is below average. The rep is engaging homeowners but not converting well. Recommend closing script review, ride-alongs with top performers, and daily debrief sessions.` });
-    } else if (rate >= 1) {
-      feedback.push({ type:'warn', text:`Close rate of ${m.closeRate}% is significantly below standard. Likely struggling with objections or pitch delivery. Immediate closing training required — assign a mentor and track progress weekly.` });
-    } else if (doors >= 20) {
-      feedback.push({ type:'danger', text:`Close rate of ${m.closeRate}% is critical. ${enrolled === 0 ? 'Zero enrollments despite knocking '+doors+' doors.' : 'Almost no conversions.'} This rep needs an urgent performance intervention. Consider whether the issue is effort, pitch, or fit.` });
+    if (rate === 0) {
+      feedback.push({ type:'danger', text:`Zero enrollments from ${doors} doors. This is a critical signal — not a bad week, a broken process. Something is fundamentally wrong: either the pitch is completely off, the rep is giving up at the first objection, or they're not actually engaging homeowners at the door. This rep needs to be shadowed immediately. You need eyes on what's happening at that door.` });
+    } else if (rate < 1) {
+      feedback.push({ type:'danger', text:`A ${m.closeRate}% close rate is essentially zero. Chris Voss says "every 'no' has a reason behind it" — and at this rate, the rep isn't finding the reason, they're accepting the 'no' and walking away. This rep is losing at the door. They need a complete pitch teardown and rebuild — opener, value prop, objection handling, and ask.` });
+    } else if (rate < 3) {
+      feedback.push({ type:'warn', text:`${m.closeRate}% close rate is below industry floor. This rep is touching homeowners but not converting. The door is opening — the sale is closing before it starts. Most likely issue: weak opener, poor value framing, or they're not asking for the sale confidently. Per Tom Hopkins: "The sale begins when the customer says no." This rep is hearing no and leaving.` });
+    } else if (rate < 8) {
+      feedback.push({ type:'neutral', text:`${m.closeRate}% is below what this industry demands from a trained rep. There's real potential here — this person can close — but they're leaving deals on the table. The gap between 5% and 15% is almost always objection handling. This rep needs a structured "objection library" — every common objection written out with a specific, practiced response. Repetition builds confidence. Confidence closes deals.` });
+    } else if (rate < 15) {
+      feedback.push({ type:'good', text:`${m.closeRate}% is a solid close rate — above average in this space. This rep has the fundamentals. To get to elite (15%+), the focus now shifts to consistency and refining the close. Are they leaving every door knowing exactly why the homeowner said no? Are they keeping notes on objections? The best closers treat every interaction as data.` });
+    } else {
+      feedback.push({ type:'good', text:`${m.closeRate}% close rate is elite. This rep is operating at a level that most door-to-door reps never reach. They have the pitch, the presence, and the close. Don't tinker with what's working — give them more territory, more volume, and consider having them mentor others. One elite rep teaching the team is worth more than three average ones.` });
     }
   }
 
-  // Lead quality
+  // ── LEAD LEAKAGE ──
   if (m.qualityLeads > enrolled && doors >= 20) {
-    feedback.push({ type:'neutral', text:`${m.qualityLeads} quality leads vs ${enrolled} enrollments. There may be a follow-up or closing problem — leads are being generated but not converted to sales. Review the closing process for warm leads.` });
+    const leakage = m.qualityLeads - enrolled;
+    feedback.push({ type:'warn', text:`${m.qualityLeads} quality leads generated but only ${enrolled} enrolled — ${leakage} warm deal${leakage>1?'s':''} slipped through. This is a follow-up problem. The rep can generate interest but isn't converting it to a signature. Per Zig Ziglar: "Every sale has five obstacles — no need, no money, no hurry, no desire, no trust." This rep is getting past the first four and failing on the close or the follow-through. Implement a structured follow-up protocol for every QL.` });
   }
 
-  // Not home rate
-  if (interactions > 0 && m.notHome / doors > 0.6) {
-    feedback.push({ type:'warn', text:`High "Not Home" rate (${Math.round(m.notHome/doors*100)}%). This rep may be knocking in low-traffic time windows. Suggest shifting hours to evenings or weekends when homeowners are more likely home.` });
+  // ── TIME OF DAY PATTERNS ──
+  if (m.notHome / doors > 0.55) {
+    feedback.push({ type:'warn', text:`${Math.round(m.notHome/doors*100)}% of doors are "Not Home." That's a scheduling problem, not a sales problem. This rep is knocking at the wrong hours. Shift to 5–8pm weekdays and Saturday mornings — that's when homeowners are home. Every "not home" is a missed opportunity that can be fixed with a calendar change.` });
   }
 
-  // Not interested rate
-  if (interactions > 0 && m.notInterested / interactions > 0.5) {
-    feedback.push({ type:'warn', text:`Over 50% of interactions result in "Not Interested." This could indicate a weak opening pitch. Review the first 30 seconds of the rep's approach — the opener is likely losing homeowners before the conversation begins.` });
+  // ── PITCH ISSUES ──
+  if (interactions >= 10 && m.notInterested / interactions > 0.5) {
+    feedback.push({ type:'warn', text:`Over ${Math.round(m.notInterested/interactions*100)}% of interactions end in "Not Interested" — that means the rep is losing people in the first 30 seconds. The opener is broken. Daniel Pink's research shows you have about 7 seconds to establish relevance at the door. This rep is either leading with a feature pitch instead of a problem/benefit opener, or they lack the presence to hold attention. The fix is simple: rewrite the first 3 sentences and practice them 100 times.` });
   }
 
-  // Appointments
-  if (m.appointments > 0) {
-    feedback.push({ type:'good', text:`${m.appointments} appointment${m.appointments>1?'s':''} set — good sign of pipeline building. Appt rate: ${m.apptRate}%.` });
+  // ── APPOINTMENTS ──
+  if (m.appointments > 0 && m.apptRate > 5) {
+    feedback.push({ type:'good', text:`${m.appointments} appointments set (${m.apptRate}% rate) — this rep is building a pipeline. Appointment setting is the mark of a rep who plays the long game and understands the full sales process.` });
+  } else if (interactions >= 20 && m.appointments === 0) {
+    feedback.push({ type:'neutral', text:`Zero appointments set despite ${interactions} interactions. Appointment setting is a skill that multiplies revenue — a rep who can't set an appt is leaving a secondary revenue stream on the table. Add appointment-setting to every rep's daily targets.` });
   }
 
-  if (feedback.length === 0) {
-    feedback.push({ type:'neutral', text:'Not enough data to generate a detailed evaluation yet. Have this rep continue logging their activity.' });
+  if (feedback.length === 1 && doors < 20) {
+    feedback.push({ type:'neutral', text:'Get more data before drawing conclusions. Encourage this rep to log every door consistently.' });
   }
 
   return feedback;
@@ -2038,13 +2215,15 @@ function renderEvaluations(searchQuery) {
 function getTrainingRecommendation(m) {
   const rate = parseFloat(m.closeRate);
   const doors = m.totalDoors;
-  if (doors < 20) return '📋 <strong>Focus:</strong> Activity. Get this rep knocking more doors and logging consistently before evaluating skills.';
-  if (doors < 50 && rate >= 8) return '💪 <strong>Focus:</strong> Volume. Closing skills are there — push for more doors. Law of averages will work in their favor.';
-  if (rate >= 15) return '🏆 <strong>Focus:</strong> Leadership & territory. Elite closer — consider mentorship role, larger territory, or team lead responsibilities.';
-  if (rate >= 8) return '🔧 <strong>Focus:</strong> Consistency. Good rep — sharpen objection handling and maintain daily quota. Push for 100+ doors/week.';
-  if (rate >= 3) return '🎓 <strong>Focus:</strong> Closing training. Ride-alongs with top reps, closing script review, and weekly one-on-ones to identify sticking points.';
-  if (rate >= 1) return '⚠️ <strong>Focus:</strong> Fundamentals. Return to basics — pitch delivery, opener, and objection handling. Assign a mentor immediately.';
-  return '🚨 <strong>Focus:</strong> Performance intervention. Set a 2-week improvement target with daily check-ins. If no improvement, reassess fit for the role.';
+  if (doors === 0) return '🚨 <strong>No activity.</strong> This rep needs to start showing up before any training matters. Set a minimum weekly door target and hold them to it.';
+  if (doors < 20) return '📋 <strong>Priority: Activity.</strong> Do not waste training resources until this rep is knocking consistently. Set a minimum of 30 doors/week and track it daily.';
+  if (doors < 50 && rate >= 8) return '💪 <strong>Priority: Volume.</strong> The close rate is there — the rep can sell. The only thing holding them back is not enough at-bats. Push for 80+ doors/week. The law of averages will do the rest.';
+  if (rate === 0) return '🚨 <strong>Priority: Immediate shadow session.</strong> Go to the field with this rep and watch every interaction. Something is breaking at the door — you cannot diagnose it from a dashboard. Fix the opener first, then the close.';
+  if (rate < 3) return '🎓 <strong>Priority: Pitch teardown.</strong> The opener and value proposition need to be rebuilt from scratch. Roleplay daily. Record the pitch. Have your best closer critique it. No rep improves without seeing themselves on tape.';
+  if (rate >= 15) return '🏆 <strong>Priority: Scale and mentor.</strong> This rep is elite. Give them more territory, higher-value neighborhoods, and put them in front of newer reps. One great rep teaching the team multiplies your entire operation.';
+  if (rate >= 8) return '🔧 <strong>Priority: Consistency.</strong> Good rep — now make it repeatable. Build an objection playbook together: write out the 5 most common objections and drill the responses until they\'re automatic. Consistency is what separates good from great.';
+  if (rate >= 3) return '⚠️ <strong>Priority: Objection handling.</strong> This rep is getting in the door but losing the close. Weekly one-on-ones focused entirely on "what happened at the last 5 doors you lost." Debrief every single rejection until patterns emerge.';
+  return '🚨 <strong>Priority: Performance plan.</strong> Set a 2-week measurable improvement target. If close rate doesn\'t move, assess whether this rep has the mindset for this work — not everyone is built for door-to-door, and that\'s okay. But you need to find out now.';
 }
 
 window.setRepRating = function(name, stars) {
