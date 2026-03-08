@@ -39,7 +39,7 @@ body {
   inset:0;
   background:var(--bg);
   z-index:3000;
-  display:flex;
+  display:none;
   flex-direction:column;
   overflow-y:auto;
 }
@@ -983,6 +983,12 @@ async function initMap() {
   await loadKnocks();
   startPolling();
   populateRepDropdown();
+
+  // Show dashboard by default on load
+  showDashboard();
+
+  // Open map button
+  document.getElementById('open-map-btn').addEventListener('click', () => hideDashboard());
 }
 
 function geocodeAndOpen(val) {
