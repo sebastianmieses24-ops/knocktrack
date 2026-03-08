@@ -1734,10 +1734,128 @@ function renderDetailPage(id, tab) {
       <div style="background:#f2f2f7;padding:7px 18px 4px;font-size:11px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase;margin-top:7px">Custom Fields</div>
       <div style="background:#fff;padding:4px 18px 8px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
-          <div><div style="font-size:13px;font-weight:700;color:#38bdf8;padding-top:10px">Developer</div><input id="inf-developer" value="${knock.developer||''}" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:8px 0;font-size:14px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent"/></div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#38bdf8;padding-top:10px">Developer</div>
+            <select id="inf-developer" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:8px 0;font-size:14px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent;cursor:pointer">
+              <option value="">— Select Developer —</option>
+              <option ${knock.developer==='Roofless Solar'?'selected':''}>Roofless Solar</option>
+              <option ${knock.developer==='Common Energy'?'selected':''}>Common Energy</option>
+              <option ${knock.developer==='Altus Power'?'selected':''}>Altus Power</option>
+              <option ${knock.developer==='Ameresco'?'selected':''}>Ameresco</option>
+              <option ${knock.developer==='Ampion'?'selected':''}>Ampion</option>
+              <option ${knock.developer==='Arcadia'?'selected':''}>Arcadia</option>
+              <option ${knock.developer==='Clean Choice Energy'?'selected':''}>Clean Choice Energy</option>
+              <option ${knock.developer==='Clearway Community Solar'?'selected':''}>Clearway Community Solar</option>
+              <option ${knock.developer==='DSD Renewables'?'selected':''}>DSD Renewables</option>
+              <option ${knock.developer==='Ecogy Energy'?'selected':''}>Ecogy Energy</option>
+              <option ${knock.developer==='Nautilus'?'selected':''}>Nautilus</option>
+              <option ${knock.developer==='Neighborhood Sun'?'selected':''}>Neighborhood Sun</option>
+              <option ${knock.developer==='Nexamp'?'selected':''}>Nexamp</option>
+              <option ${knock.developer==='Perch'?'selected':''}>Perch</option>
+              <option ${knock.developer==='Pivot'?'selected':''}>Pivot</option>
+              <option ${knock.developer==='Power Market'?'selected':''}>Power Market</option>
+              <option ${knock.developer==='RWE Clean Energy'?'selected':''}>RWE Clean Energy</option>
+              <option ${knock.developer==='Solar Landscape'?'selected':''}>Solar Landscape</option>
+              <option ${knock.developer==='Solstice'?'selected':''}>Solstice</option>
+              <option ${knock.developer==='Suncommon'?'selected':''}>Suncommon</option>
+              <option ${knock.developer==='Sunshare'?'selected':''}>Sunshare</option>
+              <option ${knock.developer==='Syncarpha Capital'?'selected':''}>Syncarpha Capital</option>
+            </select>
+          </div>
           <div><div style="font-size:13px;color:#aaa;padding-top:10px">Annual KwH</div><input id="inf-kwh" value="${knock.annualKwh||''}" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:8px 0;font-size:14px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent"/></div>
         </div>
-        <div><div style="font-size:13px;font-weight:700;color:#38bdf8;padding-top:12px">Utility</div><input id="inf-utility" value="${knock.utility||''}" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:8px 0;font-size:14px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent"/></div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#38bdf8;padding-top:12px">Utility</div>
+          <select id="inf-utility" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:8px 0;font-size:14px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent;cursor:pointer">
+            <option value="">— Select Utility —</option>
+            <optgroup label="Maryland">
+              <option ${knock.utility==='Pepco'?'selected':''}>Pepco</option>
+              <option ${knock.utility==='Potomac Edison'?'selected':''}>Potomac Edison</option>
+              <option ${knock.utility==='Delmarva MD'?'selected':''}>Delmarva MD</option>
+              <option ${knock.utility==='BGE'?'selected':''}>BGE</option>
+            </optgroup>
+            <optgroup label="Delaware">
+              <option ${knock.utility==='Delmarva DE'?'selected':''}>Delmarva DE</option>
+            </optgroup>
+            <optgroup label="Maine">
+              <option ${knock.utility==='CMP'?'selected':''}>CMP</option>
+              <option ${knock.utility==='Versant BH'?'selected':''}>Versant BH</option>
+              <option ${knock.utility==='Versant MPD'?'selected':''}>Versant MPD</option>
+            </optgroup>
+            <optgroup label="New York">
+              <option ${knock.utility==='Con Edison'?'selected':''}>Con Edison</option>
+              <option ${knock.utility==='National Grid'?'selected':''}>National Grid</option>
+              <option ${knock.utility==='NYSEG'?'selected':''}>NYSEG</option>
+              <option ${knock.utility==='Central Hudson'?'selected':''}>Central Hudson</option>
+              <option ${knock.utility==='Rochester Gas & Electric'?'selected':''}>Rochester Gas &amp; Electric</option>
+            </optgroup>
+            <optgroup label="New Jersey">
+              <option ${knock.utility==='PSE&G'?'selected':''}>PSE&amp;G</option>
+              <option ${knock.utility==='JCP&L'?'selected':''}>JCP&amp;L</option>
+              <option ${knock.utility==='Atlantic City Electric'?'selected':''}>Atlantic City Electric</option>
+              <option ${knock.utility==='Rockland Electric Company'?'selected':''}>Rockland Electric Company</option>
+            </optgroup>
+            <optgroup label="Pennsylvania">
+              <option ${knock.utility==='PECO'?'selected':''}>PECO</option>
+              <option ${knock.utility==='PPL'?'selected':''}>PPL</option>
+              <option ${knock.utility==='Duquesne Light Company'?'selected':''}>Duquesne Light Company</option>
+              <option ${knock.utility==='Met-Ed'?'selected':''}>Met-Ed</option>
+              <option ${knock.utility==='Penelec'?'selected':''}>Penelec</option>
+              <option ${knock.utility==='West Penn Power'?'selected':''}>West Penn Power</option>
+            </optgroup>
+            <optgroup label="Virginia">
+              <option ${knock.utility==='Dominion Energy'?'selected':''}>Dominion Energy</option>
+              <option ${knock.utility==='Appalachian Power'?'selected':''}>Appalachian Power</option>
+              <option ${knock.utility==='Kentucky Utilities'?'selected':''}>Kentucky Utilities</option>
+            </optgroup>
+            <optgroup label="Ohio">
+              <option ${knock.utility==='Ohio Edison'?'selected':''}>Ohio Edison</option>
+              <option ${knock.utility==='The Illuminating Company'?'selected':''}>The Illuminating Company</option>
+              <option ${knock.utility==='Toledo Edison'?'selected':''}>Toledo Edison</option>
+              <option ${knock.utility==='AEP'?'selected':''}>AEP</option>
+              <option ${knock.utility==='Duke Energy'?'selected':''}>Duke Energy</option>
+              <option ${knock.utility==='AES'?'selected':''}>AES</option>
+            </optgroup>
+            <optgroup label="Illinois">
+              <option ${knock.utility==='Com-Ed'?'selected':''}>Com-Ed</option>
+              <option ${knock.utility==='Ameren'?'selected':''}>Ameren</option>
+            </optgroup>
+            <optgroup label="Colorado">
+              <option ${knock.utility==='Xcel (CO)'?'selected':''}>Xcel (CO)</option>
+              <option ${knock.utility==='Black Hills Energy'?'selected':''}>Black Hills Energy</option>
+              <option ${knock.utility==='Holy Cross Energy'?'selected':''}>Holy Cross Energy</option>
+            </optgroup>
+            <optgroup label="New Mexico">
+              <option ${knock.utility==='PNM'?'selected':''}>PNM</option>
+              <option ${knock.utility==='El Paso Electric'?'selected':''}>El Paso Electric</option>
+              <option ${knock.utility==='SPS'?'selected':''}>SPS</option>
+            </optgroup>
+            <optgroup label="Minnesota">
+              <option ${knock.utility==='Xcel (MN)'?'selected':''}>Xcel (MN)</option>
+            </optgroup>
+            <optgroup label="Vermont">
+              <option ${knock.utility==='Green Mountain Power'?'selected':''}>Green Mountain Power</option>
+            </optgroup>
+            <optgroup label="New Hampshire">
+              <option ${knock.utility==='Eversource Energy'?'selected':''}>Eversource Energy</option>
+              <option ${knock.utility==='Liberty Utilities'?'selected':''}>Liberty Utilities</option>
+              <option ${knock.utility==='Unitil'?'selected':''}>Unitil</option>
+            </optgroup>
+            <optgroup label="Rhode Island">
+              <option ${knock.utility==='Rhode Island Energy'?'selected':''}>Rhode Island Energy</option>
+              <option ${knock.utility==='Block Island Power Company'?'selected':''}>Block Island Power Company</option>
+              <option ${knock.utility==='Pascoag Utility District'?'selected':''}>Pascoag Utility District</option>
+            </optgroup>
+            <optgroup label="California">
+              <option ${knock.utility==='PG&E'?'selected':''}>PG&amp;E</option>
+              <option ${knock.utility==='SCE'?'selected':''}>SCE</option>
+              <option ${knock.utility==='SMUD'?'selected':''}>SMUD</option>
+              <option ${knock.utility==='LADWP'?'selected':''}>LADWP</option>
+              <option ${knock.utility==='CCAS'?'selected':''}>CCAS</option>
+              <option ${knock.utility==='SDG&E'?'selected':''}>SDG&amp;E</option>
+            </optgroup>
+          </select>
+        </div>
       </div>
       <button class="detail-save-btn" onclick="saveDetailInfo('${id}')">Save Changes</button>
       <div style="height:28px"></div>
