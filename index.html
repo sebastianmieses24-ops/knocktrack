@@ -617,6 +617,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
     <div id="sidebar">
       <div id="sidebar-header">
         <h2>Status Legend</h2>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px" id="legend-filter-hint">Tap a status to filter</div>
         <div id="legend-grid"></div>
       </div>
       <div id="knocks-section">
@@ -915,15 +916,26 @@ function selectStatus(key, btn) {
 
 function toggleFilter(key, el) {
   if (activeFilter === key) {
+    // Clicking same filter again clears it — show all
     activeFilter = null;
-    document.querySelectorAll('.legend-item').forEach(x => x.classList.remove('active-filter'));
+    document.querySelectorAll('.legend-item').forEach(x => {
+      x.classList.remove('active-filter');
+      x.style.opacity = '1';
+    });
   } else {
     activeFilter = key;
-    document.querySelectorAll('.legend-item').forEach(x => x.classList.remove('active-filter'));
+    document.querySelectorAll('.legend-item').forEach(x => {
+      x.classList.remove('active-filter');
+      x.style.opacity = '0.45';
+    });
     el.classList.add('active-filter');
+    el.style.opacity = '1';
   }
   renderMarkers();
   renderList();
+  // Update filter hint
+  const hint = document.getElementById('legend-filter-hint');
+  if (hint) hint.textContent = activeFilter ? `Filtering: tap again to clear` : 'Tap a status to filter';
 }
 
 // ── INIT MAP ──
@@ -1057,9 +1069,34 @@ document.getElementById('save-knock-btn').addEventListener('click', async () => 
   const notes = document.getElementById('knock-notes').value.trim();
   const rep = document.getElementById('knock-rep-name').value.trim();
 
+  // Require rep on new pins
+  if (!rep && !editingId) {
+    const repSel = document.getElementById('knock-rep-name');
+    repSel.style.border = '2px solid #e05c5c';
+    repSel.style.boxShadow = '0 0 0 3px rgba(224,92,92,0.2)';
+    setTimeout(() => { repSel.style.border = '1px solid var(--border)'; repSel.style.boxShadow = 'none'; }, 2000);
+    // Show error message
+    let errMsg = document.getElementById('rep-required-msg');
+    if (!errMsg) {
+      errMsg = document.createElement('div');
+      errMsg.id = 'rep-required-msg';
+      errMsg.style.cssText = 'color:#e05c5c;font-size:12px;font-weight:700;margin-top:5px;text-align:center';
+      errMsg.textContent = '⚠️ Please assign a rep before saving';
+      repSel.parentNode.insertBefore(errMsg, repSel.nextSibling);
+    }
+    errMsg.style.display = 'block';
+    setTimeout(() => { if (errMsg) errMsg.style.display = 'none'; }, 2500);
+    return;
+  }
+
   if (editingId) {
     const idx = knocks.findIndex(k => k.id === editingId);
     if (idx !== -1) {
+      const oldRep = knocks[idx].rep;
+      // Confirm if rep is being changed
+      if (rep && oldRep && rep !== oldRep) {
+        if (!confirm(`Change rep from "${oldRep}" to "${rep}"?`)) return;
+      }
       knocks[idx].status = selectedStatus; knocks[idx].notes = notes; knocks[idx].rep = rep;
       if (markers[editingId]) markers[editingId].setIcon(makeMarkerIcon(selectedStatus));
       await updateKnock(knocks[idx]);
@@ -1317,6 +1354,14 @@ function openBottomSheet(knock) {
 window.assignRepFromSheet = async function(knockId, repName) {
   const idx = knocks.findIndex(k => k.id === knockId);
   if (idx !== -1) {
+    const oldRep = knocks[idx].rep;
+    if (oldRep && repName && oldRep !== repName) {
+      if (!confirm(`Change rep from "${oldRep}" to "${repName}"?`)) {
+        const sel = document.getElementById('bs-rep-select');
+        if (sel) sel.value = oldRep;
+        return;
+      }
+    }
     knocks[idx].rep = repName;
     await updateKnock(knocks[idx]);
     renderList(); updateStats();
@@ -1664,10 +1709,11 @@ window.mobileNav = function(tab) {
 
 function openMobileLegend() {
   const grid = document.getElementById('mobile-legend-grid');
-  grid.innerHTML = '';
+  grid.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-align:center" id="mobile-legend-hint">' + (activeFilter ? 'Filtering: tap again to clear' : 'Tap a status to filter') + '</div>';
   STATUSES.forEach(s => {
     const el = document.createElement('div');
-    el.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:var(--surface2);margin-bottom:6px;cursor:pointer;border:1.5px solid transparent';
+    const isActive = activeFilter === s.key;
+    el.style.cssText = `display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:var(--surface2);margin-bottom:6px;cursor:pointer;border:1.5px solid ${isActive ? s.color : 'transparent'};opacity:${activeFilter && !isActive ? '0.45' : '1'}`;
     el.innerHTML = `<div style="width:28px;height:28px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:900;flex-shrink:0">${s.icon}</div><div><div style="font-size:13px;font-weight:700;color:var(--text)">${s.label}</div><div style="font-size:11px;color:var(--muted)">${s.desc}</div></div>`;
     el.addEventListener('click', () => { toggleFilter(s.key, el); closeMobileDrawer('legend'); });
     grid.appendChild(el);
@@ -1812,15 +1858,27 @@ window.switchPortalTab = function(tab) {
 };
 
 // ── REP EVALUATIONS ──
-function getTenure(startDate) {
-  if (!startDate) return 'Unknown tenure';
-  const start = new Date(startDate);
+function getTenure(repName, startDate) {
+  // Use manual start date if set, otherwise find their first knock ever
+  let dateStr = startDate;
+  if (!dateStr) {
+    const repKnocks = knocks.filter(k => k.rep === repName);
+    if (repKnocks.length > 0) {
+      const earliest = repKnocks.reduce((a, b) => new Date(a.created || a.time) < new Date(b.created || b.time) ? a : b);
+      dateStr = earliest.created || earliest.time;
+    }
+  }
+  if (!dateStr) return null;
+  const start = new Date(dateStr);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const joined = `${months[start.getMonth()]} ${start.getDate()}, ${start.getFullYear()}`;
   const now = new Date();
   const days = Math.floor((now - start) / 86400000);
-  if (days < 30) return `${days} days`;
-  if (days < 365) return `${Math.floor(days/30)} month${Math.floor(days/30)>1?'s':''}`;
-  const yrs = Math.floor(days/365), mos = Math.floor((days%365)/30);
-  return `${yrs}yr${yrs>1?'s':''} ${mos>0?mos+'mo':''}`.trim();
+  let duration = '';
+  if (days < 30) duration = `${days}d`;
+  else if (days < 365) duration = `${Math.floor(days/30)}mo`;
+  else { const yrs = Math.floor(days/365), mos = Math.floor((days%365)/30); duration = `${yrs}yr${mos>0?' '+mos+'mo':''}`; }
+  return `${joined} · ${duration}`;
 }
 
 function getStarRating(closeRate, totalDoors) {
@@ -1891,7 +1949,7 @@ function generateEvalFeedback(m, rep) {
   return feedback;
 }
 
-function renderEvaluations() {
+function renderEvaluations(searchQuery) {
   const container = document.getElementById('eval-list');
   if (!container) return;
   const allRepNames = new Set([...reps.map(r => r.name), ...knocks.map(k => k.rep).filter(Boolean)]);
@@ -1901,14 +1959,22 @@ function renderEvaluations() {
     return;
   }
 
-  container.innerHTML = Array.from(allRepNames).map(name => {
+  const query = (searchQuery || document.getElementById('eval-search')?.value || '').toLowerCase().trim();
+  const filtered = Array.from(allRepNames).filter(n => !query || n.toLowerCase().includes(query));
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted)">No reps match "<strong>${query}</strong>"</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(name => {
     const repData = knocks.filter(k => k.rep === name);
     const repObj = reps.find(r => r.name === name);
     const m = calcMetrics(repData);
     const rating = getStarRating(m.closeRate, m.totalDoors);
     const feedback = generateEvalFeedback(m, name);
     const storedRating = repObj?.rating || rating.stars;
-    const tenure = getTenure(repObj?.startDate);
+    const tenure = getTenure(name, repObj?.startDate);
     const stars = storedRating;
 
     const feedbackColors = { good:'#22c55e', neutral:'#f97316', warn:'#fbbf24', danger:'#ef4444' };
@@ -1920,7 +1986,8 @@ function renderEvaluations() {
         <div style="width:46px;height:46px;border-radius:50%;background:${rating.color}33;border:2px solid ${rating.color};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:${rating.color};flex-shrink:0">${name.charAt(0).toUpperCase()}</div>
         <div style="flex:1">
           <div style="font-size:16px;font-weight:700;color:var(--text)">${name}</div>
-          <div style="font-size:12px;color:var(--muted)">${repObj?.role || 'Field Rep'} · Tenure: ${tenure}</div>
+          <div style="font-size:12px;color:var(--muted)">${repObj?.role || 'Field Rep'}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">📅 Since: ${tenure || 'No knocks yet'}</div>
         </div>
         <div style="text-align:right">
           <div style="font-size:18px">${stars > 0 ? '⭐'.repeat(stars) : '—'}</div>
@@ -1948,7 +2015,7 @@ function renderEvaluations() {
         </div>`).join('')}
       </div>
 
-      <!-- AI Feedback -->
+      <!-- Feedback -->
       <div style="padding:14px 18px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px">📊 Performance Analysis</div>
         ${feedback.map(f => `<div style="display:flex;gap:10px;margin-bottom:8px;padding:10px 12px;background:${feedbackColors[f.type]}11;border-left:3px solid ${feedbackColors[f.type]};border-radius:0 8px 8px 0">
@@ -1957,7 +2024,7 @@ function renderEvaluations() {
         </div>`).join('')}
       </div>
 
-      <!-- Training Recommendation -->
+      <!-- Training -->
       <div style="padding:0 18px 16px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">🎯 Training Focus</div>
         <div style="background:var(--surface2);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text);line-height:1.6">
@@ -2162,7 +2229,11 @@ function darkMapStyle() {
 
   <!-- Evaluations Tab -->
   <div id="portal-panel-evals" style="display:none;padding:20px;max-width:700px;margin:0 auto;width:100%">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px">Rep Performance Evaluations</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">Rep Performance Evaluations</div>
+    <div style="position:relative;margin-bottom:14px">
+      <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none">🔍</span>
+      <input id="eval-search" type="text" placeholder="Search rep by name…" oninput="renderEvaluations()" style="width:100%;padding:10px 12px 10px 36px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none"/>
+    </div>
     <div id="eval-list"></div>
   </div>
 
