@@ -1333,6 +1333,15 @@ function openBottomSheet(knock) {
   const line2 = addrParts.slice(2).join(',').trim();
   const history = knock.history || [];
 
+  // Determine if rep is archived/inactive
+  const isActiveRep = knock.rep && reps.some(r => r.name === knock.rep);
+  const isArchivedRep = knock.rep && archivedReps.some(r => r.name === knock.rep);
+  const repDisplay = !knock.rep
+    ? 'Unassigned'
+    : isArchivedRep
+      ? `${knock.rep} <span style="font-size:11px;color:#fa781e;font-weight:600">· No Longer Active</span>`
+      : knock.rep;
+
   // Build rep options
   const repNames = new Set([...reps.map(r => r.name), ...knocks.map(k => k.rep).filter(Boolean)]);
   const repOptions = ['<option value="">— Unassigned —</option>',
@@ -1343,7 +1352,7 @@ function openBottomSheet(knock) {
     <div class="bs-header">
       <div class="bs-header-pin" id="bs-header-pin" style="background:${s.color}">${s.icon}</div>
       <div class="bs-header-info">
-        <h2>${knock.rep || 'Unassigned'}</h2>
+        <h2>${repDisplay}</h2>
         <div class="bs-status-label" id="bs-header-status">${s.label}</div>
       </div>
       <button class="bs-see-activity" onclick="editKnock('${knock.id}')">Edit ✏️</button>
@@ -2448,10 +2457,13 @@ function checkAlreadyKnocked(lat, lng) {
 
 // ── REP MANAGEMENT ──
 let reps = JSON.parse(localStorage.getItem('knocktrack_reps') || '[]');
+let archivedReps = JSON.parse(localStorage.getItem('knocktrack_archived_reps') || '[]');
 const OWNER_PASSWORD = 'greennova2024';
+let isOwnerSession = false;
 
 function saveReps() {
   localStorage.setItem('knocktrack_reps', JSON.stringify(reps));
+  localStorage.setItem('knocktrack_archived_reps', JSON.stringify(archivedReps));
   populateRepDropdown();
   renderRepsList();
 }
@@ -2472,6 +2484,27 @@ function populateRepDropdown() {
 function renderRepsList() {
   const el = document.getElementById('reps-list');
   if (!el) return;
+
+  // Show archived notice if there are any
+  let archivedNotice = document.getElementById('archived-notice');
+  if (!archivedNotice) {
+    archivedNotice = document.createElement('div');
+    archivedNotice.id = 'archived-notice';
+    el.parentNode.insertBefore(archivedNotice, el);
+  }
+  if (archivedReps.length > 0) {
+    archivedNotice.innerHTML = `<div onclick="openArchivedReps()" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(250,120,30,0.08);border:1px solid rgba(250,120,30,0.25);border-radius:10px;margin-bottom:12px;cursor:pointer">
+      <span style="font-size:16px">🗄️</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:#fa781e">${archivedReps.length} Archived Rep${archivedReps.length>1?'s':''}</div>
+        <div style="font-size:11px;color:var(--muted)">Their pins are preserved. Tap to view or restore.</div>
+      </div>
+      <span style="color:var(--accent);font-size:13px;font-weight:700">View →</span>
+    </div>`;
+  } else {
+    archivedNotice.innerHTML = '';
+  }
+
   if (reps.length === 0) {
     el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No reps added yet</div>';
     return;
@@ -2480,18 +2513,22 @@ function renderRepsList() {
     const repKnocks = knocks.filter(k => k.rep === r.name);
     const m = calcMetrics(repKnocks);
     const rating = getStarRating(m.closeRate, m.totalDoors);
+    // Only show stars to owner session
+    const starsHtml = isOwnerSession
+      ? `<div style="font-size:11px;color:var(--muted);margin-top:1px">${rating.stars > 0 ? '⭐'.repeat(rating.stars) : '—'} ${rating.label}</div>`
+      : '';
     return `
     <div id="rep-row-${i}" style="border-bottom:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer" onclick="openRepProfileFromPortal('${r.name}')">
-        <div style="width:40px;height:40px;border-radius:50%;background:${rating.color}33;border:2px solid ${rating.color};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:${rating.color};flex-shrink:0">${r.name.charAt(0).toUpperCase()}</div>
+        <div style="width:40px;height:40px;border-radius:50%;background:${isOwnerSession ? rating.color+'33' : 'var(--surface2)'};border:2px solid ${isOwnerSession ? rating.color : 'var(--border)'};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:${isOwnerSession ? rating.color : 'var(--text)'};flex-shrink:0">${r.name.charAt(0).toUpperCase()}</div>
         <div style="flex:1">
           <div style="font-size:14px;font-weight:700;color:var(--text)">${r.name} <span style="font-size:11px;color:var(--accent);font-weight:600">→ View Profile</span></div>
           <div style="font-size:12px;color:var(--muted)">${r.role || 'Field Rep'} · ${repKnocks.length} knocks · ${m.closeRate}% close</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:1px">${rating.stars > 0 ? '⭐'.repeat(rating.stars) : '—'} ${rating.label}</div>
+          ${starsHtml}
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
           <button onclick="event.stopPropagation();toggleEditRep(${i})" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;color:var(--text)">✏️ Edit</button>
-          <button onclick="event.stopPropagation();removeRep(${i})" style="padding:5px 10px;background:rgba(224,92,92,0.15);color:#e05c5c;border:1px solid rgba(224,92,92,0.3);border-radius:6px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer">Remove</button>
+          <button onclick="event.stopPropagation();removeRep(${i})" style="padding:5px 10px;background:rgba(224,92,92,0.15);color:#e05c5c;border:1px solid rgba(224,92,92,0.3);border-radius:6px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer">Archive</button>
         </div>
       </div>
       <div id="rep-edit-${i}" style="display:none;padding:0 16px 12px">
@@ -2505,12 +2542,70 @@ function renderRepsList() {
   }).join('');
 }
 
+window.openArchivedReps = function() {
+  let overlay = document.getElementById('archived-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'archived-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,17,23,0.96);z-index:7000;display:flex;flex-direction:column;overflow-y:auto';
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10">
+      <button onclick="document.getElementById('archived-overlay').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer">← Back</button>
+      <div style="font-family:'Exo 2',sans-serif;font-size:18px;font-weight:800;letter-spacing:2px;color:#fa781e">🗄️ ARCHIVED REPS</div>
+    </div>
+    <div style="padding:20px;max-width:700px;margin:0 auto;width:100%">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px">All archived reps have their pins preserved on the map. Restore a rep to add them back to the active roster.</div>
+      ${archivedReps.length === 0
+        ? '<div style="text-align:center;color:var(--muted);padding:30px">No archived reps</div>'
+        : archivedReps.map((r, i) => {
+            const repKnocks = knocks.filter(k => k.rep === r.name);
+            const m = calcMetrics(repKnocks);
+            const archivedDate = new Date(r.archivedAt).toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'});
+            return `<div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid #fa781e;border-radius:12px;padding:14px 16px;margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:40px;height:40px;border-radius:50%;background:rgba(250,120,30,0.15);border:2px solid #fa781e;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fa781e;flex-shrink:0">${r.name.charAt(0).toUpperCase()}</div>
+                <div style="flex:1">
+                  <div style="font-size:14px;font-weight:700;color:var(--text)">${r.name}</div>
+                  <div style="font-size:11px;color:var(--muted)">${r.role||'Field Rep'} · Archived ${archivedDate}</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:2px">${repKnocks.length} pins preserved · ${m.enrolled} enrolled · ${m.closeRate}% close</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <button onclick="restoreRep(${i})" style="padding:6px 12px;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid var(--green);border-radius:7px;font-family:'Exo 2',sans-serif;font-size:12px;font-weight:700;cursor:pointer">↩ Restore</button>
+                  <button onclick="viewArchivedRepProfile('${r.name}')" style="padding:6px 12px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:7px;font-family:'Exo 2',sans-serif;font-size:12px;font-weight:700;cursor:pointer">View Pins</button>
+                </div>
+              </div>
+            </div>`;
+          }).join('')}
+    </div>`;
+};
+
+window.restoreRep = function(i) {
+  const rep = archivedReps[i];
+  if (!confirm(`Restore ${rep.name} to the active roster?`)) return;
+  // Remove archived timestamp before restoring
+  const { archivedAt, knockCount, ...restRep } = rep;
+  reps.push(restRep);
+  archivedReps.splice(i, 1);
+  saveReps();
+  document.getElementById('archived-overlay')?.remove();
+  renderRepsList();
+};
+
+window.viewArchivedRepProfile = function(name) {
+  document.getElementById('archived-overlay')?.remove();
+  openRepProfileFromPortal(name);
+};
+
 window.openRepProfileFromPortal = function(name) {
   const repData = knocks.filter(k => k.rep === name);
   const repObj = reps.find(r => r.name === name);
+  const archivedObj = archivedReps.find(r => r.name === name);
+  const isArchived = !repObj && !!archivedObj;
   const m = calcMetrics(repData);
   const rating = getStarRating(m.closeRate, m.totalDoors);
-  const tenure = getTenure(name, repObj?.startDate);
+  const tenure = getTenure(name, (repObj || archivedObj)?.startDate);
 
   let overlay = document.getElementById('rep-profile-overlay');
   if (!overlay) {
@@ -2526,30 +2621,33 @@ window.openRepProfileFromPortal = function(name) {
   }).filter(x => x.count > 0).sort((a,b) => b.count - a.count);
 
   const sortedKnocks = [...repData].sort((a,b) => new Date(b.time) - new Date(a.time));
+  const avatarColor = isOwnerSession ? rating.color : 'var(--accent)';
+  const starSection = isOwnerSession
+    ? `<div style="text-align:right">
+        <div style="font-size:22px">${((repObj||archivedObj)?.rating || rating.stars) > 0 ? '⭐'.repeat((repObj||archivedObj)?.rating || rating.stars) : '—'}</div>
+        <div style="font-size:12px;font-weight:700;color:${rating.color}">${rating.label}</div>
+      </div>` : '';
 
   overlay.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:10">
       <button onclick="document.getElementById('rep-profile-overlay').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer">← Back</button>
-      <div style="font-family:'Exo 2',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:var(--green)">REP PROFILE</div>
+      <div style="font-family:'Exo 2',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:${isArchived?'#fa781e':'var(--green)'}">REP PROFILE${isArchived?' · ARCHIVED':''}</div>
     </div>
-
     <div style="padding:20px;max-width:700px;margin:0 auto;width:100%">
-
-      <!-- Header -->
+      ${isArchived ? `<div style="background:rgba(250,120,30,0.1);border:1px solid rgba(250,120,30,0.3);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:16px">🗄️</span>
+        <div style="flex:1;font-size:13px;color:#fa781e;font-weight:600">${name} is no longer active. All ${repData.length} pin${repData.length!==1?'s':''} are preserved.</div>
+        <button onclick="restoreRepByName('${name}')" style="padding:6px 12px;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid var(--green);border-radius:7px;font-family:'Exo 2',sans-serif;font-size:12px;font-weight:700;cursor:pointer">↩ Restore</button>
+      </div>` : ''}
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;display:flex;align-items:center;gap:16px">
-        <div style="width:60px;height:60px;border-radius:50%;background:${rating.color}33;border:3px solid ${rating.color};display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:${rating.color};flex-shrink:0">${name.charAt(0).toUpperCase()}</div>
+        <div style="width:60px;height:60px;border-radius:50%;background:${avatarColor}33;border:3px solid ${avatarColor};display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:${avatarColor};flex-shrink:0">${name.charAt(0).toUpperCase()}</div>
         <div style="flex:1">
           <div style="font-size:20px;font-weight:700;color:var(--text)">${name}</div>
-          <div style="font-size:13px;color:var(--muted)">${repObj?.role || 'Field Rep'}</div>
+          <div style="font-size:13px;color:var(--muted)">${(repObj||archivedObj)?.role || 'Field Rep'}${isArchived ? ' · <span style="color:#fa781e">Inactive</span>' : ''}</div>
           <div style="font-size:12px;color:var(--muted);margin-top:3px">📅 Since: ${tenure || 'No knocks yet'}</div>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:22px">${(repObj?.rating || rating.stars) > 0 ? '⭐'.repeat(repObj?.rating || rating.stars) : '—'}</div>
-          <div style="font-size:12px;font-weight:700;color:${rating.color}">${rating.label}</div>
-        </div>
+        ${starSection}
       </div>
-
-      <!-- Stats -->
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">Performance Stats</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
         ${[
@@ -2567,49 +2665,65 @@ window.openRepProfileFromPortal = function(name) {
           <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-top:3px">${c.label}</div>
         </div>`).join('')}
       </div>
-
-      <!-- Pin Breakdown -->
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">Pin Breakdown</div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">
-        ${statusBreakdown.length === 0
-          ? '<div style="padding:16px;text-align:center;color:var(--muted)">No pins yet</div>'
-          : statusBreakdown.map(({s, count}) => {
-              const pct = Math.round((count / repData.length) * 100);
-              return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer" onclick="showPinsForRepStatus('${name}','${s.key}')">
-                <div style="width:28px;height:28px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:900;flex-shrink:0">${s.icon}</div>
-                <div style="flex:1;font-size:13px;font-weight:600;color:var(--text)">${s.label}</div>
-                <div style="width:80px;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;background:${s.color};width:${pct}%"></div></div>
-                <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:${s.color};min-width:28px;text-align:right">${count}</div>
-                <div style="font-size:10px;color:var(--accent);font-weight:600">▶</div>
-              </div>`;
-            }).join('')}
+      <div onclick="toggleProfileSection('pb-body')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0;margin-bottom:10px;user-select:none">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)">Pin Breakdown</div>
+        <span id="pb-chevron" style="font-size:13px;color:var(--muted)">▼</span>
       </div>
-
-      <!-- All Pins List -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div id="pb-body" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">
+        ${statusBreakdown.length === 0 ? '<div style="padding:16px;text-align:center;color:var(--muted)">No pins yet</div>' :
+          statusBreakdown.map(({s, count}) => {
+            const pct = Math.round((count / repData.length) * 100);
+            return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer" onclick="showPinsForRepStatus('${name}','${s.key}')">
+              <div style="width:28px;height:28px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:900;flex-shrink:0">${s.icon}</div>
+              <div style="flex:1;font-size:13px;font-weight:600;color:var(--text)">${s.label}</div>
+              <div style="width:80px;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;background:${s.color};width:${pct}%"></div></div>
+              <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:${s.color};min-width:28px;text-align:right">${count}</div>
+              <div style="font-size:10px;color:var(--accent);font-weight:600">▶</div>
+            </div>`;
+          }).join('')}
+      </div>
+      <div onclick="toggleProfileSection('ra-body')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0;margin-bottom:10px;user-select:none">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)">All Pins (${sortedKnocks.length})</div>
+        <span id="ra-chevron" style="font-size:13px;color:var(--muted)">▼</span>
       </div>
-      <div style="display:flex;flex-direction:column;gap:7px">
-        ${sortedKnocks.length === 0
-          ? '<div style="padding:16px;text-align:center;color:var(--muted)">No pins dropped yet</div>'
-          : sortedKnocks.map(k => {
-              const s = STATUSES.find(x => x.key === k.status);
-              return `<div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid ${s?.color||'#888'};border-radius:9px;padding:11px 14px;display:flex;align-items:center;gap:10px">
-                <div style="width:32px;height:32px;border-radius:50%;background:${s?.color||'#888'};display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;font-weight:900;flex-shrink:0">${s?.icon||'?'}</div>
-                <div style="flex:1;min-width:0">
-                  <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${k.address.split(',').slice(0,2).join(',')}</div>
-                  <div style="font-size:11px;color:var(--muted);margin-top:2px">${s?.label||k.status} · ${new Date(k.time).toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'})}</div>
-                  ${k.notes ? `<div style="font-size:11px;color:var(--muted);margin-top:1px">📝 ${k.notes}</div>` : ''}
-                </div>
-                <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
-                  <button onclick="viewPinDetails('${k.id}')" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);cursor:pointer">📋 Details</button>
-                  <button onclick="goToPinOnMap('${k.id}')" style="padding:5px 10px;background:var(--accent);border:none;border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:#fff;cursor:pointer">🗺 Map</button>
-                </div>
-              </div>`;
-            }).join('')}
+      <div id="ra-body" style="display:flex;flex-direction:column;gap:7px">
+        ${sortedKnocks.length === 0 ? '<div style="padding:16px;text-align:center;color:var(--muted)">No pins dropped yet</div>' :
+          sortedKnocks.map(k => {
+            const s = STATUSES.find(x => x.key === k.status);
+            return `<div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid ${s?.color||'#888'};border-radius:9px;padding:11px 14px;display:flex;align-items:center;gap:10px">
+              <div style="width:32px;height:32px;border-radius:50%;background:${s?.color||'#888'};display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;font-weight:900;flex-shrink:0">${s?.icon||'?'}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${k.address.split(',').slice(0,2).join(',')}</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">${s?.label||k.status} · ${new Date(k.time).toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'})}</div>
+                ${k.notes ? `<div style="font-size:11px;color:var(--muted);margin-top:1px">📝 ${k.notes}</div>` : ''}
+              </div>
+              <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+                <button onclick="viewPinDetails('${k.id}')" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);cursor:pointer">📋 Details</button>
+                <button onclick="goToPinOnMap('${k.id}')" style="padding:5px 10px;background:var(--accent);border:none;border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:#fff;cursor:pointer">🗺 Map</button>
+              </div>
+            </div>`;
+          }).join('')}
       </div>
     </div>`;
 };
+
+window.toggleProfileSection = function(bodyId) {
+  const body = document.getElementById(bodyId);
+  const chevronId = bodyId === 'pb-body' ? 'pb-chevron' : 'ra-chevron';
+  const chevron = document.getElementById(chevronId);
+  if (!body) return;
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? (bodyId === 'pb-body' ? 'block' : 'flex') : 'none';
+  if (chevron) chevron.style.transform = collapsed ? '' : 'rotate(-90deg)';
+};
+
+window.restoreRepByName = function(name) {
+  const i = archivedReps.findIndex(r => r.name === name);
+  if (i === -1) return;
+  restoreRep(i);
+  document.getElementById('rep-profile-overlay')?.remove();
+};
+
 
 window.showPinsForRepStatus = function(repName, statusKey) {
   window._dispositionData = knocks.filter(k => k.rep === repName);
@@ -2673,9 +2787,13 @@ window.addRep = function() {
 };
 
 window.removeRep = function(i) {
-  if (!confirm(`Remove ${reps[i].name}? Their knock data will remain.`)) return;
+  const rep = reps[i];
+  if (!confirm(`Remove ${rep.name} from active roster?\n\nAll their pins stay on the map and their data is preserved. You can restore them anytime from the Archived tab.`)) return;
+  const repKnocks = knocks.filter(k => k.rep === rep.name);
+  archivedReps.push({ ...rep, archivedAt: new Date().toISOString(), knockCount: repKnocks.length });
   reps.splice(i, 1);
   saveReps();
+  renderRepsList();
 };
 
 window.openBackendPortal = function() {
@@ -2687,6 +2805,7 @@ window.closePortalLogin = function() { document.getElementById('portal-login').s
 window.submitPortalLogin = function() {
   const pw = document.getElementById('portal-password').value;
   if (pw === OWNER_PASSWORD) {
+    isOwnerSession = true;
     document.getElementById('portal-login').style.display = 'none';
     document.getElementById('backend-portal').style.display = 'flex';
     switchPortalTab('reps');
@@ -2695,7 +2814,10 @@ window.submitPortalLogin = function() {
     document.getElementById('portal-error').style.display = 'block';
   }
 };
-window.closeBackendPortal = function() { document.getElementById('backend-portal').style.display = 'none'; };
+window.closeBackendPortal = function() {
+  document.getElementById('backend-portal').style.display = 'none';
+  isOwnerSession = false;
+};
 
 document.getElementById('portal-password').addEventListener('keydown', e => { if (e.key === 'Enter') window.submitPortalLogin(); });
 
