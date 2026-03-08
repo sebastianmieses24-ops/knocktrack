@@ -622,7 +622,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       <!-- Bottom left controls -->
       <div style="position:absolute;bottom:90px;left:12px;z-index:10;display:flex;flex-direction:column;gap:6px">
         <button id="show-all-btn" onclick="clearFilter()" title="Show All Pins" style="display:none;width:40px;height:40px;border-radius:10px;border:none;background:#22c55e;color:#000;font-size:16px;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4);font-weight:700" title="Show All Pins">✦</button>
-        <button onclick="goToMyLocation()" title="My Location" style="width:40px;height:40px;border-radius:10px;border:none;background:rgba(26,29,39,0.9);backdrop-filter:blur(8px);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4)">🧭</button>
+        <button onclick="goToMyLocation()" title="My Location" style="width:40px;height:40px;border-radius:10px;border:none;background:rgba(26,29,39,0.9);backdrop-filter:blur(8px);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4)">◎</button>
         <button id="heatmap-btn" onclick="toggleHeatmap()" title="Heat Map" style="width:40px;height:40px;border-radius:10px;border:none;background:rgba(26,29,39,0.9);backdrop-filter:blur(8px);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4)">🔥</button>
       </div>
 
@@ -646,7 +646,13 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       <div id="knocks-section">
         <div class="knocks-list-header">
           <h3>Recent Knocks</h3>
-          <button id="clear-all-btn">Clear All</button>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div id="streak-badge" style="display:none;align-items:center;gap:4px;background:rgba(250,120,30,0.15);border:1px solid rgba(250,120,30,0.4);border-radius:20px;padding:3px 9px;font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;color:#fa781e">🔥 <span id="streak-count">0</span></div>
+            <button id="clear-all-btn">Clear All</button>
+          </div>
+        </div>
+        <div style="padding:0 0 8px">
+          <input id="knock-search" type="text" placeholder="🔍 Search address…" oninput="filterKnockList(this.value)" style="width:100%;padding:7px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;box-sizing:border-box" />
         </div>
         <div id="knocks-list"></div>
         <div id="empty-state">
@@ -935,6 +941,14 @@ function selectStatus(key, btn) {
   btn.classList.add('selected');
   btn.style.borderColor = s.color;
   btn.style.background = s.color + '28';
+
+  // One-tap for Not Home — auto-save immediately if rep is set and this is a new pin
+  if (key === 'not-home' && !editingId) {
+    const rep = document.getElementById('knock-rep-name').value.trim();
+    if (rep) {
+      setTimeout(() => document.getElementById('save-knock-btn').click(), 120);
+    }
+  }
 }
 
 function clearFilter() {
@@ -1267,6 +1281,7 @@ function updateStats() {
   document.getElementById('stat-leads').textContent = leads;
   document.getElementById('stat-ni').textContent = ni;
   document.getElementById('stat-total').textContent = knocks.length;
+  updateStreak();
 }
 
 
@@ -1408,6 +1423,80 @@ function closeBottomSheet() {
   document.getElementById('bottom-sheet').classList.remove('open');
   document.getElementById('bottom-sheet-overlay').classList.remove('open');
 }
+
+// ── SWIPE TO CLOSE BOTTOM SHEET ──
+(function() {
+  let startY = 0, isDraggingSheet = false;
+  const getSheet = () => document.getElementById('bottom-sheet');
+  document.addEventListener('touchstart', e => {
+    const sheet = getSheet();
+    if (!sheet.classList.contains('open')) return;
+    startY = e.touches[0].clientY;
+    isDraggingSheet = true;
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!isDraggingSheet) return;
+    const sheet = getSheet();
+    const dy = e.touches[0].clientY - startY;
+    if (dy > 0) sheet.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!isDraggingSheet) return;
+    isDraggingSheet = false;
+    const sheet = getSheet();
+    const dy = e.changedTouches[0].clientY - startY;
+    sheet.style.transform = '';
+    if (dy > 80) closeBottomSheet();
+  });
+})();
+
+// ── STREAK COUNTER ──
+function updateStreak() {
+  const today = new Date().toDateString();
+  const todayKnocks = knocks.filter(k => new Date(k.time).toDateString() === today);
+
+  // Get default rep (first rep or window._defaultRep)
+  const myRep = window._defaultRep || null;
+  const myKnocks = myRep ? todayKnocks.filter(k => k.rep === myRep) : todayKnocks;
+  const count = myKnocks.length;
+
+  const badge = document.getElementById('streak-badge');
+  const countEl = document.getElementById('streak-count');
+  if (!badge || !countEl) return;
+  if (count > 0) {
+    countEl.textContent = count + (count === 1 ? ' door today' : ' doors today');
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ── KNOCK LIST SEARCH ──
+window.filterKnockList = function(query) {
+  const q = query.toLowerCase().trim();
+  const list = document.getElementById('knocks-list');
+  const empty = document.getElementById('empty-state');
+  const filtered = (activeFilter ? knocks.filter(k => k.status === activeFilter) : knocks)
+    .filter(k => !q || k.address.toLowerCase().includes(q) || (k.rep||'').toLowerCase().includes(q));
+  if (filtered.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = filtered.map(k => {
+    const s = STATUSES.find(x => x.key === k.status);
+    const color = s ? s.color : '#888';
+    const timeStr = new Date(k.time).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    const dateStr = new Date(k.time).toLocaleDateString([], { month:'short', day:'numeric' });
+    return `<div class="knock-card" style="border-left-color:${color}" onclick="flyToKnock('${k.id}')">
+      <button class="knock-delete" onclick="event.stopPropagation();deleteKnock('${k.id}')">✕</button>
+      <div class="knock-card-header">
+        <div class="knock-address">${k.address.split(',').slice(0,2).join(',')}</div>
+        <div class="knock-status-badge" style="background:${color}22;color:${color}">${s ? s.icon+' '+s.label : k.status}</div>
+      </div>
+      ${k.rep ? `<div class="knock-notes">👤 ${k.rep}</div>` : ''}
+      ${k.notes ? `<div class="knock-notes">${k.notes}</div>` : ''}
+      <div class="knock-time">${dateStr} · ${timeStr}</div>
+    </div>`;
+  }).join('');
+};
 
 // ── DETAIL PAGE ──
 window.editKnock = function(id) {
@@ -1628,7 +1717,11 @@ function renderRepBreakdown(data) {
     if (!repMap[name]) repMap[name] = [];
     repMap[name].push(k);
   });
-  const sorted = Object.entries(repMap).sort((a,b) => b[1].length - a[1].length);
+  const sorted = Object.entries(repMap).sort((a,b) => {
+    const rateA = parseFloat(calcMetrics(a[1]).closeRate);
+    const rateB = parseFloat(calcMetrics(b[1]).closeRate);
+    return rateB - rateA;
+  });
   if (sorted.length === 0) { container.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px;text-align:center">No data yet</div>'; return; }
   container.innerHTML = sorted.map(([name, ks]) => {
     const m = calcMetrics(ks);
@@ -2033,7 +2126,7 @@ window.switchDashTab = function(tab) {
 
 // ── PORTAL TABS ──
 window.switchPortalTab = function(tab) {
-  ['reps','evals','ratings'].forEach(t => {
+  ['reps','evals','compare','ratings'].forEach(t => {
     const panel = document.getElementById(`portal-panel-${t}`);
     const btn = document.getElementById(`ptab-${t}`);
     if (panel) panel.style.display = t === tab ? 'block' : 'none';
@@ -2043,6 +2136,96 @@ window.switchPortalTab = function(tab) {
     }
   });
   if (tab === 'evals') renderEvaluations();
+  if (tab === 'compare') populateCompareDropdowns();
+};
+
+function populateCompareDropdowns() {
+  const repNames = reps.map(r => r.name);
+  ['compare-rep-a','compare-rep-b'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = `<option value="">— Select Rep —</option>` +
+      repNames.map(n => `<option value="${n}" ${n===cur?'selected':''}>${n}</option>`).join('');
+  });
+  renderComparison();
+}
+
+window.renderComparison = function() {
+  const nameA = document.getElementById('compare-rep-a')?.value;
+  const nameB = document.getElementById('compare-rep-b')?.value;
+  const grid = document.getElementById('comparison-grid');
+  if (!grid) return;
+  if (!nameA || !nameB || nameA === nameB) {
+    grid.innerHTML = `<div style="text-align:center;color:var(--muted);font-size:13px;padding:20px">${!nameA||!nameB ? 'Select two reps to compare' : 'Select two different reps'}</div>`;
+    return;
+  }
+
+  const dataA = knocks.filter(k => k.rep === nameA);
+  const dataB = knocks.filter(k => k.rep === nameB);
+  const mA = calcMetrics(dataA);
+  const mB = calcMetrics(dataB);
+  const rA = getStarRating(mA.closeRate, mA.totalDoors);
+  const rB = getStarRating(mB.closeRate, mB.totalDoors);
+
+  const metrics = [
+    { label:'Close Rate',    a:mA.closeRate+'%', b:mB.closeRate+'%', aNum:parseFloat(mA.closeRate), bNum:parseFloat(mB.closeRate), higherIsBetter:true },
+    { label:'Total Doors',   a:mA.totalDoors,    b:mB.totalDoors,    aNum:mA.totalDoors,            bNum:mB.totalDoors,            higherIsBetter:true },
+    { label:'Enrolled',      a:mA.enrolled,      b:mB.enrolled,      aNum:mA.enrolled,              bNum:mB.enrolled,              higherIsBetter:true },
+    { label:'Quality Leads', a:mA.qualityLeads,  b:mB.qualityLeads,  aNum:mA.qualityLeads,          bNum:mB.qualityLeads,          higherIsBetter:true },
+    { label:'Appointments',  a:mA.appointments,  b:mB.appointments,  aNum:mA.appointments,          bNum:mB.appointments,          higherIsBetter:true },
+    { label:'Appt Rate',     a:mA.apptRate+'%',  b:mB.apptRate+'%',  aNum:parseFloat(mA.apptRate),  bNum:parseFloat(mB.apptRate),  higherIsBetter:true },
+    { label:'Not Home',      a:mA.notHome,       b:mB.notHome,       aNum:mA.notHome,               bNum:mB.notHome,               higherIsBetter:false },
+    { label:'Not Interested',a:mA.notInterested, b:mB.notInterested, aNum:mA.notInterested,         bNum:mB.notInterested,         higherIsBetter:false },
+  ];
+
+  const winA = metrics.filter(m => m.higherIsBetter ? m.aNum > m.bNum : m.aNum < m.bNum).length;
+  const winB = metrics.filter(m => m.higherIsBetter ? m.bNum > m.aNum : m.bNum < m.aNum).length;
+
+  grid.innerHTML = `
+    <!-- Header -->
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;margin-bottom:16px;align-items:center">
+      <div style="background:var(--surface);border:2px solid ${rA.color};border-radius:12px;padding:14px;text-align:center">
+        <div style="width:44px;height:44px;border-radius:50%;background:${rA.color}33;border:2px solid ${rA.color};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:${rA.color};margin:0 auto 8px">${nameA.charAt(0).toUpperCase()}</div>
+        <div style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:800;color:var(--text)">${nameA}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${rA.stars > 0 ? '⭐'.repeat(rA.stars) : '—'}</div>
+        <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:${rA.color};margin-top:6px">${mA.closeRate}%</div>
+        <div style="font-size:10px;color:var(--muted)">close rate</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:var(--muted)">VS</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">${winA}–${winB}</div>
+      </div>
+      <div style="background:var(--surface);border:2px solid ${rB.color};border-radius:12px;padding:14px;text-align:center">
+        <div style="width:44px;height:44px;border-radius:50%;background:${rB.color}33;border:2px solid ${rB.color};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:${rB.color};margin:0 auto 8px">${nameB.charAt(0).toUpperCase()}</div>
+        <div style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:800;color:var(--text)">${nameB}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${rB.stars > 0 ? '⭐'.repeat(rB.stars) : '—'}</div>
+        <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:${rB.color};margin-top:6px">${mB.closeRate}%</div>
+        <div style="font-size:10px;color:var(--muted)">close rate</div>
+      </div>
+    </div>
+
+    <!-- Metrics rows -->
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${metrics.map(m => {
+        const aWins = m.higherIsBetter ? m.aNum > m.bNum : m.aNum < m.bNum;
+        const bWins = m.higherIsBetter ? m.bNum > m.aNum : m.bNum < m.aNum;
+        const total = m.aNum + m.bNum || 1;
+        const pctA = Math.round((m.aNum / total) * 100);
+        const pctB = 100 - pctA;
+        return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);text-align:center;margin-bottom:7px">${m.label}</div>
+          <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center">
+            <div style="text-align:right;font-family:'Space Mono',monospace;font-size:17px;font-weight:700;color:${aWins?'var(--green)':'var(--text)'}">${m.a}${aWins?' 🏆':''}</div>
+            <div style="height:6px;width:50px;background:var(--border);border-radius:3px;overflow:hidden;display:flex">
+              <div style="width:${pctA}%;background:${rA.color};height:100%"></div>
+              <div style="width:${pctB}%;background:${rB.color};height:100%"></div>
+            </div>
+            <div style="text-align:left;font-family:'Space Mono',monospace;font-size:17px;font-weight:700;color:${bWins?'var(--green)':'var(--text)'}">${bWins?'🏆 ':''}${m.b}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
 };
 
 // ── REP EVALUATIONS ──
@@ -2603,7 +2786,8 @@ function darkMapStyle() {
   <div style="display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0">
     <button class="dash-tab" id="ptab-reps" onclick="switchPortalTab('reps')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--green);border-bottom:2px solid var(--green)">👥 Manage Reps</button>
     <button class="dash-tab" id="ptab-evals" onclick="switchPortalTab('evals')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">📝 Evaluations</button>
-    <button class="dash-tab" id="ptab-ratings" onclick="switchPortalTab('ratings')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">⭐ Rating Guide</button>
+    <button class="dash-tab" id="ptab-compare" onclick="switchPortalTab('compare')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">⚔️ Compare</button>
+    <button class="dash-tab" id="ptab-ratings" onclick="switchPortalTab('ratings')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">⭐ Guide</button>
   </div>
 
   <!-- Manage Reps Tab -->
@@ -2634,6 +2818,21 @@ function darkMapStyle() {
   </div>
 
   <!-- Rating Guide Tab ---->
+  <!-- Compare Tab -->
+  <div id="portal-panel-compare" style="display:none;padding:20px;max-width:800px;margin:0 auto;width:100%">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px">Side-by-Side Rep Comparison</div>
+    <div style="display:flex;gap:10px;margin-bottom:16px">
+      <select id="compare-rep-a" onchange="renderComparison()" style="flex:1;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:14px;font-weight:600;outline:none">
+        <option value="">— Rep A —</option>
+      </select>
+      <div style="display:flex;align-items:center;font-family:'Exo 2',sans-serif;font-size:18px;font-weight:800;color:var(--muted)">VS</div>
+      <select id="compare-rep-b" onchange="renderComparison()" style="flex:1;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:14px;font-weight:600;outline:none">
+        <option value="">— Rep B —</option>
+      </select>
+    </div>
+    <div id="comparison-grid"></div>
+  </div>
+
   <div id="portal-panel-ratings" style="display:none;padding:20px;max-width:700px;margin:0 auto;width:100%">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px">Star Rating Standards</div>
     <div style="display:flex;flex-direction:column;gap:10px">
