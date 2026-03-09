@@ -635,6 +635,9 @@ textarea#knock-notes:focus { border-color:var(--accent); }
         <button id="dtab-reps" onclick="switchDashTab('reps')" class="dash-pill-tab">
           <span class="dtab-icon">👥</span><span class="dtab-label">Reps</span>
         </button>
+        <button id="dtab-calendar" onclick="switchDashTab('calendar')" class="dash-pill-tab">
+          <span class="dtab-icon">📅</span><span class="dtab-label">Calendar</span>
+        </button>
       </div>
     </div>
 
@@ -651,6 +654,81 @@ textarea#knock-notes:focus { border-color:var(--accent); }
     <!-- Tab: Reps -->
     <div id="dash-panel-reps" style="display:none;padding:16px">
       <div id="rep-breakdown-grid"></div>
+    </div>
+
+    <!-- Tab: Calendar -->
+    <div id="dash-panel-calendar" style="display:none;padding:0">
+
+      <!-- Rep selector gate -->
+      <div id="cal-rep-gate" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;text-align:center;gap:16px">
+        <div style="font-size:40px">📅</div>
+        <div style="font-family:'Exo 2',sans-serif;font-size:20px;font-weight:800;color:var(--text)">Whose calendar?</div>
+        <div style="font-size:13px;color:var(--muted);max-width:280px;line-height:1.6">Select a rep to view their appointments, reminders, and schedule.</div>
+        <select id="cal-rep-select" onchange="loadCalendarForRep(this.value)" style="margin-top:8px;padding:12px 18px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'Inter',sans-serif;font-size:15px;font-weight:600;outline:none;cursor:pointer;min-width:220px;-webkit-appearance:none;text-align:center">
+          <option value="">— Select a Rep —</option>
+        </select>
+      </div>
+
+      <!-- Calendar view (hidden until rep selected) -->
+      <div id="cal-main" style="display:none;flex-direction:column">
+
+        <!-- Cal Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5">
+          <div style="display:flex;align-items:center;gap:10px">
+            <button onclick="loadCalendarForRep('')" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:5px 12px;font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;cursor:pointer">← Change</button>
+            <div id="cal-rep-name-display" style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:800;color:var(--green)"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button onclick="calNavMonth(-1)" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">‹</button>
+            <div id="cal-month-label" style="font-family:'Exo 2',sans-serif;font-size:14px;font-weight:700;color:var(--text);min-width:120px;text-align:center"></div>
+            <button onclick="calNavMonth(1)" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">›</button>
+          </div>
+          <button onclick="openAddCalEvent()" style="padding:7px 14px;background:var(--green-dim);color:#000;border:none;border-radius:20px;font-family:'Exo 2',sans-serif;font-size:12px;font-weight:800;cursor:pointer">+ Add</button>
+        </div>
+
+        <!-- Month grid -->
+        <div style="padding:12px 14px">
+          <div id="cal-day-headers" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
+            ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">${d}</div>`).join('')}
+          </div>
+          <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px"></div>
+        </div>
+
+        <!-- Upcoming events list -->
+        <div style="padding:0 14px 20px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;padding-top:4px">Upcoming</div>
+          <div id="cal-event-list"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Add Calendar Event Modal -->
+<div id="cal-event-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:8000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;width:100%;max-width:440px;overflow:hidden;animation:fadeSlideIn 0.2s ease">
+    <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:800;color:var(--text)">📅 New Event</div>
+      <button onclick="closeCalEventModal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Title / Reminder</div>
+        <input id="cal-event-title" placeholder="e.g. Follow up with customer" style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;box-sizing:border-box"/>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Date &amp; Time</div>
+        <input id="cal-event-datetime" type="datetime-local" style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;box-sizing:border-box"/>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Notes (optional)</div>
+        <textarea id="cal-event-notes" placeholder="Any extra details…" rows="2" style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;resize:none;box-sizing:border-box"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button onclick="closeCalEventModal()" style="flex:1;padding:11px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Cancel</button>
+        <button onclick="saveCalEvent()" style="flex:2;padding:11px;background:var(--green);color:#000;border:none;border-radius:10px;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:800;cursor:pointer">Save Event</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1916,7 +1994,7 @@ window.quickStatusDetail = function(id, statusKey) {
   }
 };
 window.showAppointmentPicker = function(id) { const p = document.getElementById('appt-picker'); if (p) { p.style.display = 'block'; p.focus(); } };
-window.saveAppointment = function(id) { const p = document.getElementById('appt-picker'); if (!p) return; const idx = knocks.findIndex(k => k.id === id); if (idx !== -1) { knocks[idx].appointment = p.value; updateKnock(knocks[idx]); renderDetailPage(id, 'info'); } };
+window.saveAppointment = function(id) { const p = document.getElementById('appt-picker'); if (!p) return; const idx = knocks.findIndex(k => k.id === id); if (idx !== -1) { knocks[idx].appointment = p.value; updateKnock(knocks[idx]); addPinAppointmentToCalendar(knocks[idx]); renderDetailPage(id, 'info'); } };
 window.clearAppointment = function(id) { const idx = knocks.findIndex(k => k.id === id); if (idx !== -1) { delete knocks[idx].appointment; updateKnock(knocks[idx]); renderDetailPage(id, 'info'); } };
 
 window.toggleSection = function(id) {
@@ -2492,7 +2570,7 @@ function buildHeatmap() {
 let currentDashTab = 'overview';
 window.switchDashTab = function(tab) {
   currentDashTab = tab;
-  ['overview','dispositions','reps'].forEach(t => {
+  ['overview','dispositions','reps','calendar'].forEach(t => {
     const panel = document.getElementById(`dash-panel-${t}`);
     const btn = document.getElementById(`dtab-${t}`);
     if (panel) {
@@ -2501,9 +2579,230 @@ window.switchDashTab = function(tab) {
     }
     if (btn) btn.classList.toggle('dash-pill-active', t === tab);
   });
+  if (tab === 'calendar') populateCalRepSelect();
 };
 
 // ── PORTAL TABS ──
+// ── CALENDAR ──────────────────────────────────────────
+let calEvents = JSON.parse(localStorage.getItem('knocktrack_cal_events') || '[]');
+let calCurrentRep = '';
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let calEditId = null;
+
+function saveCalEvents() { localStorage.setItem('knocktrack_cal_events', JSON.stringify(calEvents)); }
+
+function populateCalRepSelect() {
+  const sel = document.getElementById('cal-rep-select');
+  if (!sel) return;
+  const allReps = [...reps, ...archivedReps];
+  sel.innerHTML = '<option value="">— Select a Rep —</option>' +
+    allReps.map(r => `<option value="${r.name}" ${r.name===calCurrentRep?'selected':''}>${r.name}${archivedReps.find(a=>a.name===r.name)?' (archived)':''}</option>`).join('');
+}
+
+window.loadCalendarForRep = function(repName) {
+  calCurrentRep = repName;
+  const gate = document.getElementById('cal-rep-gate');
+  const main = document.getElementById('cal-main');
+  if (!repName) {
+    gate.style.display = 'flex'; main.style.display = 'none';
+    populateCalRepSelect();
+    return;
+  }
+  gate.style.display = 'none'; main.style.display = 'flex';
+  document.getElementById('cal-rep-name-display').textContent = '📅 ' + repName;
+  calYear = new Date().getFullYear();
+  calMonth = new Date().getMonth();
+  renderCalendar();
+};
+
+window.calNavMonth = function(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+};
+
+function getRepEvents(rep) {
+  const pinAppts = knocks
+    .filter(k => k.rep === rep && k.appointment)
+    .map(k => ({ id: 'pin_'+k.id, title: '📍 ' + k.address.split(',')[0], datetime: k.appointment, notes: k.notes||'', fromPin: true, pinId: k.id }));
+  const manual = calEvents.filter(e => e.rep === rep);
+  return [...pinAppts, ...manual].sort((a,b) => new Date(a.datetime) - new Date(b.datetime));
+}
+
+function renderCalendar() {
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('cal-month-label').textContent = MONTHS[calMonth] + ' ' + calYear;
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const today = new Date();
+  const todayStr = today.toDateString();
+
+  const events = getRepEvents(calCurrentRep);
+  const eventsByDay = {};
+  events.forEach(e => {
+    const d = new Date(e.datetime);
+    if (d.getFullYear()===calYear && d.getMonth()===calMonth) {
+      const day = d.getDate();
+      if (!eventsByDay[day]) eventsByDay[day] = [];
+      eventsByDay[day].push(e);
+    }
+  });
+
+  const grid = document.getElementById('cal-grid');
+  let cells = '';
+  // Empty cells before month start
+  for (let i=0; i<firstDay; i++) cells += '<div></div>';
+  for (let d=1; d<=daysInMonth; d++) {
+    const isToday = new Date(calYear,calMonth,d).toDateString() === todayStr;
+    const evs = eventsByDay[d] || [];
+    const hasPin = evs.some(e=>e.fromPin);
+    const hasManual = evs.some(e=>!e.fromPin);
+    cells += `<div onclick="calDayClick(${d})" style="
+      min-height:52px;border-radius:10px;padding:6px 5px;cursor:pointer;
+      background:${isToday?'rgba(34,197,94,0.12)':'var(--surface2)'};
+      border:1px solid ${isToday?'var(--green)':'var(--border)'};
+      transition:border-color 0.15s,background 0.15s;
+      display:flex;flex-direction:column;align-items:center;gap:3px;
+    " onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='${isToday?'var(--green)':'var(--border)'}'">
+      <span style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:${isToday?'var(--green)':'var(--text)'}">${d}</span>
+      <div style="display:flex;gap:2px;flex-wrap:wrap;justify-content:center">
+        ${hasPin?'<span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block"></span>':''}
+        ${hasManual?'<span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;display:inline-block"></span>':''}
+      </div>
+    </div>`;
+  }
+  grid.innerHTML = cells;
+
+  // Upcoming events list — show all future events for this rep
+  const upcoming = events.filter(e => new Date(e.datetime) >= new Date(today.setHours(0,0,0,0)));
+  const list = document.getElementById('cal-event-list');
+  if (upcoming.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px">No upcoming events. Tap a day or + Add to schedule something.</div>';
+    return;
+  }
+  list.innerHTML = upcoming.map(e => {
+    const dt = new Date(e.datetime);
+    const dateStr = dt.toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'});
+    const timeStr = dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    const isPast = dt < new Date();
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid ${e.fromPin?'#22c55e':'#a78bfa'};border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;${isPast?'opacity:0.5':''}">
+      <div style="flex-shrink:0;margin-top:2px">
+        <span style="font-size:18px">${e.fromPin?'📍':'🔔'}</span>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px">${e.title}</div>
+        <div style="font-size:12px;color:var(--green);font-weight:600">${dateStr} · ${timeStr}</div>
+        ${e.notes?`<div style="font-size:11px;color:var(--muted);margin-top:4px">${e.notes}</div>`:''}
+      </div>
+      ${!e.fromPin?`<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+        <button onclick="editCalEvent('${e.id}')" style="padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--text);cursor:pointer">✏️</button>
+        <button onclick="deleteCalEvent('${e.id}')" style="padding:4px 10px;background:rgba(224,92,92,0.12);border:1px solid rgba(224,92,92,0.3);border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:#e05c5c;cursor:pointer">✕</button>
+      </div>`:`<button onclick="goToPinOnMap('${e.pinId}')" style="padding:5px 10px;background:var(--accent);border:none;border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0">🗺 Map</button>`}
+    </div>`;
+  }).join('');
+}
+
+window.calDayClick = function(day) {
+  // Pre-fill date in add event modal
+  const dt = new Date(calYear, calMonth, day, 9, 0);
+  const pad = n => String(n).padStart(2,'0');
+  const dtStr = `${calYear}-${pad(calMonth+1)}-${pad(day)}T09:00`;
+  openAddCalEvent(dtStr);
+};
+
+window.openAddCalEvent = function(prefillDate) {
+  calEditId = null;
+  document.getElementById('cal-event-title').value = '';
+  document.getElementById('cal-event-datetime').value = prefillDate || '';
+  document.getElementById('cal-event-notes').value = '';
+  document.getElementById('cal-event-modal').style.display = 'flex';
+};
+
+window.closeCalEventModal = function() {
+  document.getElementById('cal-event-modal').style.display = 'none';
+  calEditId = null;
+};
+
+window.editCalEvent = function(id) {
+  const ev = calEvents.find(e => e.id === id);
+  if (!ev) return;
+  calEditId = id;
+  document.getElementById('cal-event-title').value = ev.title;
+  document.getElementById('cal-event-datetime').value = ev.datetime.slice(0,16);
+  document.getElementById('cal-event-notes').value = ev.notes || '';
+  document.getElementById('cal-event-modal').style.display = 'flex';
+};
+
+window.deleteCalEvent = function(id) {
+  if (!confirm('Delete this event?')) return;
+  calEvents = calEvents.filter(e => e.id !== id);
+  saveCalEvents();
+  renderCalendar();
+};
+
+window.saveCalEvent = function() {
+  const title = document.getElementById('cal-event-title').value.trim();
+  const datetime = document.getElementById('cal-event-datetime').value;
+  const notes = document.getElementById('cal-event-notes').value.trim();
+  if (!title) { alert('Please add a title.'); return; }
+  if (!datetime) { alert('Please select a date and time.'); return; }
+  if (calEditId) {
+    const idx = calEvents.findIndex(e => e.id === calEditId);
+    if (idx !== -1) Object.assign(calEvents[idx], { title, datetime, notes });
+  } else {
+    calEvents.push({ id: 'evt_'+Date.now(), rep: calCurrentRep, title, datetime, notes, created: new Date().toISOString() });
+  }
+  saveCalEvents();
+  closeCalEventModal();
+  renderCalendar();
+  scheduleNotifications();
+};
+
+// Auto-add appointment from pin to calendar
+function addPinAppointmentToCalendar(knock) {
+  if (!knock.appointment || !knock.rep) return;
+  // Pin appointments show via getRepEvents() directly from knocks — no need to store separately
+  // Just trigger a re-render if calendar is open for this rep
+  if (currentDashTab === 'calendar' && calCurrentRep === knock.rep) renderCalendar();
+}
+
+// Browser notifications
+function scheduleNotifications() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function checkUpcomingNotifications() {
+  if (Notification.permission !== 'granted') return;
+  const now = new Date();
+  const in15 = new Date(now.getTime() + 15*60*1000);
+  const allRepNames = [...reps, ...archivedReps].map(r => r.name);
+  allRepNames.forEach(rep => {
+    getRepEvents(rep).forEach(ev => {
+      const dt = new Date(ev.datetime);
+      if (dt >= now && dt <= in15) {
+        const key = 'notif_' + ev.id + '_' + dt.toISOString().slice(0,13);
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, '1');
+          new Notification(`⏰ Upcoming: ${ev.title}`, {
+            body: `${rep} · ${dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`,
+            icon: 'https://sebastianmieses24-ops.github.io/knocktrack/favicon.ico'
+          });
+        }
+      }
+    });
+  });
+}
+// Check every 5 minutes
+setInterval(checkUpcomingNotifications, 5 * 60 * 1000);
+setTimeout(() => { scheduleNotifications(); checkUpcomingNotifications(); }, 3000);
+// ── END CALENDAR ──────────────────────────────────────
+
 window.switchPortalTab = function(tab) {
   ['reps','evals','compare','ratings'].forEach(t => {
     const panel = document.getElementById(`portal-panel-${t}`);
