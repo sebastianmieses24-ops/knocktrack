@@ -198,8 +198,11 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
 @keyframes pill-pop { 0%{transform:scale(0.92) translateY(0)} 60%{transform:scale(1.04) translateY(-2px)} 100%{transform:scale(1) translateY(-1px)} }
 .dash-pill-tab.dash-pill-active { animation:pill-pop 0.22s cubic-bezier(.4,0,.2,1) forwards; }
 @keyframes fadeSlideIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-
-/* Dashboard card tabs */
+@keyframes slideUpModal { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
+.time-wheel::-webkit-scrollbar{display:none}
+.time-wheel{-ms-overflow-style:none;scrollbar-width:none}
+.wheel-item{height:40px;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;font-size:20px;font-weight:500;color:rgba(255,255,255,0.3);scroll-snap-align:center;cursor:pointer;transition:color 0.12s,font-size 0.12s}
+.wheel-item.wheel-selected{color:#fff;font-size:22px;font-weight:600}
 .dash-card-tab {
   position:relative; background:var(--surface2);
   border:1px solid var(--border); border-radius:16px;
@@ -726,30 +729,121 @@ textarea#knock-notes:focus { border-color:var(--accent); }
     </div>
   </div>
 </div>
-<div id="cal-event-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:8000;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;width:100%;max-width:440px;overflow:hidden;animation:fadeSlideIn 0.2s ease">
-    <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-      <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:800;color:var(--text)">📅 New Event</div>
-      <button onclick="closeCalEventModal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+<div id="cal-event-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:8000;align-items:flex-end;justify-content:center">
+  <div style="background:#1c1c1e;border-radius:20px 20px 0 0;width:100%;max-width:500px;overflow:hidden;animation:slideUpModal 0.28s cubic-bezier(.4,0,.2,1)">
+
+    <!-- Top bar: X | New / Edit | ✓ -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px">
+      <button onclick="closeCalEventModal()" style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+      <div id="cal-modal-title-label" style="font-family:'Inter',sans-serif;font-size:17px;font-weight:600;color:var(--text)">New Event</div>
+      <button onclick="saveCalEvent()" style="width:34px;height:34px;border-radius:50%;background:var(--green);border:none;color:#000;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700">✓</button>
     </div>
-    <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
-      <div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Title / Reminder</div>
-        <input id="cal-event-title" placeholder="e.g. Follow up with customer" style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;box-sizing:border-box"/>
+
+    <!-- Event / Reminder toggle -->
+    <div style="margin:0 16px 14px;background:rgba(255,255,255,0.08);border-radius:10px;display:flex;padding:2px">
+      <button id="evt-type-event" onclick="setEventType('event')" style="flex:1;padding:7px;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.15);color:var(--text);transition:all 0.15s">Event</button>
+      <button id="evt-type-reminder" onclick="setEventType('reminder')" style="flex:1;padding:7px;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Reminder</button>
+    </div>
+
+    <!-- Title + Location -->
+    <div style="margin:0 16px 10px;background:var(--surface2);border-radius:12px;overflow:hidden">
+      <input id="cal-event-title" placeholder="Title" style="width:100%;padding:13px 16px;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.08);color:var(--text);font-family:'Inter',sans-serif;font-size:16px;outline:none;box-sizing:border-box"/>
+      <input id="cal-event-location" placeholder="Location or Notes" style="width:100%;padding:13px 16px;background:transparent;border:none;color:var(--muted);font-family:'Inter',sans-serif;font-size:15px;outline:none;box-sizing:border-box"/>
+    </div>
+
+    <!-- All-day toggle -->
+    <div style="margin:0 16px 10px;background:var(--surface2);border-radius:12px;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,0.08)">
+        <span style="font-family:'Inter',sans-serif;font-size:15px;color:var(--text)">All-day</span>
+        <div id="allday-toggle" onclick="toggleAllDay()" style="width:50px;height:28px;border-radius:14px;background:#3a3a3c;cursor:pointer;position:relative;transition:background 0.2s">
+          <div id="allday-knob" style="position:absolute;left:2px;top:2px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left 0.2s;box-shadow:0 2px 4px rgba(0,0,0,0.4)"></div>
+        </div>
       </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Date &amp; Time</div>
-        <input id="cal-event-datetime" type="datetime-local" style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;box-sizing:border-box"/>
+
+      <!-- Starts row -->
+      <div onclick="openDatePicker('start')" style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer">
+        <span style="font-family:'Inter',sans-serif;font-size:15px;color:var(--text)">Starts</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="starts-date-label" style="font-family:'Inter',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
+          <span id="starts-time-label" class="allday-hide" style="font-family:'Inter',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
+        </div>
       </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Notes (optional)</div>
-        <textarea id="cal-event-notes" placeholder="Any extra details…" rows="2" style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;resize:none;box-sizing:border-box"></textarea>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <button onclick="closeCalEventModal()" style="flex:1;padding:11px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Cancel</button>
-        <button onclick="saveCalEvent()" style="flex:2;padding:11px;background:var(--green);color:#000;border:none;border-radius:10px;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:800;cursor:pointer">Save Event</button>
+
+      <!-- Ends row -->
+      <div onclick="openDatePicker('end')" style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer">
+        <span style="font-family:'Inter',sans-serif;font-size:15px;color:var(--text)">Ends</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="ends-date-label" style="font-family:'Inter',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
+          <span id="ends-time-label" class="allday-hide" style="font-family:'Inter',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
+        </div>
       </div>
     </div>
+
+    <!-- Repeat -->
+    <div style="margin:0 16px 24px;background:var(--surface2);border-radius:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px">
+        <span style="font-family:'Inter',sans-serif;font-size:15px;color:var(--text)">Repeat</span>
+        <select id="cal-event-repeat" style="background:transparent;border:none;color:var(--muted);font-family:'Inter',sans-serif;font-size:14px;outline:none;cursor:pointer;text-align:right">
+          <option value="never">Never</option>
+          <option value="daily">Every Day</option>
+          <option value="weekly">Every Week</option>
+          <option value="biweekly">Every 2 Weeks</option>
+          <option value="monthly">Every Month</option>
+        </select>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Date Picker Sheet -->
+<div id="date-picker-sheet" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;align-items:flex-end;justify-content:center">
+  <div style="background:#1c1c1e;border-radius:20px 20px 0 0;width:100%;max-width:500px;overflow:hidden;animation:slideUpModal 0.22s ease">
+    <div style="display:flex;justify-content:flex-end;padding:12px 16px 0">
+      <button onclick="closeDatePicker()" style="background:none;border:none;color:var(--green);font-family:'Inter',sans-serif;font-size:16px;font-weight:600;cursor:pointer">Done</button>
+    </div>
+
+    <!-- Mini calendar -->
+    <div style="padding:0 16px 8px">
+      <!-- Month nav -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0 10px">
+        <button onclick="pickerNavMonth(-1)" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px 10px">‹</button>
+        <div id="picker-month-label" style="font-family:'Inter',sans-serif;font-size:16px;font-weight:600;color:var(--text)"></div>
+        <button onclick="pickerNavMonth(1)" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px 10px">›</button>
+      </div>
+      <!-- Day headers -->
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px">
+        <div style="text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:2px 0">S</div>
+        <div style="text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:2px 0">M</div>
+        <div style="text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:2px 0">T</div>
+        <div style="text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:2px 0">W</div>
+        <div style="text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:2px 0">T</div>
+        <div style="text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:2px 0">F</div>
+        <div style="text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:2px 0">S</div>
+      </div>
+      <div id="picker-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>
+    </div>
+
+    <!-- Time scroll wheels (hidden for all-day) -->
+    <div id="picker-time-section" style="border-top:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;gap:0;overflow:hidden;height:180px;position:relative">
+      <!-- Highlight bar -->
+      <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:40px;background:rgba(255,255,255,0.07);border-top:1px solid rgba(255,255,255,0.12);border-bottom:1px solid rgba(255,255,255,0.12);pointer-events:none;z-index:1"></div>
+      <!-- Hour wheel -->
+      <div id="wheel-hour" class="time-wheel" style="flex:1;overflow-y:scroll;height:180px;scroll-snap-type:y mandatory;scrollbar-width:none">
+        <div style="height:70px"></div>
+      </div>
+      <div style="font-size:22px;font-weight:700;color:var(--text);padding:0 4px;z-index:2">:</div>
+      <!-- Minute wheel -->
+      <div id="wheel-minute" class="time-wheel" style="flex:1;overflow-y:scroll;height:180px;scroll-snap-type:y mandatory;scrollbar-width:none">
+        <div style="height:70px"></div>
+      </div>
+      <!-- AM/PM wheel -->
+      <div id="wheel-ampm" class="time-wheel" style="flex:1;overflow-y:scroll;height:180px;scroll-snap-type:y mandatory;scrollbar-width:none">
+        <div style="height:70px"></div>
+      </div>
+    </div>
+
+    <div style="height:16px"></div>
   </div>
 </div>
 
@@ -2924,16 +3018,188 @@ window.openAddCalEventForDay = function() {
   openAddCalEvent(dtStr);
 };
 
+// ── CUSTOM DATE PICKER ─────────────────────────────
+let pickerTarget = 'start'; // 'start' or 'end'
+let pickerYear = new Date().getFullYear();
+let pickerMonth = new Date().getMonth();
+let pickerSelectedDate = new Date();
+let calIsAllDay = false;
+let calStartDate = new Date();
+let calEndDate = new Date(Date.now() + 3600000);
+
+const MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function formatDateLabel(d) {
+  return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+function formatTimeLabel(d) {
+  const h = d.getHours(); const m = d.getMinutes();
+  const hh = h % 12 === 0 ? 12 : h % 12;
+  return `${hh}:${String(m).padStart(2,'0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
+function updateDateLabels() {
+  const sd = document.getElementById('starts-date-label');
+  const st = document.getElementById('starts-time-label');
+  const ed = document.getElementById('ends-date-label');
+  const et = document.getElementById('ends-time-label');
+  if (sd) sd.textContent = formatDateLabel(calStartDate);
+  if (st) st.textContent = formatTimeLabel(calStartDate);
+  if (ed) ed.textContent = formatDateLabel(calEndDate);
+  if (et) et.textContent = formatTimeLabel(calEndDate);
+}
+
+window.setEventType = function(type) {
+  document.getElementById('evt-type-event').style.background = type==='event' ? 'rgba(255,255,255,0.15)' : 'transparent';
+  document.getElementById('evt-type-event').style.color = type==='event' ? 'var(--text)' : 'var(--muted)';
+  document.getElementById('evt-type-reminder').style.background = type==='reminder' ? 'rgba(255,255,255,0.15)' : 'transparent';
+  document.getElementById('evt-type-reminder').style.color = type==='reminder' ? 'var(--text)' : 'var(--muted)';
+};
+
+window.toggleAllDay = function() {
+  calIsAllDay = !calIsAllDay;
+  document.getElementById('allday-toggle').style.background = calIsAllDay ? 'var(--green)' : '#3a3a3c';
+  document.getElementById('allday-knob').style.left = calIsAllDay ? '24px' : '2px';
+  document.querySelectorAll('.allday-hide').forEach(el => { el.style.display = calIsAllDay ? 'none' : ''; });
+  if (document.getElementById('picker-time-section')) {
+    document.getElementById('picker-time-section').style.display = calIsAllDay ? 'none' : 'flex';
+  }
+};
+
+window.openDatePicker = function(target) {
+  pickerTarget = target;
+  const d = target === 'start' ? calStartDate : calEndDate;
+  pickerYear = d.getFullYear();
+  pickerMonth = d.getMonth();
+  pickerSelectedDate = new Date(d);
+  renderPickerCal();
+  buildWheels(d);
+  document.getElementById('date-picker-sheet').style.display = 'flex';
+};
+
+window.closeDatePicker = function() {
+  // Read selected wheel values
+  const h = getWheelValue('wheel-hour');
+  const m = getWheelValue('wheel-minute');
+  const ap = getWheelValue('wheel-ampm');
+  let hour24 = parseInt(h);
+  if (ap === 'PM' && hour24 !== 12) hour24 += 12;
+  if (ap === 'AM' && hour24 === 12) hour24 = 0;
+  pickerSelectedDate.setHours(hour24, parseInt(m), 0, 0);
+
+  if (pickerTarget === 'start') {
+    calStartDate = new Date(pickerSelectedDate);
+    // Auto-advance end date if needed
+    if (calEndDate <= calStartDate) calEndDate = new Date(calStartDate.getTime() + 3600000);
+  } else {
+    calEndDate = new Date(pickerSelectedDate);
+  }
+  updateDateLabels();
+  document.getElementById('date-picker-sheet').style.display = 'none';
+};
+
+window.pickerNavMonth = function(dir) {
+  pickerMonth += dir;
+  if (pickerMonth > 11) { pickerMonth = 0; pickerYear++; }
+  if (pickerMonth < 0) { pickerMonth = 11; pickerYear--; }
+  renderPickerCal();
+};
+
+function renderPickerCal() {
+  document.getElementById('picker-month-label').textContent = `${MONTHS_LONG[pickerMonth]} ${pickerYear}`;
+  const firstDay = new Date(pickerYear, pickerMonth, 1).getDay();
+  const daysInMonth = new Date(pickerYear, pickerMonth+1, 0).getDate();
+  const todayStr = new Date().toDateString();
+  const selStr = pickerSelectedDate.toDateString();
+  let cells = '';
+  for (let i=0; i<firstDay; i++) cells += '<div></div>';
+  for (let d=1; d<=daysInMonth; d++) {
+    const thisDate = new Date(pickerYear, pickerMonth, d);
+    const isToday = thisDate.toDateString() === todayStr;
+    const isSel = thisDate.toDateString() === selStr;
+    cells += `<div onclick="pickerSelectDay(${d})" style="
+      height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;font-weight:${isSel||isToday?'700':'400'};
+      background:${isSel?'var(--green)':'transparent'};
+      color:${isSel?'#000':isToday?'var(--green)':'var(--text)'};
+      border:${isToday&&!isSel?'1px solid var(--green)':'none'};
+      transition:background 0.12s;
+    ">${d}</div>`;
+  }
+  document.getElementById('picker-cal-grid').innerHTML = cells;
+}
+
+window.pickerSelectDay = function(day) {
+  pickerSelectedDate = new Date(pickerYear, pickerMonth, day,
+    pickerSelectedDate.getHours(), pickerSelectedDate.getMinutes());
+  renderPickerCal();
+};
+
+function buildWheels(date) {
+  const h = date.getHours();
+  const m = date.getMinutes();
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const ap = h < 12 ? 'AM' : 'PM';
+
+  buildWheel('wheel-hour', Array.from({length:12},(_,i)=>String(i+1)), String(h12));
+  buildWheel('wheel-minute', Array.from({length:60},(_,i)=>String(i).padStart(2,'0')), String(m).padStart(2,'0'));
+  buildWheel('wheel-ampm', ['AM','PM'], ap);
+}
+
+function buildWheel(id, items, selected) {
+  const el = document.getElementById(id);
+  el.innerHTML = '<div style="height:70px"></div>' +
+    items.map(v => `<div class="wheel-item${v===selected?' wheel-selected':''}" data-val="${v}">${v}</div>`).join('') +
+    '<div style="height:70px"></div>';
+  // Scroll to selected
+  const selEl = el.querySelector('.wheel-selected');
+  if (selEl) el.scrollTop = selEl.offsetTop - 70;
+  el.addEventListener('scroll', () => onWheelScroll(el), {passive:true});
+}
+
+function onWheelScroll(el) {
+  const items = el.querySelectorAll('.wheel-item');
+  let closest = null; let minDist = Infinity;
+  const center = el.scrollTop + 70 + 20; // 70px padding + half item
+  items.forEach(item => {
+    const dist = Math.abs(item.offsetTop - center);
+    if (dist < minDist) { minDist = dist; closest = item; }
+  });
+  items.forEach(i => i.classList.remove('wheel-selected'));
+  if (closest) closest.classList.add('wheel-selected');
+}
+
+function getWheelValue(id) {
+  const sel = document.getElementById(id)?.querySelector('.wheel-selected');
+  return sel ? sel.dataset.val : '';
+}
+// ── END DATE PICKER ─────────────────────────────────
+
 window.openAddCalEvent = function(prefillDate) {
   calEditId = null;
+  document.getElementById('cal-modal-title-label').textContent = 'New Event';
   document.getElementById('cal-event-title').value = '';
-  document.getElementById('cal-event-datetime').value = prefillDate || '';
-  document.getElementById('cal-event-notes').value = '';
+  document.getElementById('cal-event-location').value = '';
+  document.getElementById('cal-event-repeat').value = 'never';
+  calIsAllDay = false;
+  document.getElementById('allday-toggle').style.background = '#3a3a3c';
+  document.getElementById('allday-knob').style.left = '2px';
+  document.querySelectorAll('.allday-hide').forEach(el => el.style.display = '');
+
+  if (prefillDate) {
+    calStartDate = new Date(prefillDate);
+  } else {
+    calStartDate = new Date();
+    calStartDate.setMinutes(Math.ceil(calStartDate.getMinutes()/15)*15, 0, 0);
+  }
+  calEndDate = new Date(calStartDate.getTime() + 3600000);
+  updateDateLabels();
   document.getElementById('cal-event-modal').style.display = 'flex';
 };
 
 window.closeCalEventModal = function() {
   document.getElementById('cal-event-modal').style.display = 'none';
+  document.getElementById('date-picker-sheet').style.display = 'none';
   calEditId = null;
 };
 
@@ -2941,9 +3207,17 @@ window.editCalEvent = function(id) {
   const ev = calEvents.find(e => e.id === id);
   if (!ev) return;
   calEditId = id;
+  document.getElementById('cal-modal-title-label').textContent = 'Edit Event';
   document.getElementById('cal-event-title').value = ev.title;
-  document.getElementById('cal-event-datetime').value = ev.datetime.slice(0,16);
-  document.getElementById('cal-event-notes').value = ev.notes || '';
+  document.getElementById('cal-event-location').value = ev.notes || '';
+  document.getElementById('cal-event-repeat').value = ev.repeat || 'never';
+  calStartDate = new Date(ev.datetime);
+  calEndDate = ev.endDatetime ? new Date(ev.endDatetime) : new Date(calStartDate.getTime() + 3600000);
+  calIsAllDay = false;
+  document.getElementById('allday-toggle').style.background = '#3a3a3c';
+  document.getElementById('allday-knob').style.left = '2px';
+  document.querySelectorAll('.allday-hide').forEach(el => el.style.display = '');
+  updateDateLabels();
   document.getElementById('cal-event-modal').style.display = 'flex';
 };
 
@@ -2956,19 +3230,21 @@ window.deleteCalEvent = function(id) {
 
 window.saveCalEvent = function() {
   const title = document.getElementById('cal-event-title').value.trim();
-  const datetime = document.getElementById('cal-event-datetime').value;
-  const notes = document.getElementById('cal-event-notes').value.trim();
+  const notes = document.getElementById('cal-event-location').value.trim();
+  const repeat = document.getElementById('cal-event-repeat')?.value || 'never';
   if (!title) { alert('Please add a title.'); return; }
-  if (!datetime) { alert('Please select a date and time.'); return; }
+  const datetime = calStartDate.toISOString().slice(0,16);
+  const endDatetime = calEndDate.toISOString().slice(0,16);
   if (calEditId) {
     const idx = calEvents.findIndex(e => e.id === calEditId);
-    if (idx !== -1) Object.assign(calEvents[idx], { title, datetime, notes });
+    if (idx !== -1) Object.assign(calEvents[idx], { title, datetime, endDatetime, notes, repeat });
   } else {
-    calEvents.push({ id: 'evt_'+Date.now(), rep: calCurrentRep, title, datetime, notes, created: new Date().toISOString() });
+    calEvents.push({ id: 'evt_'+Date.now(), rep: calCurrentRep, title, datetime, endDatetime, notes, repeat, created: new Date().toISOString() });
   }
   saveCalEvents();
   closeCalEventModal();
   renderCalendar();
+  if (currentDashTab === 'calendar' && calCurrentRep) renderDayView(calDayViewDate || calStartDate);
   scheduleNotifications();
 };
 
