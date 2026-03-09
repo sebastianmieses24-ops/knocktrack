@@ -689,7 +689,13 @@ textarea#knock-notes:focus { border-color:var(--accent); }
         <!-- Month grid -->
         <div style="padding:12px 14px">
           <div id="cal-day-headers" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
-            ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">${d}</div>`).join('')}
+            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Sun</div>
+            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Mon</div>
+            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Tue</div>
+            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Wed</div>
+            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Thu</div>
+            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Fri</div>
+            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Sat</div>
           </div>
           <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px"></div>
         </div>
@@ -705,7 +711,21 @@ textarea#knock-notes:focus { border-color:var(--accent); }
   </div>
 </div>
 
-<!-- Add Calendar Event Modal -->
+<!-- Day View Modal (iPhone-style hourly view) -->
+<div id="cal-day-modal" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:8500;flex-direction:column">
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
+    <button onclick="closeDayView()" style="padding:6px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:12px;font-weight:700;cursor:pointer">← Back</button>
+    <div id="cal-day-title" style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:800;color:var(--text)"></div>
+    <button onclick="openAddCalEventForDay()" style="padding:7px 14px;background:var(--green-dim);color:#000;border:none;border-radius:20px;font-family:'Exo 2',sans-serif;font-size:12px;font-weight:800;cursor:pointer">+ Add</button>
+  </div>
+  <!-- Hourly scroll -->
+  <div id="cal-day-scroll" style="flex:1;overflow-y:auto;position:relative">
+    <div id="cal-day-hours" style="position:relative;min-height:1440px">
+      <!-- hour rows injected by JS -->
+    </div>
+  </div>
+</div>
 <div id="cal-event-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:8000;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;width:100%;max-width:440px;overflow:hidden;animation:fadeSlideIn 0.2s ease">
     <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
@@ -2705,11 +2725,94 @@ function renderCalendar() {
   }).join('');
 }
 
+let calDayViewDate = null;
+
 window.calDayClick = function(day) {
-  // Pre-fill date in add event modal
-  const dt = new Date(calYear, calMonth, day, 9, 0);
+  calDayViewDate = new Date(calYear, calMonth, day);
+  openDayView(calDayViewDate);
+};
+
+function openDayView(date) {
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const today = new Date();
+  const isToday = date.toDateString() === today.toDateString();
+  const label = `${DAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}${isToday ? ' · Today' : ''}`;
+  document.getElementById('cal-day-title').textContent = label;
+  document.getElementById('cal-day-title').style.color = isToday ? 'var(--green)' : 'var(--text)';
+
+  const events = getRepEvents(calCurrentRep).filter(e => {
+    const d = new Date(e.datetime);
+    return d.getFullYear()===date.getFullYear() && d.getMonth()===date.getMonth() && d.getDate()===date.getDate();
+  });
+
+  // Build 24-hour grid — each hour = 60px tall
+  const PX_PER_HOUR = 64;
+  let rows = '';
+  for (let h = 0; h < 24; h++) {
+    const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h-12} PM`;
+    rows += `<div style="position:relative;height:${PX_PER_HOUR}px;display:flex;border-bottom:1px solid rgba(255,255,255,0.05)">
+      <div style="width:54px;flex-shrink:0;padding-top:6px;text-align:right;padding-right:10px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);font-weight:500">${label}</div>
+      <div style="flex:1;border-left:1px solid rgba(255,255,255,0.08);position:relative"></div>
+    </div>`;
+  }
+
+  // Place event blocks absolutely
+  let eventBlocks = '';
+  events.forEach(ev => {
+    const dt = new Date(ev.datetime);
+    const totalMins = dt.getHours()*60 + dt.getMinutes();
+    const topPx = (totalMins / 60) * PX_PER_HOUR;
+    const timeStr = dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    const color = ev.fromPin ? '#22c55e' : '#a78bfa';
+    const bg = ev.fromPin ? 'rgba(34,197,94,0.18)' : 'rgba(167,139,250,0.18)';
+    eventBlocks += `<div onclick="event.stopPropagation()" style="
+      position:absolute;left:62px;right:10px;
+      top:${topPx}px;min-height:44px;
+      background:${bg};border-left:3px solid ${color};
+      border-radius:0 8px 8px 0;padding:6px 10px;
+      z-index:2;cursor:pointer;
+    " onclick="${ev.fromPin ? `goToPinOnMap('${ev.pinId}')` : `editCalEvent('${ev.id}')`}">
+      <div style="font-size:13px;font-weight:700;color:${color};margin-bottom:2px">${ev.title}</div>
+      <div style="font-size:11px;color:var(--muted)">${timeStr}${ev.notes ? ' · '+ev.notes.slice(0,40) : ''}</div>
+    </div>`;
+  });
+
+  const hoursEl = document.getElementById('cal-day-hours');
+  hoursEl.style.minHeight = `${24 * PX_PER_HOUR}px`;
+  hoursEl.innerHTML = rows + eventBlocks;
+
+  // Current time red line (if today)
+  if (isToday) {
+    const now = new Date();
+    const mins = now.getHours()*60 + now.getMinutes();
+    const topPx = (mins / 60) * PX_PER_HOUR;
+    hoursEl.insertAdjacentHTML('beforeend', `
+      <div style="position:absolute;left:54px;right:0;top:${topPx}px;height:2px;background:#ff4444;z-index:3;pointer-events:none">
+        <div style="position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:#ff4444"></div>
+      </div>`);
+  }
+
+  const modal = document.getElementById('cal-day-modal');
+  modal.style.display = 'flex';
+
+  // Scroll to 8am or first event
+  setTimeout(() => {
+    const scroll = document.getElementById('cal-day-scroll');
+    const targetHour = events.length > 0 ? new Date(events[0].datetime).getHours() - 1 : 8;
+    scroll.scrollTop = Math.max(0, targetHour * PX_PER_HOUR);
+  }, 50);
+}
+
+window.closeDayView = function() {
+  document.getElementById('cal-day-modal').style.display = 'none';
+};
+
+window.openAddCalEventForDay = function() {
+  const d = calDayViewDate || new Date();
   const pad = n => String(n).padStart(2,'0');
-  const dtStr = `${calYear}-${pad(calMonth+1)}-${pad(day)}T09:00`;
+  const dtStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T09:00`;
+  closeDayView();
   openAddCalEvent(dtStr);
 };
 
