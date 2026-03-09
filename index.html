@@ -2599,7 +2599,14 @@ window.switchDashTab = function(tab) {
     }
     if (btn) btn.classList.toggle('dash-pill-active', t === tab);
   });
-  if (tab === 'calendar') populateCalRepSelect();
+  if (tab === 'calendar') {
+    populateCalRepSelect();
+    // Re-show gate if no rep currently selected
+    if (!calCurrentRep) {
+      document.getElementById('cal-rep-gate').style.display = 'flex';
+      document.getElementById('cal-main').style.display = 'none';
+    }
+  }
 };
 
 // ── PORTAL TABS ──
@@ -2613,11 +2620,13 @@ let calEditId = null;
 function saveCalEvents() { localStorage.setItem('knocktrack_cal_events', JSON.stringify(calEvents)); }
 
 function populateCalRepSelect() {
-  const sel = document.getElementById('cal-rep-select');
-  if (!sel) return;
-  const allReps = [...reps, ...archivedReps];
-  sel.innerHTML = '<option value="">— Select a Rep —</option>' +
-    allReps.map(r => `<option value="${r.name}" ${r.name===calCurrentRep?'selected':''}>${r.name}${archivedReps.find(a=>a.name===r.name)?' (archived)':''}</option>`).join('');
+  ['cal-rep-select','cal-rep-select-header'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const allReps = [...reps, ...archivedReps];
+    sel.innerHTML = '<option value="">— Select a Rep —</option>' +
+      allReps.map(r => `<option value="${r.name}" ${r.name===calCurrentRep?'selected':''}>${r.name}${archivedReps.find(a=>a.name===r.name)?' (archived)':''}</option>`).join('');
+  });
 }
 
 window.loadCalendarForRep = function(repName) {
@@ -2726,6 +2735,7 @@ function renderCalendar() {
 }
 
 let calDayViewDate = null;
+let dragState = null;
 
 window.calDayClick = function(day) {
   calDayViewDate = new Date(calYear, calMonth, day);
@@ -2740,52 +2750,73 @@ function openDayView(date) {
   const label = `${DAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}${isToday ? ' · Today' : ''}`;
   document.getElementById('cal-day-title').textContent = label;
   document.getElementById('cal-day-title').style.color = isToday ? 'var(--green)' : 'var(--text)';
+  renderDayView(date);
+  document.getElementById('cal-day-modal').style.display = 'flex';
+  setTimeout(() => {
+    const scroll = document.getElementById('cal-day-scroll');
+    const events = getRepEvents(calCurrentRep).filter(e => {
+      const d = new Date(e.datetime);
+      return d.toDateString() === date.toDateString();
+    });
+    const targetHour = events.length > 0 ? new Date(events[0].datetime).getHours() - 1 : 8;
+    scroll.scrollTop = Math.max(0, targetHour * PX_PER_HOUR);
+  }, 50);
+}
 
+const PX_PER_HOUR = 64;
+
+function renderDayView(date) {
+  date = date || calDayViewDate;
   const events = getRepEvents(calCurrentRep).filter(e => {
     const d = new Date(e.datetime);
-    return d.getFullYear()===date.getFullYear() && d.getMonth()===date.getMonth() && d.getDate()===date.getDate();
+    return d.toDateString() === date.toDateString();
   });
 
-  // Build 24-hour grid — each hour = 60px tall
-  const PX_PER_HOUR = 64;
+  // Build hour row backgrounds
   let rows = '';
   for (let h = 0; h < 24; h++) {
     const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h-12} PM`;
-    rows += `<div style="position:relative;height:${PX_PER_HOUR}px;display:flex;border-bottom:1px solid rgba(255,255,255,0.05)">
-      <div style="width:54px;flex-shrink:0;padding-top:6px;text-align:right;padding-right:10px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);font-weight:500">${label}</div>
-      <div style="flex:1;border-left:1px solid rgba(255,255,255,0.08);position:relative"></div>
+    rows += `<div style="position:relative;height:${PX_PER_HOUR}px;display:flex;border-bottom:1px solid rgba(255,255,255,0.05);pointer-events:none">
+      <div style="width:54px;flex-shrink:0;padding-top:6px;text-align:right;padding-right:10px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)">${label}</div>
+      <div style="flex:1;border-left:1px solid rgba(255,255,255,0.08)"></div>
     </div>`;
   }
 
-  // Place event blocks absolutely
-  let eventBlocks = '';
-  events.forEach(ev => {
+  // Build draggable event blocks
+  let eventBlocks = events.map(ev => {
     const dt = new Date(ev.datetime);
     const totalMins = dt.getHours()*60 + dt.getMinutes();
     const topPx = (totalMins / 60) * PX_PER_HOUR;
     const timeStr = dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
     const color = ev.fromPin ? '#22c55e' : '#a78bfa';
-    const bg = ev.fromPin ? 'rgba(34,197,94,0.18)' : 'rgba(167,139,250,0.18)';
-    eventBlocks += `<div onclick="event.stopPropagation()" style="
-      position:absolute;left:62px;right:10px;
-      top:${topPx}px;min-height:44px;
-      background:${bg};border-left:3px solid ${color};
-      border-radius:0 8px 8px 0;padding:6px 10px;
-      z-index:2;cursor:pointer;
-    " onclick="${ev.fromPin ? `goToPinOnMap('${ev.pinId}')` : `editCalEvent('${ev.id}')`}">
+    const bg = ev.fromPin ? 'rgba(34,197,94,0.18)' : 'rgba(167,139,250,0.22)';
+    const draggable = !ev.fromPin ? 'draggable' : '';
+    return `<div
+      id="evt-block-${ev.id}"
+      data-evid="${ev.id}"
+      data-frompin="${ev.fromPin ? '1' : '0'}"
+      ${draggable}
+      style="position:absolute;left:62px;right:10px;top:${topPx}px;min-height:50px;
+        background:${bg};border-left:3px solid ${color};border-radius:0 8px 8px 0;
+        padding:8px 10px;z-index:2;cursor:${ev.fromPin?'pointer':'grab'};
+        box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:box-shadow 0.1s,opacity 0.1s;
+        touch-action:none;user-select:none;"
+      onclick="${ev.fromPin ? `goToPinOnMap('${ev.pinId}')` : `editCalEvent('${ev.id}')`}"
+    >
       <div style="font-size:13px;font-weight:700;color:${color};margin-bottom:2px">${ev.title}</div>
-      <div style="font-size:11px;color:var(--muted)">${timeStr}${ev.notes ? ' · '+ev.notes.slice(0,40) : ''}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.5)">${timeStr}${ev.notes ? ' · '+ev.notes.slice(0,36) : ''}</div>
+      ${!ev.fromPin ? `<div style="position:absolute;bottom:4px;right:8px;font-size:9px;color:rgba(255,255,255,0.25);font-family:'Exo 2',sans-serif;letter-spacing:1px">DRAG</div>` : ''}
     </div>`;
-  });
+  }).join('');
 
   const hoursEl = document.getElementById('cal-day-hours');
   hoursEl.style.minHeight = `${24 * PX_PER_HOUR}px`;
   hoursEl.innerHTML = rows + eventBlocks;
 
-  // Current time red line (if today)
-  if (isToday) {
-    const now = new Date();
-    const mins = now.getHours()*60 + now.getMinutes();
+  // Current time red line
+  const today = new Date();
+  if (date.toDateString() === today.toDateString()) {
+    const mins = today.getHours()*60 + today.getMinutes();
     const topPx = (mins / 60) * PX_PER_HOUR;
     hoursEl.insertAdjacentHTML('beforeend', `
       <div style="position:absolute;left:54px;right:0;top:${topPx}px;height:2px;background:#ff4444;z-index:3;pointer-events:none">
@@ -2793,19 +2824,96 @@ function openDayView(date) {
       </div>`);
   }
 
-  const modal = document.getElementById('cal-day-modal');
-  modal.style.display = 'flex';
+  // Attach drag listeners to non-pin events
+  events.filter(e => !e.fromPin).forEach(ev => {
+    const el = document.getElementById(`evt-block-${ev.id}`);
+    if (!el) return;
 
-  // Scroll to 8am or first event
-  setTimeout(() => {
-    const scroll = document.getElementById('cal-day-scroll');
-    const targetHour = events.length > 0 ? new Date(events[0].datetime).getHours() - 1 : 8;
-    scroll.scrollTop = Math.max(0, targetHour * PX_PER_HOUR);
-  }, 50);
+    // Mouse drag
+    el.addEventListener('mousedown', e => startDrag(e, ev.id, el, 'mouse'));
+    // Touch drag
+    el.addEventListener('touchstart', e => startDrag(e, ev.id, el, 'touch'), {passive:false});
+  });
+}
+
+function startDrag(e, evId, el, type) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const hoursEl = document.getElementById('cal-day-hours');
+  const hoursRect = hoursEl.getBoundingClientRect();
+  const clientY = type === 'touch' ? e.touches[0].clientY : e.clientY;
+  const elRect = el.getBoundingClientRect();
+  const offsetY = clientY - elRect.top;
+
+  el.style.opacity = '0.7';
+  el.style.boxShadow = '0 8px 32px rgba(167,139,250,0.4)';
+  el.style.cursor = 'grabbing';
+  el.style.zIndex = '10';
+
+  // Ghost tooltip
+  const tooltip = document.createElement('div');
+  tooltip.id = 'drag-tooltip';
+  tooltip.style.cssText = 'position:fixed;background:#1e1e2e;border:1px solid #a78bfa;border-radius:8px;padding:5px 10px;font-family:Inter,sans-serif;font-size:12px;font-weight:700;color:#a78bfa;z-index:99999;pointer-events:none;white-space:nowrap';
+  document.body.appendChild(tooltip);
+
+  function onMove(e2) {
+    const cy = type === 'touch' ? e2.touches[0].clientY : e2.clientY;
+    const scrollTop = document.getElementById('cal-day-scroll').scrollTop;
+    const relY = cy - hoursRect.top + scrollTop - offsetY;
+    const clampedY = Math.max(0, Math.min(relY, 24 * PX_PER_HOUR - 50));
+    el.style.top = clampedY + 'px';
+
+    // Show time tooltip
+    const totalMins = Math.round((clampedY / PX_PER_HOUR) * 60 / 15) * 15;
+    const h = Math.floor(totalMins / 60) % 24;
+    const m = totalMins % 60;
+    const label = `${h === 0 ? 12 : h > 12 ? h-12 : h}:${String(m).padStart(2,'0')} ${h < 12 ? 'AM' : 'PM'}`;
+    tooltip.textContent = label;
+    const cx = type === 'touch' ? e2.touches[0].clientX : e2.clientX;
+    tooltip.style.left = (cx + 12) + 'px';
+    tooltip.style.top = (cy - 14) + 'px';
+  }
+
+  function onEnd(e2) {
+    el.style.opacity = '1';
+    el.style.cursor = 'grab';
+    el.style.zIndex = '2';
+    el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+    document.getElementById('drag-tooltip')?.remove();
+
+    const scrollTop = document.getElementById('cal-day-scroll').scrollTop;
+    const cy = type === 'touch' ? (e2.changedTouches[0]?.clientY || 0) : e2.clientY;
+    const relY = cy - hoursRect.top + scrollTop - offsetY;
+    const clampedY = Math.max(0, Math.min(relY, 24 * PX_PER_HOUR - 50));
+    const totalMins = Math.round((clampedY / PX_PER_HOUR) * 60 / 15) * 15;
+    const h = Math.floor(totalMins / 60) % 24;
+    const m = totalMins % 60;
+
+    // Update event time
+    const idx = calEvents.findIndex(ev => ev.id === evId);
+    if (idx !== -1) {
+      const old = new Date(calEvents[idx].datetime);
+      // Keep same date, update time
+      const newDt = new Date(calDayViewDate);
+      newDt.setHours(h, m, 0, 0);
+      calEvents[idx].datetime = newDt.toISOString().slice(0,16);
+      saveCalEvents();
+      renderDayView(calDayViewDate);
+      renderCalendar();
+    }
+
+    if (type === 'mouse') { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onEnd); }
+    else { window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd); }
+  }
+
+  if (type === 'mouse') { window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onEnd); }
+  else { window.addEventListener('touchmove', onMove, {passive:false}); window.addEventListener('touchend', onEnd); }
 }
 
 window.closeDayView = function() {
   document.getElementById('cal-day-modal').style.display = 'none';
+  document.getElementById('drag-tooltip')?.remove();
 };
 
 window.openAddCalEventForDay = function() {
