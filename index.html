@@ -645,6 +645,40 @@ textarea#knock-notes:focus { border-color:var(--accent); }
   #sidebar { width:240px; }
   .stats-grid { grid-template-columns:repeat(3,1fr); }
 }
+
+/* ── PIN LOGIN ────────────────────────────────────── */
+.pin-dot {
+  width:16px;height:16px;border-radius:50%;
+  background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.2);
+  transition:all 0.15s;
+}
+.pin-dot.filled { background:#22c55e;border-color:#22c55e;transform:scale(1.1); }
+.pin-dot.shake { animation:pin-shake 0.3s ease; }
+.pin-key {
+  padding:16px 8px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);
+  border-radius:12px;font-family:'Barlow Semi Condensed',sans-serif;font-size:22px;font-weight:700;
+  color:#fff;cursor:pointer;transition:all 0.1s;
+}
+.pin-key:hover { background:rgba(255,255,255,0.14);border-color:rgba(255,255,255,0.25); }
+.pin-key:active { transform:scale(0.93); }
+.pin-key-clear { font-size:18px;color:rgba(255,255,255,0.5); }
+.pin-key-go { background:#22c55e;color:#000;border-color:#22c55e;font-size:20px; }
+.pin-key-go:hover { background:#16a34a; }
+@keyframes pin-shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+/* Rep name badge in header */
+#current-rep-badge {
+  display:none;align-items:center;gap:8px;padding:5px 12px;
+  background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:20px;
+  cursor:pointer;transition:all 0.15s;
+}
+#current-rep-badge:hover { background:rgba(34,197,94,0.18); }
+.rep-badge-avatar {
+  width:24px;height:24px;border-radius:50%;background:var(--green);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;color:#000;
+}
+.rep-badge-name { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--green);letter-spacing:0.5px; }
+
 </style>
 </head>
 <body>
@@ -669,6 +703,11 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
+      <!-- Current rep badge -->
+      <div id="current-rep-badge" onclick="showLogoutConfirm()">
+        <div class="rep-badge-avatar" id="rep-badge-avatar">?</div>
+        <div class="rep-badge-name" id="rep-badge-name">Rep</div>
+      </div>
       <!-- Live sync indicator -->
       <div id="dash-sync-pill" style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:20px">
         <div style="width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse-dot 2s infinite"></div>
@@ -1445,8 +1484,8 @@ async function initMap() {
   startPolling();
   populateRepDropdown();
 
-  // Show dashboard by default on load
-  showDashboard();
+  // Auth gate — show login or restore session
+  initAuth();
 
   // Open map button
   document.getElementById('open-map-btn').addEventListener('click', () => hideDashboard());
@@ -3942,6 +3981,7 @@ function renderRepsList() {
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
           <button onclick="event.stopPropagation();toggleEditRep(${i})" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-family:'Barlow',sans-serif;font-size:12px;font-weight:600;cursor:pointer;color:var(--text)">✏️ Edit</button>
+          <button onclick="event.stopPropagation();openSetPinModal('${r.name}')" style="padding:5px 10px;background:rgba(34,197,94,0.1);color:var(--green);border:1px solid rgba(34,197,94,0.3);border-radius:6px;font-family:'Barlow',sans-serif;font-size:12px;font-weight:600;cursor:pointer">🔑 PIN</button>
           <button onclick="event.stopPropagation();removeRep(${i})" style="padding:5px 10px;background:rgba(250,120,30,0.12);color:#fa781e;border:1px solid rgba(250,120,30,0.3);border-radius:6px;font-family:'Barlow',sans-serif;font-size:12px;font-weight:600;cursor:pointer">Archive</button>
         </div>
       </div>
@@ -4374,6 +4414,380 @@ function darkMapStyle() {
   </div>
 </div>
 
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyS5-AK1G0rZNrn0vsdCn9_PkKzpxiV3A&libraries=places,visualization&callback=initMap"></script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyS5-AK1G0rZNrn0vsdCn9_PkKzpxiV3A&libraries=places,visualization&callback=initMap">
+// ╔══════════════════════════════════════════════════════╗
+// ║              KNOCKTRACK AUTH SYSTEM                  ║
+// ╚══════════════════════════════════════════════════════╝
+
+// Simple hash for PIN (not cryptographic — this is UI-layer auth)
+function hashPin(pin) {
+  let h = 0;
+  for (let i = 0; i < pin.length; i++) {
+    h = Math.imul(31, h) + pin.charCodeAt(i) | 0;
+  }
+  return h.toString(36);
+}
+
+// Session state (sessionStorage = clears on browser close)
+let currentSession = null; // { name, role, isOwner }
+
+function loadSession() {
+  try {
+    const s = sessionStorage.getItem('kt_session');
+    return s ? JSON.parse(s) : null;
+  } catch { return null; }
+}
+function saveSession(session) {
+  sessionStorage.setItem('kt_session', JSON.stringify(session));
+  currentSession = session;
+}
+function clearSession() {
+  sessionStorage.removeItem('kt_session');
+  currentSession = null;
+}
+
+// ── STARTUP ──────────────────────────────────────────────────────────────
+function initAuth() {
+  const session = loadSession();
+  if (session) {
+    currentSession = session;
+    applySession(session);
+    return;
+  }
+  showLoginScreen();
+}
+
+function showLoginScreen() {
+  const ls = document.getElementById('login-screen');
+  ls.style.display = 'flex';
+  populateLoginRepSelect();
+  startLoginStarfield();
+}
+
+function hideLoginScreen() {
+  document.getElementById('login-screen').style.display = 'none';
+}
+
+function populateLoginRepSelect() {
+  const sel = document.getElementById('login-rep-select');
+  if (!sel) return;
+  const activeReps = reps.filter(r => !archivedReps.find(a => a.name === r.name));
+  sel.innerHTML = '<option value="">— Select your name —</option>' +
+    activeReps.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+}
+
+// ── LOGIN MODE TOGGLE ─────────────────────────────────────────────────────
+let loginMode = 'rep';
+window.setLoginMode = function(mode) {
+  loginMode = mode;
+  document.getElementById('login-rep-panel').style.display = mode === 'rep' ? 'block' : 'none';
+  document.getElementById('login-owner-panel').style.display = mode === 'owner' ? 'block' : 'none';
+  document.getElementById('login-mode-rep').style.background = mode === 'rep' ? '#22c55e' : 'transparent';
+  document.getElementById('login-mode-rep').style.color = mode === 'rep' ? '#000' : 'rgba(255,255,255,0.4)';
+  document.getElementById('login-mode-owner').style.background = mode === 'owner' ? '#22c55e' : 'transparent';
+  document.getElementById('login-mode-owner').style.color = mode === 'owner' ? '#000' : 'rgba(255,255,255,0.4)';
+  clearPin();
+};
+
+// ── PIN KEYPAD ────────────────────────────────────────────────────────────
+let pinBuffer = '';
+
+window.pinPress = function(digit) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += digit;
+  updatePinDots();
+  if (pinBuffer.length === 4) setTimeout(pinSubmit, 120);
+};
+
+window.pinClear = function() {
+  if (pinBuffer.length > 0) {
+    pinBuffer = pinBuffer.slice(0, -1);
+    updatePinDots();
+  }
+};
+
+function clearPin() {
+  pinBuffer = '';
+  updatePinDots();
+  document.getElementById('login-error').textContent = '';
+}
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('pd'+i);
+    if (dot) dot.classList.toggle('filled', i < pinBuffer.length);
+  }
+}
+
+function shakeDots() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('pd'+i);
+    if (dot) { dot.classList.add('shake'); setTimeout(() => dot.classList.remove('shake'), 400); }
+  }
+}
+
+window.pinSubmit = function() {
+  const repName = document.getElementById('login-rep-select')?.value;
+  if (!repName) {
+    document.getElementById('login-error').textContent = 'Please select your name first.';
+    clearPin(); return;
+  }
+  if (pinBuffer.length < 4) {
+    document.getElementById('login-error').textContent = 'Enter your 4-digit PIN.';
+    return;
+  }
+  const rep = reps.find(r => r.name === repName);
+  if (!rep) {
+    document.getElementById('login-error').textContent = 'Rep not found.';
+    clearPin(); return;
+  }
+  // If rep has no PIN set yet, any 4 digits works (first-time setup)
+  if (!rep.pinHash) {
+    // Auto-set this as their PIN
+    rep.pinHash = hashPin(pinBuffer);
+    saveReps();
+    loginAsRep(rep);
+    return;
+  }
+  if (rep.pinHash === hashPin(pinBuffer)) {
+    loginAsRep(rep);
+  } else {
+    shakeDots();
+    document.getElementById('login-error').textContent = 'Incorrect PIN. Try again.';
+    clearPin();
+  }
+};
+
+function loginAsRep(rep) {
+  const session = { name: rep.name, role: rep.role || 'Field Representative', isOwner: false };
+  saveSession(session);
+  applySession(session);
+  hideLoginScreen();
+  showDashboard();
+}
+
+window.ownerLogin = function() {
+  const pw = document.getElementById('login-owner-pw')?.value?.trim();
+  if (pw === OWNER_PASSWORD) {
+    const session = { name: 'Owner', role: 'Owner', isOwner: true };
+    saveSession(session);
+    isOwnerSession = true;
+    applySession(session);
+    hideLoginScreen();
+    showDashboard();
+  } else {
+    document.getElementById('login-owner-error').textContent = 'Incorrect password.';
+    document.getElementById('login-owner-pw').value = '';
+  }
+};
+
+function applySession(session) {
+  currentSession = session;
+  isOwnerSession = session.isOwner === true;
+
+  // Update rep badge in topbar
+  const badge = document.getElementById('current-rep-badge');
+  const avatar = document.getElementById('rep-badge-avatar');
+  const nameEl = document.getElementById('rep-badge-name');
+  if (badge && avatar && nameEl) {
+    badge.style.display = 'flex';
+    avatar.textContent = session.name.charAt(0).toUpperCase();
+    nameEl.textContent = session.isOwner ? 'OWNER' : session.name.split(' ')[0].toUpperCase();
+  }
+
+  // Filter dashboard rep select to show only this rep (unless owner)
+  if (!session.isOwner) {
+    const sel = document.getElementById('dashboard-rep-select');
+    if (sel) {
+      sel.value = session.name;
+      // Hide the rep selector — reps only see their own data
+      sel.closest('div[style*="flex:1"]')?.parentElement?.parentElement?.style && 
+        (sel.closest('div')?.style.display = 'none');
+    }
+    // Hide owner portal button
+    const ownerBtn = document.querySelector('[onclick*="openBackendPortal"]');
+    if (ownerBtn) ownerBtn.style.display = 'none';
+  } else {
+    // Owner sees all reps
+    const ownerBtn = document.querySelector('[onclick*="openBackendPortal"]');
+    if (ownerBtn) ownerBtn.style.display = '';
+  }
+
+  // Auto-filter calendar to this rep
+  if (!session.isOwner) {
+    calCurrentRep = session.name;
+  }
+
+  // Re-render dashboard with correct filter
+  setTimeout(() => {
+    if (!session.isOwner) {
+      const sel = document.getElementById('dashboard-rep-select');
+      if (sel) sel.value = session.name;
+    }
+    renderDashboard();
+  }, 200);
+}
+
+// ── LOGOUT ────────────────────────────────────────────────────────────────
+window.showLogoutConfirm = function() {
+  if (confirm(`Sign out${currentSession ? ' as ' + currentSession.name : ''}?`)) {
+    logout();
+  }
+};
+
+function logout() {
+  clearSession();
+  isOwnerSession = false;
+  calCurrentRep = '';
+  // Reset rep dropdown
+  const sel = document.getElementById('dashboard-rep-select');
+  if (sel) { sel.value = ''; sel.closest('div')?.style && (sel.closest('div').style.display = ''); }
+  // Show owner btn
+  const ownerBtn = document.querySelector('[onclick*="openBackendPortal"]');
+  if (ownerBtn) ownerBtn.style.display = '';
+  // Hide dashboard, show login
+  hideDashboard();
+  showLoginScreen();
+}
+
+// ── SET PIN MODAL (owner side) ────────────────────────────────────────────
+let setPinRepName = '';
+window.openSetPinModal = function(repName) {
+  setPinRepName = repName;
+  document.getElementById('set-pin-rep-name').textContent = 'Rep: ' + repName;
+  document.getElementById('set-pin-input').value = '';
+  document.getElementById('set-pin-modal').style.display = 'flex';
+};
+window.closeSetPinModal = function() {
+  document.getElementById('set-pin-modal').style.display = 'none';
+};
+window.saveRepPin = function() {
+  const pin = document.getElementById('set-pin-input').value.trim();
+  if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+    alert('PIN must be exactly 4 digits.'); return;
+  }
+  const idx = reps.findIndex(r => r.name === setPinRepName);
+  if (idx !== -1) {
+    reps[idx].pinHash = hashPin(pin);
+    saveReps();
+    closeSetPinModal();
+    renderRepsList();
+    alert('✅ PIN set for ' + setPinRepName);
+  }
+};
+
+// ── LOGIN STARFIELD ───────────────────────────────────────────────────────
+function startLoginStarfield() {
+  const canvas = document.getElementById('login-starfield');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  const stars = Array.from({length:120}, () => ({
+    x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+    r: Math.random()*1.5+0.3, a: Math.random(), v: 0.1+Math.random()*0.15
+  }));
+  function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    stars.forEach(s => {
+      s.y -= s.v; s.a = 0.3 + Math.sin(Date.now()/1200+s.x)*0.3;
+      if (s.y < 0) { s.y = canvas.height; s.x = Math.random()*canvas.width; }
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${s.a})`; ctx.fill();
+    });
+    if (document.getElementById('login-screen')?.style.display !== 'none') requestAnimationFrame(draw);
+  }
+  draw();
+}
+// ╚══════════════════════════════════════════════════════════════════════════╝
+
+</script>
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;z-index:99999;background:#070b14;flex-direction:column;align-items:center;justify-content:center;overflow:hidden">
+  <!-- Animated background -->
+  <canvas id="login-starfield" style="position:absolute;inset:0;pointer-events:none;opacity:0.4"></canvas>
+
+  <!-- Card -->
+  <div id="login-card" style="position:relative;z-index:2;width:100%;max-width:380px;padding:0 20px;animation:fadeSlideIn 0.35s ease">
+
+    <!-- Logo -->
+    <div style="text-align:center;margin-bottom:36px">
+      <svg width="52" height="52" viewBox="0 0 44 44" fill="none" style="margin-bottom:14px">
+        <circle cx="22" cy="22" r="22" fill="#0a0e1a"/>
+        <path d="M22 4C14.268 4 8 10.268 8 18c0 11 14 26 14 26S36 29 36 18C36 10.268 29.732 4 22 4z" fill="#22c55e"/>
+        <circle cx="22" cy="18" r="4" fill="white" opacity="0.9"/>
+      </svg>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;letter-spacing:8px;color:#fff;text-transform:uppercase"><span style="color:#22c55e">KNOCK</span> TRACK</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;letter-spacing:4px;color:rgba(255,255,255,0.35);margin-top:6px">BY GREEN NOVA</div>
+    </div>
+
+    <!-- Login box -->
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:28px 24px;backdrop-filter:blur(12px)">
+
+      <!-- Mode selector -->
+      <div style="display:flex;background:rgba(255,255,255,0.06);border-radius:10px;padding:3px;margin-bottom:24px;gap:3px">
+        <button id="login-mode-rep" onclick="setLoginMode('rep')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;background:#22c55e;color:#000;transition:all 0.2s">REP LOGIN</button>
+        <button id="login-mode-owner" onclick="setLoginMode('owner')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);transition:all 0.2s">OWNER</button>
+      </div>
+
+      <!-- REP login panel -->
+      <div id="login-rep-panel">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.4);margin-bottom:10px">SELECT YOUR NAME</div>
+        <select id="login-rep-select" style="width:100%;padding:12px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;outline:none;cursor:pointer;margin-bottom:18px;-webkit-appearance:none;box-sizing:border-box">
+          <option value="">— Select your name —</option>
+        </select>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.4);margin-bottom:10px">YOUR PIN</div>
+        <!-- PIN dots display -->
+        <div id="login-pin-display" style="display:flex;justify-content:center;gap:12px;margin-bottom:20px">
+          <div class="pin-dot" id="pd0"></div>
+          <div class="pin-dot" id="pd1"></div>
+          <div class="pin-dot" id="pd2"></div>
+          <div class="pin-dot" id="pd3"></div>
+        </div>
+        <!-- PIN keypad -->
+        <div id="pin-keypad" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <button class="pin-key" onclick="pinPress('1')">1</button>
+          <button class="pin-key" onclick="pinPress('2')">2</button>
+          <button class="pin-key" onclick="pinPress('3')">3</button>
+          <button class="pin-key" onclick="pinPress('4')">4</button>
+          <button class="pin-key" onclick="pinPress('5')">5</button>
+          <button class="pin-key" onclick="pinPress('6')">6</button>
+          <button class="pin-key" onclick="pinPress('7')">7</button>
+          <button class="pin-key" onclick="pinPress('8')">8</button>
+          <button class="pin-key" onclick="pinPress('9')">9</button>
+          <button class="pin-key pin-key-clear" onclick="pinClear()">⌫</button>
+          <button class="pin-key" onclick="pinPress('0')">0</button>
+          <button class="pin-key pin-key-go" onclick="pinSubmit()">→</button>
+        </div>
+        <div id="login-error" style="text-align:center;color:#ef4444;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;margin-top:14px;min-height:20px"></div>
+      </div>
+
+      <!-- OWNER login panel -->
+      <div id="login-owner-panel" style="display:none">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.4);margin-bottom:10px">MASTER PASSWORD</div>
+        <input id="login-owner-pw" type="password" placeholder="Enter owner password" style="width:100%;padding:12px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-family:'Barlow',sans-serif;font-size:15px;outline:none;box-sizing:border-box;margin-bottom:14px" onkeydown="if(event.key==='Enter')ownerLogin()"/>
+        <button onclick="ownerLogin()" style="width:100%;padding:13px;background:#22c55e;border:none;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;letter-spacing:2px;color:#000;cursor:pointer;transition:all 0.2s">SIGN IN AS OWNER</button>
+        <div id="login-owner-error" style="text-align:center;color:#ef4444;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;margin-top:12px;min-height:20px"></div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:20px;font-family:'Barlow Condensed',sans-serif;font-size:11px;color:rgba(255,255,255,0.2);letter-spacing:2px">GREEN NOVA · COMMUNITY ADVOCATES · SALES PORTAL</div>
+  </div>
+</div>
+
+<!-- SET PIN MODAL (owner assigns/changes rep PIN) -->
+<div id="set-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:90000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#1c1c2e;border:1px solid rgba(255,255,255,0.1);border-radius:18px;width:100%;max-width:340px;padding:28px 24px;animation:fadeSlideIn 0.2s ease">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;letter-spacing:2px;color:#fff;margin-bottom:6px">SET REP PIN</div>
+    <div id="set-pin-rep-name" style="font-family:'Barlow',sans-serif;font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:20px"></div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.4);margin-bottom:8px">NEW 4-DIGIT PIN</div>
+    <input id="set-pin-input" type="number" maxlength="4" placeholder="e.g. 1234" style="width:100%;padding:12px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#fff;font-family:'Barlow Semi Condensed',sans-serif;font-size:24px;font-weight:700;outline:none;box-sizing:border-box;text-align:center;letter-spacing:8px;margin-bottom:16px" oninput="if(this.value.length>4)this.value=this.value.slice(0,4)"/>
+    <div style="display:flex;gap:8px">
+      <button onclick="closeSetPinModal()" style="flex:1;padding:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:rgba(255,255,255,0.6);cursor:pointer">Cancel</button>
+      <button onclick="saveRepPin()" style="flex:2;padding:11px;background:#22c55e;border:none;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;color:#000;cursor:pointer">Save PIN</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
