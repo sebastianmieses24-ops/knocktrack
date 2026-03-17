@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Knock Track — by Green Nova</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700;800;900&family=Orbitron:wght@700;800;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Barlow+Condensed:wght@400;500;600;700;800;900&family=Barlow+Semi+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #0f1117;
@@ -24,7 +24,7 @@
 html { height:100%; }
 
 body {
-  font-family:'Inter',sans-serif;
+  font-family:'Barlow',sans-serif;
   background:var(--bg);
   color:var(--text);
   height:100%;
@@ -42,10 +42,10 @@ body {
 
 /* ── BARLOW CONDENSED headings ── */
 .gn-logo-main, .dash-title, #dashboard-topbar .gn-logo-main,
-.barlow { font-family:'Exo 2',sans-serif !important; }
+.barlow { font-family:'Barlow Condensed',sans-serif !important; }
 
 /* All major section titles */
-h1,h2,h3 { font-family:'Exo 2',sans-serif; }
+h1,h2,h3 { font-family:'Barlow Condensed',sans-serif; }
 
 /* ═══════════════════════════════
    DASHBOARD
@@ -64,42 +64,113 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
   display:flex;
   align-items:center;
   justify-content:space-between;
-  padding:16px 24px;
-  background:var(--surface);
-  border-bottom:1px solid var(--border);
+  padding:14px 16px;
+  background:#0a0e1a;
+  border-bottom:1px solid rgba(255,255,255,0.06);
   flex-shrink:0;
+  position:sticky;top:0;z-index:20;
 }
 
+/* KPI hero cards */
+.kpi-hero-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:16px 14px 14px;
+  display:flex;flex-direction:column;gap:4px;
+  position:relative;overflow:hidden;
+}
+.kpi-hero-card::before {
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(34,197,94,0.05),transparent 60%);
+  pointer-events:none;
+}
+.kpi-hero-label { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:2px;color:var(--muted);text-transform:uppercase; }
+.kpi-hero-value { font-family:'Barlow Semi Condensed',sans-serif;font-size:32px;font-weight:900;line-height:1;color:var(--text); }
+.kpi-hero-sub { font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--muted); }
+.kpi-hero-icon { position:absolute;right:12px;top:12px;font-size:22px;opacity:0.25; }
+
+/* Activity feed */
+.activity-item {
+  display:flex;align-items:center;gap:10px;
+  padding:9px 12px;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;animation:fadeSlideIn 0.3s ease;
+}
+.activity-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+.activity-text { flex:1;font-size:13px;font-weight:600;color:var(--text);font-family:'Barlow',sans-serif; }
+.activity-time { font-size:11px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;white-space:nowrap; }
+
+/* Leaderboard podium */
+.lb-podium-card {
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:14px 10px;text-align:center;position:relative;overflow:hidden;
+  transition:transform 0.2s;cursor:pointer;
+}
+.lb-podium-card:hover { transform:translateY(-2px); }
+.lb-podium-card.rank-1 { border-color:rgba(251,191,36,0.4);background:linear-gradient(180deg,rgba(251,191,36,0.08),var(--surface)); }
+.lb-podium-card.rank-2 { border-color:rgba(156,163,175,0.4); }
+.lb-podium-card.rank-3 { border-color:rgba(180,116,72,0.4); }
+.lb-medal { font-size:20px;margin-bottom:6px; }
+.lb-avatar { width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;margin:0 auto 8px; }
+.lb-name { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--text);margin-bottom:2px; }
+.lb-kwh { font-family:'Barlow Semi Condensed',sans-serif;font-size:22px;font-weight:900;line-height:1; }
+.lb-sub { font-family:'Barlow Condensed',sans-serif;font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:2px;text-transform:uppercase; }
+
+/* Leaderboard rows */
+.lb-row {
+  display:grid;grid-template-columns:32px 1fr 80px 60px 90px;
+  gap:0;padding:11px 14px;border-bottom:1px solid var(--border);
+  align-items:center;cursor:pointer;transition:background 0.15s;
+}
+.lb-row:hover { background:rgba(255,255,255,0.03); }
+.lb-row:last-child { border-bottom:none; }
+.lb-rank { font-family:'Barlow Semi Condensed',sans-serif;font-size:13px;font-weight:800;color:var(--muted); }
+.lb-rep-info { display:flex;align-items:center;gap:8px; }
+.lb-rep-avatar { width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0; }
+.lb-rep-name { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text); }
+.lb-rep-tags { display:flex;gap:3px;margin-top:2px;flex-wrap:wrap; }
+.lb-tag { font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.5px;padding:1px 5px;border-radius:4px;color:#fff;background:var(--accent); }
+.lb-kwh-val { font-family:'Barlow Semi Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--green);text-align:right; }
+.lb-sales-val { font-family:'Barlow Semi Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--text);text-align:right; }
+.lb-progress-bar { height:4px;border-radius:2px;background:var(--border);overflow:hidden; }
+.lb-progress-fill { height:100%;border-radius:2px;transition:width 0.6s ease; }
+
+@keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+
 .gn-logo-title {
-  font-family:'Orbitron',sans-serif;
+  font-family:'Barlow Condensed',sans-serif;
   font-size:24px;
   font-weight:900;
-  letter-spacing:6px;
+  letter-spacing:7px;
   line-height:1;
   text-transform:uppercase;
 }
 .gn-logo-title .green { color:var(--green); }
 .gn-logo-title .white { color:var(--text); }
-.gn-logo-line { width:100%; height:1px; background:linear-gradient(90deg,var(--green),#c9a84c); margin-top:3px; }
-.gn-logo-sub { font-family:'Exo 2',sans-serif; font-size:10px; font-weight:600; letter-spacing:5px; color:var(--muted); text-transform:uppercase; }
+.gn-logo-line { width:100%; height:1px; background:linear-gradient(90deg,var(--green),transparent); margin-top:3px; box-shadow:0 0 8px rgba(34,197,94,0.4); }
+.gn-logo-sub { font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:5px; color:var(--muted); text-transform:uppercase; }
 
 #open-map-btn {
-  padding:10px 20px;
-  background:var(--green-dim);
+  padding:8px 16px;
+  background:var(--green);
   color:#000;
   border:none;
-  border-radius:9px;
-  font-family:'Inter',sans-serif;
-  font-size:14px;
-  font-weight:700;
+  border-radius:20px;
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:1px;
   cursor:pointer;
   white-space:nowrap;
+  text-transform:uppercase;
+  transition:all 0.15s;
 }
+#open-map-btn:hover { background:#16a34a; transform:scale(1.03); }
 
-#dashboard-content { padding:20px; flex:1; }
+#dashboard-content { flex:1; overflow-y:auto; background:#0a0e1a; }
 
 .dash-section-title {
-  font-family:'Exo 2',sans-serif;
+  font-family:'Barlow Condensed',sans-serif;
   font-size:12px;
   font-weight:700;
   letter-spacing:3px;
@@ -135,22 +206,22 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
   flex-direction:column;
   gap:5px;
 }
-.stat-card-label { font-family:'Exo 2',sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); display:flex; align-items:center; gap:5px; }
+.stat-card-label { font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); display:flex; align-items:center; gap:5px; }
 .stat-card-icon { width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; flex-shrink:0; }
-.stat-card-value { font-family:'Space Mono',monospace; font-size:28px; font-weight:700; line-height:1; }
-.stat-card-sub { font-family:'Exo 2',sans-serif; font-size:11px; color:var(--muted); }
+.stat-card-value { font-family:'Barlow Semi Condensed',sans-serif; font-size:30px; font-weight:800; line-height:1; }
+.stat-card-sub { font-family:'Barlow Condensed',sans-serif; font-size:11px; color:var(--muted); }
 
 .disposition-table { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:24px; }
 .disposition-row { display:flex; align-items:center; padding:10px 14px; border-bottom:1px solid var(--border); gap:10px; }
 .disposition-row:last-child { border-bottom:none; }
 .disp-pin { width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; font-weight:900; color:#fff; }
 .disp-label { flex:1; font-size:13px; font-weight:600; }
-.disp-count { font-family:'Space Mono',monospace; font-size:15px; font-weight:700; min-width:32px; text-align:right; }
+.disp-count { font-family:'Barlow Semi Condensed',sans-serif; font-size:15px; font-weight:700; min-width:32px; text-align:right; }
 .disp-bar-wrap { width:80px; height:5px; background:var(--border); border-radius:3px; overflow:hidden; }
 .disp-bar { height:100%; border-radius:3px; }
 .dash-two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 
-.time-tab { padding:6px 10px; border:none; border-radius:6px; background:transparent; font-family:'Exo 2',sans-serif; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; white-space:nowrap; }
+.time-tab { padding:6px 10px; border:none; border-radius:6px; background:transparent; font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; white-space:nowrap; }
 .time-tab.active-time { background:var(--accent); color:#fff; }
 
 /* Floating pill dash tabs */
@@ -158,7 +229,7 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
   display:flex; align-items:center; gap:6px;
   padding:9px 18px; border:none; border-radius:32px;
   background:transparent; color:var(--muted);
-  font-family:'Exo 2',sans-serif; font-size:13px; font-weight:700;
+  font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700;
   cursor:pointer; transition:all 0.22s cubic-bezier(.4,0,.2,1);
   white-space:nowrap; letter-spacing:0.5px;
 }
@@ -181,7 +252,7 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
   display:flex; align-items:center; gap:6px;
   padding:9px 18px; border:none; border-radius:32px;
   background:transparent; color:var(--muted);
-  font-family:'Exo 2',sans-serif; font-size:13px; font-weight:700;
+  font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700;
   cursor:pointer; transition:all 0.22s cubic-bezier(.4,0,.2,1);
   white-space:nowrap; letter-spacing:0.5px; position:relative;
 }
@@ -201,7 +272,7 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
 @keyframes slideUpModal { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
 .time-wheel::-webkit-scrollbar{display:none}
 .time-wheel{-ms-overflow-style:none;scrollbar-width:none}
-.wheel-item{height:40px;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;font-size:20px;font-weight:500;color:rgba(255,255,255,0.3);scroll-snap-align:center;cursor:pointer;transition:color 0.12s,font-size 0.12s}
+.wheel-item{height:40px;display:flex;align-items:center;justify-content:center;font-family:'Barlow',sans-serif;font-size:20px;font-weight:500;color:rgba(255,255,255,0.3);scroll-snap-align:center;cursor:pointer;transition:color 0.12s,font-size 0.12s}
 .wheel-item.wheel-selected{color:#fff;font-size:22px;font-weight:600}
 .dash-card-tab {
   position:relative; background:var(--surface2);
@@ -219,8 +290,8 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
 .dct-arrow { position:absolute; top:14px; right:16px; font-size:16px; color:var(--muted); transition:color 0.18s,transform 0.18s; }
 .dash-card-tab:hover .dct-arrow { color:var(--green); transform:translate(2px,-2px); }
 .dct-icon { font-size:28px; margin-bottom:12px; }
-.dct-title { font-family:'Exo 2',sans-serif; font-size:20px; font-weight:800; color:var(--text); margin-bottom:6px; letter-spacing:0.3px; }
-.dct-sub { font-family:'Inter',sans-serif; font-size:12px; color:var(--muted); line-height:1.5; }
+.dct-title { font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:800; color:var(--text); margin-bottom:6px; letter-spacing:0.3px; }
+.dct-sub { font-family:'Barlow',sans-serif; font-size:12px; color:var(--muted); line-height:1.5; }
 
 /* ═══════════════════════════════
    MAP SHELL — the key fix
@@ -266,7 +337,7 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
   border:1px solid var(--border);
   border-radius:8px;
   color:var(--text);
-  font-family:'Inter',sans-serif;
+  font-family:'Barlow',sans-serif;
   font-size:14px;
   outline:none;
   -webkit-appearance:none;
@@ -331,7 +402,7 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
   padding:7px 12px;
   border-radius:8px;
   border:2px solid transparent;
-  font-family:'Inter',sans-serif;
+  font-family:'Barlow',sans-serif;
   font-size:12px;
   font-weight:700;
   cursor:pointer;
@@ -362,7 +433,7 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
 #knocks-section::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
 .knocks-list-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; padding:0 2px; }
 .knocks-list-header h3 { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
-#clear-all-btn { font-size:11px; color:var(--muted); background:none; border:none; cursor:pointer; font-family:'Exo 2',sans-serif; padding:2px 5px; border-radius:4px; }
+#clear-all-btn { font-size:11px; color:var(--muted); background:none; border:none; cursor:pointer; font-family:'Barlow Condensed',sans-serif; padding:2px 5px; border-radius:4px; }
 #clear-all-btn:hover { color:#e05c5c; }
 
 .knock-card { background:var(--surface2); border:1px solid var(--border); border-left:3px solid transparent; border-radius:8px; padding:9px 11px; margin-bottom:5px; cursor:pointer; position:relative; }
@@ -371,11 +442,11 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
 .knock-address { font-size:12px; font-weight:600; line-height:1.3; flex:1; }
 .knock-status-badge { font-size:10px; font-weight:700; padding:2px 6px; border-radius:10px; white-space:nowrap; }
 .knock-notes { font-size:11px; color:var(--muted); margin-top:4px; line-height:1.4; }
-.knock-time { font-size:10px; color:var(--muted); margin-top:3px; font-family:'Space Mono',monospace; }
+.knock-time { font-size:10px; color:var(--muted); margin-top:3px; font-family:'Barlow Semi Condensed',sans-serif; }
 .knock-delete { position:absolute; top:5px; right:5px; background:rgba(224,92,92,0.15); color:#e05c5c; border:none; border-radius:4px; padding:2px 5px; font-size:10px; cursor:pointer; display:none; }
 .knock-card:hover .knock-delete { display:block; }
 
-#export-btn { margin:0 8px 8px; padding:8px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--muted); font-family:'Exo 2',sans-serif; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
+#export-btn { margin:0 8px 8px; padding:8px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--muted); font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
 
 #empty-state { text-align:center; padding:32px 16px; color:var(--muted); }
 #empty-state .empty-icon { font-size:28px; margin-bottom:8px; }
@@ -405,7 +476,7 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
   background:none;
   border:none;
   cursor:pointer;
-  font-family:'Exo 2',sans-serif;
+  font-family:'Barlow Condensed',sans-serif;
   color:var(--muted);
   font-size:10px;
   font-weight:700;
@@ -450,21 +521,21 @@ h1,h2,h3 { font-family:'Exo 2',sans-serif; }
 
 .modal-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--muted); margin-bottom:7px; margin-top:13px; display:block; }
 .status-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
-.status-btn { display:flex; align-items:center; gap:8px; padding:9px 11px; border-radius:9px; border:2px solid var(--border); background:var(--surface2); color:var(--text); font-family:'Exo 2',sans-serif; font-size:13px; font-weight:600; cursor:pointer; text-align:left; }
+.status-btn { display:flex; align-items:center; gap:8px; padding:9px 11px; border-radius:9px; border:2px solid var(--border); background:var(--surface2); color:var(--text); font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:600; cursor:pointer; text-align:left; }
 .status-btn:hover { background:var(--border); }
 .status-btn.selected { color:#fff; }
 
-textarea#knock-notes { width:100%; padding:9px 11px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px; resize:vertical; min-height:65px; outline:none; margin-top:2px; }
+textarea#knock-notes { width:100%; padding:9px 11px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'Barlow',sans-serif; font-size:13px; resize:vertical; min-height:65px; outline:none; margin-top:2px; }
 textarea#knock-notes:focus { border-color:var(--accent); }
-#knock-rep-name { width:100%; padding:8px 11px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px; outline:none; margin-top:2px; }
+#knock-rep-name { width:100%; padding:8px 11px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'Barlow',sans-serif; font-size:13px; outline:none; margin-top:2px; }
 #knock-rep-name:focus { border-color:var(--accent); }
 
 .modal-buttons { display:flex; gap:9px; margin-top:18px; }
-#save-knock-btn { flex:1; padding:11px; background:var(--accent); color:#fff; border:none; border-radius:9px; font-family:'Exo 2',sans-serif; font-size:14px; font-weight:700; cursor:pointer; }
-#cancel-btn { padding:11px 16px; background:var(--surface2); color:var(--muted); border:1px solid var(--border); border-radius:9px; font-family:'Exo 2',sans-serif; font-size:14px; font-weight:600; cursor:pointer; }
+#save-knock-btn { flex:1; padding:11px; background:var(--accent); color:#fff; border:none; border-radius:9px; font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:700; cursor:pointer; }
+#cancel-btn { padding:11px 16px; background:var(--surface2); color:var(--muted); border:1px solid var(--border); border-radius:9px; font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:600; cursor:pointer; }
 
 /* autocomplete */
-.pac-container { background:var(--surface); border:1px solid var(--border); border-radius:8px; margin-top:4px; font-family:'Inter',sans-serif; box-shadow:0 8px 32px rgba(0,0,0,0.4); z-index:9999 !important; }
+.pac-container { background:var(--surface); border:1px solid var(--border); border-radius:8px; margin-top:4px; font-family:'Barlow',sans-serif; box-shadow:0 8px 32px rgba(0,0,0,0.4); z-index:9999 !important; }
 .pac-item { padding:8px 12px; color:var(--text); font-size:13px; border-top:1px solid var(--border); cursor:pointer; }
 .pac-item:first-child { border-top:none; }
 .pac-item:hover { background:var(--surface2); }
@@ -485,7 +556,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 .bs-header-pin { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; color:white; font-weight:900; }
 .bs-header-info h2 { font-size:19px; font-weight:800; color:#111; line-height:1.1; }
 .bs-status-label { font-size:13px; color:#666; margin-top:2px; }
-.bs-see-activity { margin-left:auto; font-size:14px; font-weight:700; color:#4f8ef7; background:none; border:none; cursor:pointer; font-family:'Inter',sans-serif; flex-shrink:0; }
+.bs-see-activity { margin-left:auto; font-size:14px; font-weight:700; color:#4f8ef7; background:none; border:none; cursor:pointer; font-family:'Barlow',sans-serif; flex-shrink:0; }
 .bs-address { font-size:16px; font-weight:500; color:#111; line-height:1.4; margin:10px 0 3px; }
 .bs-meta { font-size:12px; color:#888; margin-bottom:3px; }
 .bs-notes { font-size:13px; color:#555; background:#f5f5f5; border-radius:8px; padding:7px 11px; margin:7px 0; }
@@ -494,24 +565,24 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 .bs-status-row::-webkit-scrollbar { display:none; }
 .bs-status-item { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; cursor:pointer; }
 .bs-status-btn { width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:21px; font-weight:900; color:white; border:none; cursor:pointer; transition:transform 0.15s; }
-.bs-status-abbr { font-size:10px; font-weight:700; color:#555; letter-spacing:0.4px; font-family:'Inter',sans-serif; }
+.bs-status-abbr { font-size:10px; font-weight:700; color:#555; letter-spacing:0.4px; font-family:'Barlow',sans-serif; }
 .bs-actions { display:flex; gap:8px; margin-top:14px; }
-.bs-edit-btn { flex:1; padding:11px; background:#111; color:#fff; border:none; border-radius:10px; font-family:'Exo 2',sans-serif; font-size:14px; font-weight:700; cursor:pointer; }
-.bs-delete-btn { padding:11px 16px; background:#fff; color:#e05c5c; border:1.5px solid #e05c5c; border-radius:10px; font-family:'Exo 2',sans-serif; font-size:14px; font-weight:700; cursor:pointer; }
+.bs-edit-btn { flex:1; padding:11px; background:#111; color:#fff; border:none; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:700; cursor:pointer; }
+.bs-delete-btn { padding:11px 16px; background:#fff; color:#e05c5c; border:1.5px solid #e05c5c; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:700; cursor:pointer; }
 
 /* ═══════════════════════════════
    DETAIL PAGE
 ═══════════════════════════════ */
-#detail-page { position:fixed; inset:0; background:#f2f2f7; z-index:2500; display:flex; flex-direction:column; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.32,0.72,0,1); font-family:'Inter',sans-serif; }
+#detail-page { position:fixed; inset:0; background:#f2f2f7; z-index:2500; display:flex; flex-direction:column; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.32,0.72,0,1); font-family:'Barlow',sans-serif; }
 #detail-page.open { transform:translateX(0); }
 #detail-topbar { display:flex; align-items:center; background:#fff; border-bottom:1px solid #e5e5ea; padding:11px 14px; gap:8px; flex-shrink:0; }
 #detail-back { width:34px; height:34px; border-radius:50%; background:#f2f2f7; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 #detail-tabs { display:flex; flex:1; justify-content:center; gap:3px; background:#f2f2f7; border-radius:10px; padding:3px; }
-.detail-tab { flex:1; padding:7px 12px; border:none; border-radius:8px; background:transparent; font-family:'Exo 2',sans-serif; font-size:14px; font-weight:600; color:#666; cursor:pointer; }
+.detail-tab { flex:1; padding:7px 12px; border:none; border-radius:8px; background:transparent; font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:600; color:#666; cursor:pointer; }
 .detail-tab.active { background:#fff; color:#111; box-shadow:0 1px 4px rgba(0,0,0,0.12); }
 #detail-delete-btn { width:34px; height:34px; border-radius:50%; background:#f2f2f7; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 #detail-content { flex:1; overflow-y:auto; }
-.detail-save-btn { width:calc(100% - 32px); margin:8px 16px 16px; padding:13px; background:#111; color:#fff; border:none; border-radius:12px; font-family:'Exo 2',sans-serif; font-size:15px; font-weight:700; cursor:pointer; }
+.detail-save-btn { width:calc(100% - 32px); margin:8px 16px 16px; padding:13px; background:#111; color:#fff; border:none; border-radius:12px; font-family:'Barlow Condensed',sans-serif; font-size:15px; font-weight:700; cursor:pointer; }
 .activity-meta-row { display:flex; justify-content:space-between; align-items:center; padding:13px 18px; border-bottom:1px solid #e5e5ea; background:#fff; font-size:13px; color:#888; }
 .activity-meta-row span:last-child { color:#111; font-weight:600; }
 .activity-item { display:flex; align-items:center; gap:12px; padding:13px 18px; background:#fff; border-bottom:1px solid #f2f2f7; }
@@ -583,54 +654,67 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 
 <!-- ═══ DASHBOARD ═══ -->
 <div id="dashboard">
+
+  <!-- ── TOP HEADER ── -->
   <div id="dashboard-topbar">
-    <div style="display:flex;align-items:center;gap:12px">
-      <svg width="40" height="40" viewBox="0 0 44 44" fill="none">
-        <circle cx="22" cy="22" r="22" fill="#0f1117"/>
+    <div style="display:flex;align-items:center;gap:14px">
+      <svg width="38" height="38" viewBox="0 0 44 44" fill="none">
+        <circle cx="22" cy="22" r="22" fill="#0a0e1a"/>
         <path d="M22 4C14.268 4 8 10.268 8 18c0 11 14 26 14 26S36 29 36 18C36 10.268 29.732 4 22 4z" fill="#22c55e"/>
-        <path d="M15 18l5 5 9-9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="22" cy="18" r="4" fill="white" opacity="0.9"/>
       </svg>
       <div>
         <div class="gn-logo-title"><span class="green">KNOCK</span>&nbsp;<span class="white">TRACK</span></div>
-        <div class="gn-logo-line"></div>
-        <div class="gn-logo-sub">by Green Nova · Community Advocates</div>
+        <div class="gn-logo-sub">GREEN NOVA · COMMUNITY ADVOCATES</div>
       </div>
     </div>
-    <button id="open-map-btn">🗺️ Open Map</button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <!-- Live sync indicator -->
+      <div id="dash-sync-pill" style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:20px">
+        <div style="width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse-dot 2s infinite"></div>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--green);letter-spacing:1px">LIVE</span>
+      </div>
+      <button id="open-map-btn">🗺 Map</button>
+    </div>
   </div>
 
-  <!-- Rep Selector + Time Filter -->
-  <div style="display:flex;align-items:center;gap:10px;padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap">
-    <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;flex:1;min-width:160px">
-      <span style="font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap">👤 Rep:</span>
-      <select id="dashboard-rep-select" onchange="onRepSelectChange()" style="background:none;border:none;outline:none;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;flex:1;min-width:0;cursor:pointer">
-        <option value="">All Reps (Company)</option>
+  <!-- ── COMMAND STRIP: Rep + Period + Owner ── -->
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:#0a0e1a;border-bottom:1px solid rgba(255,255,255,0.06);flex-wrap:wrap">
+    <!-- Rep filter -->
+    <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 12px;flex:1;min-width:150px">
+      <span style="font-size:12px;color:var(--muted);font-weight:700;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;white-space:nowrap">REP</span>
+      <select id="dashboard-rep-select" onchange="onRepSelectChange()" style="background:none;border:none;outline:none;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;flex:1;min-width:0;cursor:pointer;letter-spacing:0.5px">
+        <option value="">ALL REPS</option>
       </select>
     </div>
-    <div style="display:flex;gap:6px;align-items:center">
-      <button onclick="openBackendPortal()" style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">🔐 Owner Portal</button>
-    </div>
-    <div id="time-filter-tabs" style="display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;flex-shrink:0">
+    <!-- Time filter -->
+    <div id="time-filter-tabs" style="display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px;flex-shrink:0">
       <button class="time-tab active-time" data-period="today" onclick="setTimePeriod('today')">Today</button>
       <button class="time-tab" data-period="week" onclick="setTimePeriod('week')">Week</button>
       <button class="time-tab" data-period="month" onclick="setTimePeriod('month')">Month</button>
       <button class="time-tab" data-period="year" onclick="setTimePeriod('year')">Year</button>
-      <button class="time-tab" data-period="all" onclick="setTimePeriod('all')">All Time</button>
+      <button class="time-tab" data-period="all" onclick="setTimePeriod('all')">All</button>
     </div>
+    <!-- Owner portal -->
+    <button onclick="openBackendPortal()" style="padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap;transition:all 0.15s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🔐 OWNER</button>
   </div>
 
+  <!-- ── REP BANNER ── -->
+  <div id="dash-rep-banner" style="display:none;padding:8px 16px;background:linear-gradient(90deg,rgba(34,197,94,0.15),transparent);border-bottom:1px solid rgba(34,197,94,0.2)">
+    <span style="font-size:13px;font-weight:700;color:var(--green);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px" id="dash-rep-banner-text"></span>
+    <span style="font-size:11px;color:var(--muted);margin-left:12px;cursor:pointer;font-family:'Barlow Condensed',sans-serif" onclick="document.getElementById('dashboard-rep-select').value='';renderDashboard()">✕ CLEAR</span>
+  </div>
 
   <div id="dashboard-content">
-    <div id="dash-rep-banner" style="display:none;padding:10px 20px;background:linear-gradient(90deg,#22c55e22,transparent);border-bottom:1px solid var(--border)">
-      <span style="font-size:13px;font-weight:700;color:var(--green)" id="dash-rep-banner-text"></span>
-      <span style="font-size:12px;color:var(--muted);margin-left:10px;cursor:pointer" onclick="document.getElementById('dashboard-rep-select').value='';renderDashboard()">✕ Clear</span>
-    </div>
 
-    <!-- Floating Pill Tabs -->
-    <div style="display:flex;justify-content:center;padding:18px 20px 4px;background:var(--surface);border-bottom:1px solid var(--border)">
-      <div id="dash-tab-pills" style="display:inline-flex;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:40px;padding:4px">
+    <!-- ── PILL TABS ── -->
+    <div style="display:flex;justify-content:center;padding:14px 16px 10px;background:#0a0e1a;border-bottom:1px solid rgba(255,255,255,0.06);position:sticky;top:0;z-index:10">
+      <div style="display:inline-flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:40px;padding:3px">
         <button id="dtab-overview" onclick="switchDashTab('overview')" class="dash-pill-tab dash-pill-active">
           <span class="dtab-icon">📊</span><span class="dtab-label">Overview</span>
+        </button>
+        <button id="dtab-leaderboard" onclick="switchDashTab('leaderboard')" class="dash-pill-tab">
+          <span class="dtab-icon">🏆</span><span class="dtab-label">Rankings</span>
         </button>
         <button id="dtab-dispositions" onclick="switchDashTab('dispositions')" class="dash-pill-tab">
           <span class="dtab-icon">📋</span><span class="dtab-label">Results</span>
@@ -644,18 +728,54 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       </div>
     </div>
 
-    <!-- Tab: Overview -->
-    <div id="dash-panel-overview" style="padding:16px">
+    <!-- ── TAB: OVERVIEW ── -->
+    <div id="dash-panel-overview" style="padding:16px 14px;animation:fadeSlideIn 0.2s ease">
+      <!-- KPI Hero Row -->
+      <div id="dash-kpi-hero" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px"></div>
+      <!-- Stats grid -->
       <div id="company-stats-grid" class="stats-grid"></div>
+      <!-- Activity feed -->
+      <div style="margin-top:4px">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+          <span>Recent Activity</span><div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+        <div id="dash-activity-feed" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
     </div>
 
-    <!-- Tab: Results -->
-    <div id="dash-panel-dispositions" style="display:none;padding:16px">
+    <!-- ── TAB: LEADERBOARD ── -->
+    <div id="dash-panel-leaderboard" style="display:none;padding:0;animation:fadeSlideIn 0.2s ease">
+      <!-- Podium top 3 -->
+      <div style="background:linear-gradient(180deg,#0a0e1a 0%,var(--surface) 100%);padding:20px 16px 16px">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:16px;text-align:center">Top 3 This Period</div>
+        <div id="lb-podium" style="display:grid;grid-template-columns:1fr 1.1fr 1fr;gap:8px;align-items:end"></div>
+      </div>
+      <!-- Full rankings table -->
+      <div style="padding:14px">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+          <span>Full Rankings</span><div style="flex:1;height:1px;background:var(--border)"></div>
+          <span style="font-size:10px;cursor:pointer" onclick="toggleLbFull()" id="lb-toggle-label">▼ TAP TO COLLAPSE</span>
+        </div>
+        <div id="lb-full-table" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:32px 1fr 80px 60px 90px;gap:0;padding:8px 14px;border-bottom:1px solid var(--border)">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted)">#</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted)">REP</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted);text-align:right">KWH</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted);text-align:right">SALES</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted);text-align:right">PROGRESS</div>
+          </div>
+          <div id="lb-rows"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: RESULTS ── -->
+    <div id="dash-panel-dispositions" style="display:none;padding:16px 14px;animation:fadeSlideIn 0.2s ease">
       <div class="disposition-table" id="company-dispositions"></div>
     </div>
 
-    <!-- Tab: Reps -->
-    <div id="dash-panel-reps" style="display:none;padding:16px">
+    <!-- ── TAB: REPS ── -->
+    <div id="dash-panel-reps" style="display:none;padding:16px 14px;animation:fadeSlideIn 0.2s ease">
       <div id="rep-breakdown-grid"></div>
     </div>
 
@@ -665,9 +785,9 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       <!-- Rep selector gate -->
       <div id="cal-rep-gate" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;text-align:center;gap:16px">
         <div style="font-size:40px">📅</div>
-        <div style="font-family:'Exo 2',sans-serif;font-size:20px;font-weight:800;color:var(--text)">Whose calendar?</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:var(--text)">Whose calendar?</div>
         <div style="font-size:13px;color:var(--muted);max-width:280px;line-height:1.6">Select a rep to view their appointments, reminders, and schedule.</div>
-        <select id="cal-rep-select" onchange="loadCalendarForRep(this.value)" style="margin-top:8px;padding:12px 18px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'Inter',sans-serif;font-size:15px;font-weight:600;outline:none;cursor:pointer;min-width:220px;-webkit-appearance:none;text-align:center">
+        <select id="cal-rep-select" onchange="loadCalendarForRep(this.value)" style="margin-top:8px;padding:12px 18px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'Barlow',sans-serif;font-size:15px;font-weight:600;outline:none;cursor:pointer;min-width:220px;-webkit-appearance:none;text-align:center">
           <option value="">— Select a Rep —</option>
         </select>
       </div>
@@ -678,27 +798,27 @@ textarea#knock-notes:focus { border-color:var(--accent); }
         <!-- Cal Header -->
         <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5">
           <div style="display:flex;align-items:center;gap:10px">
-            <button onclick="loadCalendarForRep('')" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:5px 12px;font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;cursor:pointer">← Change</button>
-            <div id="cal-rep-name-display" style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:800;color:var(--green)"></div>
+            <button onclick="loadCalendarForRep('')" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:5px 12px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;cursor:pointer">← Change</button>
+            <div id="cal-rep-name-display" style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;color:var(--green)"></div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <button onclick="calNavMonth(-1)" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">‹</button>
-            <div id="cal-month-label" style="font-family:'Exo 2',sans-serif;font-size:14px;font-weight:700;color:var(--text);min-width:120px;text-align:center"></div>
+            <div id="cal-month-label" style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text);min-width:120px;text-align:center"></div>
             <button onclick="calNavMonth(1)" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">›</button>
           </div>
-          <button onclick="openAddCalEvent()" style="padding:7px 14px;background:var(--green-dim);color:#000;border:none;border-radius:20px;font-family:'Exo 2',sans-serif;font-size:12px;font-weight:800;cursor:pointer">+ Add</button>
+          <button onclick="openAddCalEvent()" style="padding:7px 14px;background:var(--green-dim);color:#000;border:none;border-radius:20px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;cursor:pointer">+ Add</button>
         </div>
 
         <!-- Month grid -->
         <div style="padding:12px 14px">
           <div id="cal-day-headers" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
-            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Sun</div>
-            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Mon</div>
-            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Tue</div>
-            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Wed</div>
-            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Thu</div>
-            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Fri</div>
-            <div style="text-align:center;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Sat</div>
+            <div style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Sun</div>
+            <div style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Mon</div>
+            <div style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Tue</div>
+            <div style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Wed</div>
+            <div style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Thu</div>
+            <div style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Fri</div>
+            <div style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">Sat</div>
           </div>
           <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px"></div>
         </div>
@@ -718,9 +838,9 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 <div id="cal-day-modal" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:8500;flex-direction:column">
   <!-- Header -->
   <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
-    <button onclick="closeDayView()" style="padding:6px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:12px;font-weight:700;cursor:pointer">← Back</button>
-    <div id="cal-day-title" style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:800;color:var(--text)"></div>
-    <button onclick="openAddCalEventForDay()" style="padding:7px 14px;background:var(--green-dim);color:#000;border:none;border-radius:20px;font-family:'Exo 2',sans-serif;font-size:12px;font-weight:800;cursor:pointer">+ Add</button>
+    <button onclick="closeDayView()" style="padding:6px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;cursor:pointer">← Back</button>
+    <div id="cal-day-title" style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--text)"></div>
+    <button onclick="openAddCalEventForDay()" style="padding:7px 14px;background:var(--green-dim);color:#000;border:none;border-radius:20px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;cursor:pointer">+ Add</button>
   </div>
   <!-- Hourly scroll -->
   <div id="cal-day-scroll" style="flex:1;overflow-y:auto;position:relative">
@@ -735,26 +855,26 @@ textarea#knock-notes:focus { border-color:var(--accent); }
     <!-- Top bar: X | New / Edit | ✓ -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px">
       <button onclick="closeCalEventModal()" style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
-      <div id="cal-modal-title-label" style="font-family:'Inter',sans-serif;font-size:17px;font-weight:600;color:var(--text)">New Event</div>
+      <div id="cal-modal-title-label" style="font-family:'Barlow',sans-serif;font-size:17px;font-weight:600;color:var(--text)">New Event</div>
       <button onclick="saveCalEvent()" style="width:34px;height:34px;border-radius:50%;background:var(--green);border:none;color:#000;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700">✓</button>
     </div>
 
     <!-- Event / Reminder toggle -->
     <div style="margin:0 16px 14px;background:rgba(255,255,255,0.08);border-radius:10px;display:flex;padding:2px">
-      <button id="evt-type-event" onclick="setEventType('event')" style="flex:1;padding:7px;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.15);color:var(--text);transition:all 0.15s">Event</button>
-      <button id="evt-type-reminder" onclick="setEventType('reminder')" style="flex:1;padding:7px;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Reminder</button>
+      <button id="evt-type-event" onclick="setEventType('event')" style="flex:1;padding:7px;border:none;border-radius:8px;font-family:'Barlow',sans-serif;font-size:14px;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.15);color:var(--text);transition:all 0.15s">Event</button>
+      <button id="evt-type-reminder" onclick="setEventType('reminder')" style="flex:1;padding:7px;border:none;border-radius:8px;font-family:'Barlow',sans-serif;font-size:14px;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Reminder</button>
     </div>
 
     <!-- Title + Location -->
     <div style="margin:0 16px 10px;background:var(--surface2);border-radius:12px;overflow:hidden">
-      <input id="cal-event-title" placeholder="Title" style="width:100%;padding:13px 16px;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.08);color:var(--text);font-family:'Inter',sans-serif;font-size:16px;outline:none;box-sizing:border-box"/>
-      <input id="cal-event-location" placeholder="Location or Notes" style="width:100%;padding:13px 16px;background:transparent;border:none;color:var(--muted);font-family:'Inter',sans-serif;font-size:15px;outline:none;box-sizing:border-box"/>
+      <input id="cal-event-title" placeholder="Title" style="width:100%;padding:13px 16px;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.08);color:var(--text);font-family:'Barlow',sans-serif;font-size:16px;outline:none;box-sizing:border-box"/>
+      <input id="cal-event-location" placeholder="Location or Notes" style="width:100%;padding:13px 16px;background:transparent;border:none;color:var(--muted);font-family:'Barlow',sans-serif;font-size:15px;outline:none;box-sizing:border-box"/>
     </div>
 
     <!-- All-day toggle -->
     <div style="margin:0 16px 10px;background:var(--surface2);border-radius:12px;overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,0.08)">
-        <span style="font-family:'Inter',sans-serif;font-size:15px;color:var(--text)">All-day</span>
+        <span style="font-family:'Barlow',sans-serif;font-size:15px;color:var(--text)">All-day</span>
         <div id="allday-toggle" onclick="toggleAllDay()" style="width:50px;height:28px;border-radius:14px;background:#3a3a3c;cursor:pointer;position:relative;transition:background 0.2s">
           <div id="allday-knob" style="position:absolute;left:2px;top:2px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left 0.2s;box-shadow:0 2px 4px rgba(0,0,0,0.4)"></div>
         </div>
@@ -762,19 +882,19 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 
       <!-- Starts row -->
       <div onclick="openDatePicker('start')" style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer">
-        <span style="font-family:'Inter',sans-serif;font-size:15px;color:var(--text)">Starts</span>
+        <span style="font-family:'Barlow',sans-serif;font-size:15px;color:var(--text)">Starts</span>
         <div style="display:flex;gap:8px;align-items:center">
-          <span id="starts-date-label" style="font-family:'Inter',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
-          <span id="starts-time-label" class="allday-hide" style="font-family:'Inter',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
+          <span id="starts-date-label" style="font-family:'Barlow',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
+          <span id="starts-time-label" class="allday-hide" style="font-family:'Barlow',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
         </div>
       </div>
 
       <!-- Ends row -->
       <div onclick="openDatePicker('end')" style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer">
-        <span style="font-family:'Inter',sans-serif;font-size:15px;color:var(--text)">Ends</span>
+        <span style="font-family:'Barlow',sans-serif;font-size:15px;color:var(--text)">Ends</span>
         <div style="display:flex;gap:8px;align-items:center">
-          <span id="ends-date-label" style="font-family:'Inter',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
-          <span id="ends-time-label" class="allday-hide" style="font-family:'Inter',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
+          <span id="ends-date-label" style="font-family:'Barlow',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
+          <span id="ends-time-label" class="allday-hide" style="font-family:'Barlow',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
         </div>
       </div>
     </div>
@@ -782,8 +902,8 @@ textarea#knock-notes:focus { border-color:var(--accent); }
     <!-- Repeat -->
     <div style="margin:0 16px 24px;background:var(--surface2);border-radius:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px">
-        <span style="font-family:'Inter',sans-serif;font-size:15px;color:var(--text)">Repeat</span>
-        <select id="cal-event-repeat" style="background:transparent;border:none;color:var(--muted);font-family:'Inter',sans-serif;font-size:14px;outline:none;cursor:pointer;text-align:right">
+        <span style="font-family:'Barlow',sans-serif;font-size:15px;color:var(--text)">Repeat</span>
+        <select id="cal-event-repeat" style="background:transparent;border:none;color:var(--muted);font-family:'Barlow',sans-serif;font-size:14px;outline:none;cursor:pointer;text-align:right">
           <option value="never">Never</option>
           <option value="daily">Every Day</option>
           <option value="weekly">Every Week</option>
@@ -800,7 +920,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 <div id="date-picker-sheet" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;align-items:flex-end;justify-content:center">
   <div style="background:#1c1c1e;border-radius:20px 20px 0 0;width:100%;max-width:500px;overflow:hidden;animation:slideUpModal 0.22s ease">
     <div style="display:flex;justify-content:flex-end;padding:12px 16px 0">
-      <button onclick="closeDatePicker()" style="background:none;border:none;color:var(--green);font-family:'Inter',sans-serif;font-size:16px;font-weight:600;cursor:pointer">Done</button>
+      <button onclick="closeDatePicker()" style="background:none;border:none;color:var(--green);font-family:'Barlow',sans-serif;font-size:16px;font-weight:600;cursor:pointer">Done</button>
     </div>
 
     <!-- Mini calendar -->
@@ -808,7 +928,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       <!-- Month nav -->
       <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0 10px">
         <button onclick="pickerNavMonth(-1)" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px 10px">‹</button>
-        <div id="picker-month-label" style="font-family:'Inter',sans-serif;font-size:16px;font-weight:600;color:var(--text)"></div>
+        <div id="picker-month-label" style="font-family:'Barlow',sans-serif;font-size:16px;font-weight:600;color:var(--text)"></div>
         <button onclick="pickerNavMonth(1)" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px 10px">›</button>
       </div>
       <!-- Day headers -->
@@ -856,14 +976,14 @@ textarea#knock-notes:focus { border-color:var(--accent); }
         <path d="M22 2C13.163 2 6 9.163 6 18c0 12 16 28 16 28S38 30 38 18C38 9.163 30.837 2 22 2z" fill="#22c55e"/>
         <path d="M14 18l6 6 10-10" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <span style="font-family:'Orbitron',sans-serif;font-size:14px;letter-spacing:4px;font-weight:900"><span style="color:var(--green)">KNOCK</span> <span style="color:var(--text)">TRACK</span></span>
+      <span style="font-family:'Barlow Condensed',sans-serif;font-size:14px;letter-spacing:4px;font-weight:900"><span style="color:var(--green)">KNOCK</span> <span style="color:var(--text)">TRACK</span></span>
     </div>
     <div id="search-wrap">
       <span class="search-icon">🔍</span>
       <input id="address-search" type="text" placeholder="Search address…" autocomplete="off"/>
     </div>
     <div id="stats-bar">
-      <button onclick="showDashboard()" style="padding:5px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--muted);font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer">🏠 Home</button>
+      <button onclick="showDashboard()" style="padding:5px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--muted);font-family:'Barlow',sans-serif;font-size:12px;font-weight:600;cursor:pointer">🏠 Home</button>
       <div class="stat-pill"><div class="stat-dot" style="background:#56e89c"></div><span id="stat-leads">0</span> Leads</div>
       <div class="stat-pill"><div class="stat-dot" style="background:#e05c5c"></div><span id="stat-ni">0</span> NI</div>
       <div class="stat-pill"><div class="stat-dot" style="background:var(--muted)"></div><span id="stat-total">0</span> Total</div>
@@ -878,7 +998,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 
       <!-- Top right controls -->
       <div id="map-type-toggle">
-        <button id="pin-drop-btn" onclick="togglePinMode()" style="padding:7px 14px;border-radius:8px;border:2px solid transparent;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;backdrop-filter:blur(8px);background:rgba(26,29,39,0.85);color:#aaa;border-color:rgba(255,255,255,0.1);display:flex;align-items:center;gap:5px">
+        <button id="pin-drop-btn" onclick="togglePinMode()" style="padding:7px 14px;border-radius:8px;border:2px solid transparent;font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;cursor:pointer;backdrop-filter:blur(8px);background:rgba(26,29,39,0.85);color:#aaa;border-color:rgba(255,255,255,0.1);display:flex;align-items:center;gap:5px">
           📍 Drop Pin
         </button>
         <button class="map-type-btn inactive" id="btn-knocks-tab" onclick="toggleKnocksPanel()" style="position:relative">
@@ -897,7 +1017,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       </div>
 
       <!-- Heatmap legend -->
-      <div id="heatmap-legend" style="display:none;position:absolute;bottom:90px;left:62px;z-index:10;background:rgba(26,29,39,0.95);border:1px solid var(--border);border-radius:10px;padding:10px 13px;font-family:'Inter',sans-serif;backdrop-filter:blur(8px);max-width:200px">
+      <div id="heatmap-legend" style="display:none;position:absolute;bottom:90px;left:62px;z-index:10;background:rgba(26,29,39,0.95);border:1px solid var(--border);border-radius:10px;padding:10px 13px;font-family:'Barlow',sans-serif;backdrop-filter:blur(8px);max-width:200px">
         <div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🔥 Hot Zone Map</div>
         <div style="font-size:11px;color:#aaa;line-height:1.5">Areas where multiple homeowners have enrolled show as <span style="color:#ef4444;font-weight:700">red hot zones</span> — these neighborhoods are responding well to your reps. Focus more effort here!</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
@@ -917,12 +1037,12 @@ textarea#knock-notes:focus { border-color:var(--accent); }
         <div class="knocks-list-header">
           <h3>Recent Knocks</h3>
           <div style="display:flex;align-items:center;gap:6px">
-            <div id="streak-badge" style="display:none;align-items:center;gap:4px;background:rgba(250,120,30,0.15);border:1px solid rgba(250,120,30,0.4);border-radius:20px;padding:3px 9px;font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;color:#fa781e">🔥 <span id="streak-count">0</span></div>
+            <div id="streak-badge" style="display:none;align-items:center;gap:4px;background:rgba(250,120,30,0.15);border:1px solid rgba(250,120,30,0.4);border-radius:20px;padding:3px 9px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:#fa781e">🔥 <span id="streak-count">0</span></div>
             <button id="clear-all-btn">Clear All</button>
           </div>
         </div>
         <div style="padding:0 0 8px">
-          <input id="knock-search" type="text" placeholder="🔍 Search address…" oninput="filterKnockList(this.value)" style="width:100%;padding:7px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;box-sizing:border-box" />
+          <input id="knock-search" type="text" placeholder="🔍 Search address…" oninput="filterKnockList(this.value)" style="width:100%;padding:7px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none;box-sizing:border-box" />
         </div>
         <div id="knocks-list"></div>
         <div id="empty-state">
@@ -939,16 +1059,16 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 <div id="knocks-panel" style="display:none;position:fixed;top:0;left:0;right:0;bottom:56px;z-index:900;background:rgba(12,14,20,0.97);display:none;flex-direction:column;overflow:hidden">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
     <div style="display:flex;align-items:center;gap:10px">
-      <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:800;letter-spacing:2px;color:var(--green)">📋 RECENT KNOCKS</div>
-      <div id="kp-streak-badge" style="display:none;align-items:center;gap:4px;background:rgba(250,120,30,0.15);border:1px solid rgba(250,120,30,0.4);border-radius:20px;padding:3px 9px;font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;color:#fa781e">🔥 <span id="kp-streak-count">0</span> today</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;letter-spacing:2px;color:var(--green)">📋 RECENT KNOCKS</div>
+      <div id="kp-streak-badge" style="display:none;align-items:center;gap:4px;background:rgba(250,120,30,0.15);border:1px solid rgba(250,120,30,0.4);border-radius:20px;padding:3px 9px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:#fa781e">🔥 <span id="kp-streak-count">0</span> today</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <button onclick="exportCSV()" style="padding:6px 12px;background:rgba(99,130,247,0.15);border:1px solid rgba(99,130,247,0.4);border-radius:7px;color:#6382f7;font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;cursor:pointer">📊 CSV</button>
+      <button onclick="exportCSV()" style="padding:6px 12px;background:rgba(99,130,247,0.15);border:1px solid rgba(99,130,247,0.4);border-radius:7px;color:#6382f7;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;cursor:pointer">📊 CSV</button>
       <button onclick="toggleKnocksPanel()" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
   </div>
   <div style="padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
-    <input id="kp-search" type="text" placeholder="🔍 Search address or rep…" oninput="filterKnockList(this.value);document.getElementById('knock-search').value=this.value" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;box-sizing:border-box"/>
+    <input id="kp-search" type="text" placeholder="🔍 Search address or rep…" oninput="filterKnockList(this.value);document.getElementById('knock-search').value=this.value" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none;box-sizing:border-box"/>
   </div>
   <div id="kp-knocks-list" style="flex:1;overflow-y:auto;padding:8px 12px"></div>
 </div>
@@ -981,7 +1101,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
     <span class="modal-label">Outcome</span>
     <div class="status-grid" id="status-grid"></div>
     <span class="modal-label">Assign Rep</span>
-    <select id="knock-rep-name" style="width:100%;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;-webkit-appearance:none">
+    <select id="knock-rep-name" style="width:100%;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none;-webkit-appearance:none">
       <option value="">— Select a rep —</option>
     </select>
     <span class="modal-label">Notes (optional)</span>
@@ -1666,7 +1786,7 @@ function openBottomSheet(knock) {
     <div class="bs-divider"></div>
 
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:6px">Assign Rep</div>
-    <select id="bs-rep-select" onchange="assignRepFromSheet('${knock.id}', this.value)" style="width:100%;padding:9px 12px;border:1.5px solid #e5e5ea;border-radius:9px;font-family:'Inter',sans-serif;font-size:14px;color:#111;background:#f7f7f7;margin-bottom:12px;outline:none">
+    <select id="bs-rep-select" onchange="assignRepFromSheet('${knock.id}', this.value)" style="width:100%;padding:9px 12px;border:1.5px solid #e5e5ea;border-radius:9px;font-family:'Barlow',sans-serif;font-size:14px;color:#111;background:#f7f7f7;margin-bottom:12px;outline:none">
       ${repOptions}
     </select>
 
@@ -1697,7 +1817,7 @@ function openBottomSheet(knock) {
     </div>` : ''}
     <div class="bs-actions">
       <button class="bs-edit-btn" onclick="editKnock('${knock.id}')">✏️ Edit Details</button>
-      <button onclick="openStreetView(${knock.lat},${knock.lng})" style="padding:11px 14px;background:#fff;color:#4f8ef7;border:1.5px solid #4f8ef7;border-radius:10px;font-family:'Inter',sans-serif;font-size:14px;font-weight:700;cursor:pointer">🧭 Street View</button>
+      <button onclick="openStreetView(${knock.lat},${knock.lng})" style="padding:11px 14px;background:#fff;color:#4f8ef7;border:1.5px solid #4f8ef7;border-radius:10px;font-family:'Barlow',sans-serif;font-size:14px;font-weight:700;cursor:pointer">🧭 Street View</button>
       <button class="bs-delete-btn" onclick="deleteKnock('${knock.id}');closeBottomSheet()">🗑 Delete</button>
     </div>`;
   document.getElementById('bottom-sheet').classList.add('open');
@@ -1887,48 +2007,48 @@ function renderDetailPage(id, tab) {
       </div>
       <div style="background:#f2f2f7;padding:7px 18px 4px;font-size:11px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase">Contact Info</div>
       <div style="background:#fff;padding:0 18px">
-        <input id="inf-business" value="${knock.business||''}" placeholder="Business Name" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent"/>
+        <input id="inf-business" value="${knock.business||''}" placeholder="Business Name" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Barlow',sans-serif;background:transparent"/>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
-          <input id="inf-fname" value="${knock.firstName||''}" placeholder="First Name" style="border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent;width:100%"/>
-          <input id="inf-lname" value="${knock.lastName||''}" placeholder="Last Name" style="border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent;width:100%"/>
+          <input id="inf-fname" value="${knock.firstName||''}" placeholder="First Name" style="border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Barlow',sans-serif;background:transparent;width:100%"/>
+          <input id="inf-lname" value="${knock.lastName||''}" placeholder="Last Name" style="border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Barlow',sans-serif;background:transparent;width:100%"/>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
-          <input id="inf-phone" value="${knock.phone||''}" placeholder="Phone" type="tel" style="border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent;width:100%"/>
-          <input id="inf-phone2" value="${knock.phone2||''}" placeholder="Alt Phone" type="tel" style="border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent;width:100%"/>
+          <input id="inf-phone" value="${knock.phone||''}" placeholder="Phone" type="tel" style="border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Barlow',sans-serif;background:transparent;width:100%"/>
+          <input id="inf-phone2" value="${knock.phone2||''}" placeholder="Alt Phone" type="tel" style="border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Barlow',sans-serif;background:transparent;width:100%"/>
         </div>
-        <input id="inf-email" value="${knock.email||''}" placeholder="Email" type="email" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent"/>
+        <input id="inf-email" value="${knock.email||''}" placeholder="Email" type="email" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Barlow',sans-serif;background:transparent"/>
         <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid #e5e5ea">
-          <input id="inf-street" value="${street}" placeholder="Street Address" style="flex:1;border:none;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent"/>
-          <input id="inf-apt" value="${knock.apt||''}" placeholder="Apt" style="width:70px;border:none;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent;text-align:right"/>
+          <input id="inf-street" value="${street}" placeholder="Street Address" style="flex:1;border:none;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Barlow',sans-serif;background:transparent"/>
+          <input id="inf-apt" value="${knock.apt||''}" placeholder="Apt" style="width:70px;border:none;padding:12px 0;font-size:15px;color:#111;outline:none;font-family:'Barlow',sans-serif;background:transparent;text-align:right"/>
         </div>
-        <input id="inf-city" value="${city}" placeholder="City" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;font-weight:700;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent"/>
+        <input id="inf-city" value="${city}" placeholder="City" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:12px 0;font-size:15px;font-weight:700;color:#111;outline:none;font-family:'Barlow',sans-serif;background:transparent"/>
       </div>
       <div style="background:#f2f2f7;padding:7px 18px 4px;font-size:11px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase;margin-top:7px">Status</div>
       <div style="background:#fff;padding:12px 18px">
         <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none">
           ${STATUSES.map(st => `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;cursor:pointer" onclick="quickStatusDetail('${id}','${st.key}')">
             <div style="width:50px;height:50px;border-radius:50%;background:${st.color};display:flex;align-items:center;justify-content:center;font-size:21px;color:white;font-weight:900;${knock.status===st.key?'box-shadow:0 0 0 3px white,0 0 0 5px '+st.color:''}">${st.icon}</div>
-            <span style="font-size:10px;font-weight:700;color:#555;font-family:'Inter',sans-serif">${ABBREVS[st.key]||st.key}</span>
+            <span style="font-size:10px;font-weight:700;color:#555;font-family:'Barlow',sans-serif">${ABBREVS[st.key]||st.key}</span>
           </div>`).join('')}
         </div>
       </div>
       <div style="background:#f2f2f7;padding:7px 18px 4px;font-size:11px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase;margin-top:7px">Notes</div>
       <div style="background:#fff;padding:10px 18px">
-        <textarea id="detail-notes-input" placeholder="Add notes…" style="width:100%;background:#f2f2f7;border:none;border-radius:10px;padding:11px 13px;font-family:'Inter',sans-serif;font-size:14px;color:#111;outline:none;resize:none;min-height:80px">${knock.notes||''}</textarea>
+        <textarea id="detail-notes-input" placeholder="Add notes…" style="width:100%;background:#f2f2f7;border:none;border-radius:10px;padding:11px 13px;font-family:'Barlow',sans-serif;font-size:14px;color:#111;outline:none;resize:none;min-height:80px">${knock.notes||''}</textarea>
       </div>
       <div style="background:#f2f2f7;padding:7px 18px 4px;font-size:11px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase;margin-top:7px">Appointment</div>
       <div style="background:#fff;padding:14px 18px;border-bottom:1px solid #f2f2f7">
         ${knock.appointment
           ? `<div style="font-size:15px;font-weight:600;color:#111">📅 ${new Date(knock.appointment).toLocaleString()}</div><div style="margin-top:6px"><span style="font-size:13px;color:#e05c5c;cursor:pointer;font-weight:600" onclick="clearAppointment('${id}')">Clear</span></div>`
           : `<div style="text-align:center"><span style="font-size:15px;font-weight:700;color:#38bdf8;cursor:pointer" onclick="showAppointmentPicker('${id}')">Set Appointment</span></div>`}
-        <input type="datetime-local" id="appt-picker" style="display:none;margin-top:10px;width:100%;padding:8px;border:1px solid #e5e5ea;border-radius:8px;font-family:'Inter',sans-serif;font-size:14px" onchange="saveAppointment('${id}')"/>
+        <input type="datetime-local" id="appt-picker" style="display:none;margin-top:10px;width:100%;padding:8px;border:1px solid #e5e5ea;border-radius:8px;font-family:'Barlow',sans-serif;font-size:14px" onchange="saveAppointment('${id}')"/>
       </div>
       <div style="background:#f2f2f7;padding:7px 18px 4px;font-size:11px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase;margin-top:7px">Custom Fields</div>
       <div style="background:#fff;padding:4px 18px 8px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
           <div>
             <div style="font-size:13px;font-weight:700;color:#38bdf8;padding-top:10px">Developer</div>
-            <select id="inf-developer" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:8px 0;font-size:14px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent;cursor:pointer">
+            <select id="inf-developer" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:8px 0;font-size:14px;color:#111;outline:none;font-family:'Barlow',sans-serif;background:transparent;cursor:pointer">
               <option value="">— Select Developer —</option>
               <option ${knock.developer==='Roofless Solar'?'selected':''}>Roofless Solar</option>
               <option ${knock.developer==='Common Energy'?'selected':''}>Common Energy</option>
@@ -1954,11 +2074,11 @@ function renderDetailPage(id, tab) {
               <option ${knock.developer==='Syncarpha Capital'?'selected':''}>Syncarpha Capital</option>
             </select>
           </div>
-          <div><div style="font-size:13px;color:#aaa;padding-top:10px">Annual KwH</div><input id="inf-kwh" value="${knock.annualKwh||''}" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:8px 0;font-size:14px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent"/></div>
+          <div><div style="font-size:13px;color:#aaa;padding-top:10px">Annual KwH</div><input id="inf-kwh" value="${knock.annualKwh||''}" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:8px 0;font-size:14px;color:#111;outline:none;font-family:'Barlow',sans-serif;background:transparent"/></div>
         </div>
         <div>
           <div style="font-size:13px;font-weight:700;color:#38bdf8;padding-top:12px">Utility</div>
-          <select id="inf-utility" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:8px 0;font-size:14px;color:#111;outline:none;font-family:'Inter',sans-serif;background:transparent;cursor:pointer">
+          <select id="inf-utility" style="width:100%;border:none;border-bottom:1px solid #e5e5ea;padding:8px 0;font-size:14px;color:#111;outline:none;font-family:'Barlow',sans-serif;background:transparent;cursor:pointer">
             <option value="">— Select Utility —</option>
             <optgroup label="Maryland">
               <option ${knock.utility==='Pepco'?'selected':''}>Pepco</option>
@@ -2135,6 +2255,7 @@ window.setTimePeriod = function(period) {
   currentTimePeriod = period;
   document.querySelectorAll('.time-tab').forEach(t => t.classList.toggle('active-time', t.dataset.period === period));
   renderDashboard();
+  setTimeout(renderOverviewExtras, 100);
 };
 
 function showDashboard() {
@@ -2180,6 +2301,8 @@ function renderDashboard() {
   renderStatsGrid('company-stats-grid', data);
   renderDispositions('company-dispositions', data);
   renderRepBreakdown(period);
+  if (currentDashTab === 'overview') renderOverviewExtras();
+  if (currentDashTab === 'leaderboard') renderLeaderboard();
 }
 
 function renderRepBreakdown(data) {
@@ -2210,20 +2333,20 @@ function renderRepBreakdown(data) {
             <div style="font-size:11px;color:var(--muted)">${repObj?.role || 'Field Rep'} · ${ks.length} doors · ${m.enrolled} enrolled</div>
           </div>
         </div>
-        <div style="font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:var(--green)">${m.closeRate}%</div>
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:20px;font-weight:700;color:var(--green)">${m.closeRate}%</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
         <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center">
           <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">Doors</div>
-          <div style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--text)">${m.totalDoors}</div>
+          <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--text)">${m.totalDoors}</div>
         </div>
         <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center">
           <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">Enrolled</div>
-          <div style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--green)">${m.enrolled}</div>
+          <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--green)">${m.enrolled}</div>
         </div>
         <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center">
           <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">Close %</div>
-          <div style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--accent)">${m.closeRate}%</div>
+          <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--accent)">${m.closeRate}%</div>
         </div>
       </div>
     </div>`;
@@ -2259,8 +2382,8 @@ window.openRepProfile = function(name) {
 
   overlay.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:10">
-      <button onclick="document.getElementById('rep-profile-overlay').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer">← Back</button>
-      <div style="font-family:'Exo 2',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:var(--green)">REP PROFILE</div>
+      <button onclick="document.getElementById('rep-profile-overlay').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;cursor:pointer">← Back</button>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:var(--green)">REP PROFILE</div>
     </div>
     <div style="padding:20px;max-width:700px;margin:0 auto;width:100%">
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;display:flex;align-items:center;gap:16px">
@@ -2285,7 +2408,7 @@ window.openRepProfile = function(name) {
           {label:'Appt Rate',value:m.apptRate+'%',color:'#bf8eff'},
           {label:'Not Home',value:m.notHome,color:'#ef4444'},
         ].map(c=>`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-          <div style="font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:${c.color}">${c.value}</div>
+          <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:20px;font-weight:700;color:${c.color}">${c.value}</div>
           <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-top:3px">${c.label}</div>
         </div>`).join('')}
       </div>
@@ -2301,7 +2424,7 @@ window.openRepProfile = function(name) {
               <div style="width:28px;height:28px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:900;flex-shrink:0">${s.icon}</div>
               <div style="flex:1;font-size:13px;font-weight:600;color:var(--text)">${s.label}</div>
               <div style="width:80px;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;background:${s.color};width:${pct}%"></div></div>
-              <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:${s.color};min-width:28px;text-align:right">${count}</div>
+              <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:14px;font-weight:700;color:${s.color};min-width:28px;text-align:right">${count}</div>
             </div>`;
           }).join('')}
       </div>
@@ -2321,8 +2444,8 @@ window.openRepProfile = function(name) {
                 ${k.notes?`<div style="font-size:11px;color:var(--muted);margin-top:1px">📝 ${k.notes}</div>`:''}
               </div>
               <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
-                <button onclick="openPinDetailPage('${k.id}')" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);cursor:pointer">📋 Details</button>
-                <button onclick="goToKnockFromProfile('${k.id}')" style="padding:5px 10px;background:var(--accent);border:none;border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:#fff;cursor:pointer">🗺 Map</button>
+                <button onclick="openPinDetailPage('${k.id}')" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-family:'Barlow',sans-serif;font-size:11px;font-weight:700;color:var(--text);cursor:pointer">📋 Details</button>
+                <button onclick="goToKnockFromProfile('${k.id}')" style="padding:5px 10px;background:var(--accent);border:none;border-radius:7px;font-family:'Barlow',sans-serif;font-size:11px;font-weight:700;color:#fff;cursor:pointer">🗺 Map</button>
               </div>
             </div>`;
           }).join('')}
@@ -2387,9 +2510,9 @@ window.openPinDetailPage = function(id) {
 
   overlay.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;flex-shrink:0">
-      <button onclick="document.getElementById('pin-detail-page').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer">← Back</button>
-      <div style="font-family:'Exo 2',sans-serif;font-size:17px;font-weight:800;letter-spacing:2px;color:${s?.color||'var(--green)'}">SALE DETAILS</div>
-      <button onclick="goToPinOnMap('${k.id}')" style="margin-left:auto;padding:7px 14px;background:var(--accent);border:none;border-radius:8px;font-family:'Exo 2',sans-serif;font-size:12px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0">🗺 View on Map</button>
+      <button onclick="document.getElementById('pin-detail-page').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;cursor:pointer">← Back</button>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:800;letter-spacing:2px;color:${s?.color||'var(--green)'}">SALE DETAILS</div>
+      <button onclick="goToPinOnMap('${k.id}')" style="margin-left:auto;padding:7px 14px;background:var(--accent);border:none;border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0">🗺 View on Map</button>
     </div>
     <div style="padding:20px;max-width:700px;margin:0 auto;width:100%">
 
@@ -2527,7 +2650,7 @@ window.showDispositionDrilldown = function(statusKey) {
           <div style="font-size:16px;font-weight:700;color:var(--text)">${s.label}</div>
           <div style="font-size:12px;color:var(--muted)">${matches.length} knock${matches.length>1?'s':''}</div>
         </div>
-        <button onclick="document.getElementById('disp-drilldown').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:6px 12px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer">✕ Close</button>
+        <button onclick="document.getElementById('disp-drilldown').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:6px 12px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;cursor:pointer">✕ Close</button>
       </div>
       <div style="overflow-y:auto;padding:10px 14px 20px">
         ${matches.map(k => `
@@ -2684,7 +2807,7 @@ function buildHeatmap() {
 let currentDashTab = 'overview';
 window.switchDashTab = function(tab) {
   currentDashTab = tab;
-  ['overview','dispositions','reps','calendar'].forEach(t => {
+  ['overview','leaderboard','dispositions','reps','calendar'].forEach(t => {
     const panel = document.getElementById(`dash-panel-${t}`);
     const btn = document.getElementById(`dtab-${t}`);
     if (panel) {
@@ -2695,13 +2818,152 @@ window.switchDashTab = function(tab) {
   });
   if (tab === 'calendar') {
     populateCalRepSelect();
-    // Re-show gate if no rep currently selected
     if (!calCurrentRep) {
       document.getElementById('cal-rep-gate').style.display = 'flex';
       document.getElementById('cal-main').style.display = 'none';
     }
   }
+  if (tab === 'leaderboard') renderLeaderboard();
+  if (tab === 'overview') renderOverviewExtras();
 };
+
+// ── LEADERBOARD RENDER ─────────────────────────────────────────────────────
+function renderLeaderboard() {
+  const period = filterByPeriod(knocks, currentTimePeriod);
+  const selectedRep = document.getElementById('dashboard-rep-select')?.value || '';
+  const data = selectedRep ? period.filter(k => k.rep === selectedRep) : period;
+
+  // Build rep map with kWh
+  const repMap = {};
+  const allReps = [...reps, ...archivedReps];
+  allReps.forEach(r => {
+    const repKnocks = data.filter(k => k.rep === r.name);
+    const m = calcMetrics(repKnocks);
+    const enrolled = repKnocks.filter(k => k.status === 'enrolled');
+    const kwh = enrolled.reduce((sum, k) => sum + (parseFloat(k.annualKwh || k.annual_kwh) || 0), 0);
+    repMap[r.name] = { name: r.name, knocks: repKnocks.length, enrolled: m.enrolled, kwh, closeRate: m.closeRate, states: [...new Set(enrolled.map(k => k.address?.split(',').slice(-2,-1)[0]?.trim()).filter(Boolean))].slice(0,3) };
+  });
+
+  const sorted = Object.values(repMap).sort((a,b) => b.kwh - a.kwh || b.enrolled - a.enrolled);
+  const maxKwh = sorted[0]?.kwh || 1;
+
+  // Format KWH
+  const fmtKwh = v => v >= 1000 ? (v/1000).toFixed(1)+'K' : v.toString();
+
+  // ── Podium ──
+  const podium = document.getElementById('lb-podium');
+  if (!podium) return;
+  const medals = ['🥇','🥈','🥉'];
+  const medalColors = ['#fbbf24','#9ca3af','#b47448'];
+  const podiumOrder = [1, 0, 2]; // 2nd, 1st, 3rd in visual layout
+  podium.innerHTML = podiumOrder.map(i => {
+    const r = sorted[i];
+    if (!r) return '<div></div>';
+    const color = medalColors[i];
+    const initials = r.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<div class="lb-podium-card rank-${i+1}" onclick="openRepProfile('${r.name}')">
+      <div class="lb-medal">${medals[i]}</div>
+      <div class="lb-avatar" style="background:${color}22;border:2px solid ${color};color:${color}">${initials}</div>
+      <div class="lb-name">${r.name.split(' ')[0]}</div>
+      <div class="lb-kwh" style="color:${color}">${fmtKwh(r.kwh)}</div>
+      <div class="lb-sub">KWH · ${r.enrolled} sales${r.states.length?' · '+r.states.join(', '):''}</div>
+    </div>`;
+  }).join('');
+
+  // ── Full table ──
+  const rows = document.getElementById('lb-rows');
+  if (!rows) return;
+  const rankIcons = ['🔥','🥈','🥉'];
+  rows.innerHTML = sorted.map((r,i) => {
+    const initials = r.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const pct = maxKwh > 0 ? Math.round((r.kwh/maxKwh)*100) : 0;
+    const barColor = i===0?'#fbbf24':i===1?'#9ca3af':i===2?'#b47448':'var(--green)';
+    const isLeader = i===0 && r.kwh > 0;
+    return `<div class="lb-row" onclick="openRepProfile('${r.name}')">
+      <div class="lb-rank">${i<3&&r.kwh>0?rankIcons[i]:i+1}</div>
+      <div class="lb-rep-info">
+        <div class="lb-rep-avatar" style="background:${barColor}22;color:${barColor}">${initials}</div>
+        <div>
+          <div class="lb-rep-name">${r.name}${isLeader?' <span style="font-size:9px;background:#fbbf2422;color:#fbbf24;border:1px solid #fbbf2444;border-radius:4px;padding:1px 5px;font-family:Barlow Condensed,sans-serif;letter-spacing:0.5px">LEADER</span>':''}</div>
+          <div class="lb-rep-tags">${r.states.map(s=>`<span class="lb-tag">${s}</span>`).join('')}</div>
+        </div>
+      </div>
+      <div class="lb-kwh-val">${r.kwh>0?fmtKwh(r.kwh):'<span style="color:var(--muted)">0</span>'}</div>
+      <div class="lb-sales-val">${r.enrolled}</div>
+      <div>
+        <div class="lb-progress-bar"><div class="lb-progress-fill" style="width:${pct}%;background:${barColor}"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.toggleLbFull = function() {
+  const el = document.getElementById('lb-full-table');
+  const lbl = document.getElementById('lb-toggle-label');
+  if (!el || !lbl) return;
+  const hidden = el.style.display === 'none';
+  el.style.display = hidden ? 'block' : 'none';
+  lbl.textContent = hidden ? '▼ TAP TO COLLAPSE' : '▶ TAP TO EXPAND';
+};
+
+// ── OVERVIEW EXTRAS (KPI hero + activity feed) ───────────────────────────
+function renderOverviewExtras() {
+  const period = filterByPeriod(knocks, currentTimePeriod);
+  const selectedRep = document.getElementById('dashboard-rep-select')?.value || '';
+  const data = selectedRep ? period.filter(k => k.rep === selectedRep) : period;
+  const m = calcMetrics(data);
+
+  // KPI hero
+  const hero = document.getElementById('dash-kpi-hero');
+  if (hero) {
+    const enrolled = data.filter(k => k.status==='enrolled');
+    const totalKwh = enrolled.reduce((s,k)=>s+(parseFloat(k.annualKwh||k.annual_kwh)||0),0);
+    const fmtK = v => v>=1000?(v/1000).toFixed(1)+'K':v.toString();
+    hero.innerHTML = [
+      {label:'Doors Knocked', value:m.totalDoors, sub:'total contacts', icon:'🚪', color:'var(--text)'},
+      {label:'Enrolled', value:m.enrolled, sub:`${m.closeRate}% close rate`, icon:'⚡', color:'var(--green)'},
+      {label:'kWh Produced', value:fmtK(totalKwh), sub:'from enrollments', icon:'☀️', color:'#fbbf24'},
+    ].map(c=>`<div class="kpi-hero-card">
+      <div class="kpi-hero-icon">${c.icon}</div>
+      <div class="kpi-hero-label">${c.label}</div>
+      <div class="kpi-hero-value" style="color:${c.color}">${c.value}</div>
+      <div class="kpi-hero-sub">${c.sub}</div>
+    </div>`).join('');
+  }
+
+  // Activity feed — last 8 knocks
+  const feed = document.getElementById('dash-activity-feed');
+  if (feed) {
+    const recent = [...data].sort((a,b)=>new Date(b.time)-new Date(a.time)).slice(0,8);
+    if (recent.length === 0) {
+      feed.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;font-family:Barlow,sans-serif">No activity yet for this period.</div>';
+      return;
+    }
+    feed.innerHTML = recent.map(k => {
+      const s = STATUSES?.find(x=>x.key===k.status);
+      const color = s?.color || '#888';
+      const addr = k.address?.split(',')[0] || k.address || 'Unknown';
+      const ago = timeAgo(new Date(k.time));
+      return `<div class="activity-item">
+        <div class="activity-dot" style="background:${color}"></div>
+        <div class="activity-text">${k.rep ? '<span style="color:var(--muted)">'+k.rep.split(' ')[0]+'</span> · ' : ''}${addr}</div>
+        <div style="font-size:11px;font-weight:700;color:${color};font-family:'Barlow Condensed',sans-serif;white-space:nowrap;margin-right:6px">${s?.label||k.status}</div>
+        <div class="activity-time">${ago}</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function timeAgo(date) {
+  const secs = Math.floor((Date.now() - date)/1000);
+  if (secs < 60) return 'just now';
+  const mins = Math.floor(secs/60);
+  if (mins < 60) return mins+'m ago';
+  const hrs = Math.floor(mins/60);
+  if (hrs < 24) return hrs+'h ago';
+  return Math.floor(hrs/24)+'d ago';
+}
+// ── END LEADERBOARD & EXTRAS ───────────────────────────────────────────────
 
 // ── PORTAL TABS ──
 // ── CALENDAR ──────────────────────────────────────────
@@ -2790,7 +3052,7 @@ function renderCalendar() {
       transition:border-color 0.15s,background 0.15s;
       display:flex;flex-direction:column;align-items:center;gap:3px;
     " onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='${isToday?'var(--green)':'var(--border)'}'">
-      <span style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:${isToday?'var(--green)':'var(--text)'}">${d}</span>
+      <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:12px;font-weight:700;color:${isToday?'var(--green)':'var(--text)'}">${d}</span>
       <div style="display:flex;gap:2px;flex-wrap:wrap;justify-content:center">
         ${hasPin?'<span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block"></span>':''}
         ${hasManual?'<span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;display:inline-block"></span>':''}
@@ -2821,9 +3083,9 @@ function renderCalendar() {
         ${e.notes?`<div style="font-size:11px;color:var(--muted);margin-top:4px">${e.notes}</div>`:''}
       </div>
       ${!e.fromPin?`<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
-        <button onclick="editCalEvent('${e.id}')" style="padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--text);cursor:pointer">✏️</button>
-        <button onclick="deleteCalEvent('${e.id}')" style="padding:4px 10px;background:rgba(224,92,92,0.12);border:1px solid rgba(224,92,92,0.3);border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:#e05c5c;cursor:pointer">✕</button>
-      </div>`:`<button onclick="goToPinOnMap('${e.pinId}')" style="padding:5px 10px;background:var(--accent);border:none;border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0">🗺 Map</button>`}
+        <button onclick="editCalEvent('${e.id}')" style="padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-family:'Barlow',sans-serif;font-size:11px;font-weight:600;color:var(--text);cursor:pointer">✏️</button>
+        <button onclick="deleteCalEvent('${e.id}')" style="padding:4px 10px;background:rgba(224,92,92,0.12);border:1px solid rgba(224,92,92,0.3);border-radius:6px;font-family:'Barlow',sans-serif;font-size:11px;font-weight:600;color:#e05c5c;cursor:pointer">✕</button>
+      </div>`:`<button onclick="goToPinOnMap('${e.pinId}')" style="padding:5px 10px;background:var(--accent);border:none;border-radius:7px;font-family:'Barlow',sans-serif;font-size:11px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0">🗺 Map</button>`}
     </div>`;
   }).join('');
 }
@@ -2871,7 +3133,7 @@ function renderDayView(date) {
   for (let h = 0; h < 24; h++) {
     const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h-12} PM`;
     rows += `<div style="position:relative;height:${PX_PER_HOUR}px;display:flex;border-bottom:1px solid rgba(255,255,255,0.05);pointer-events:none">
-      <div style="width:54px;flex-shrink:0;padding-top:6px;text-align:right;padding-right:10px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)">${label}</div>
+      <div style="width:54px;flex-shrink:0;padding-top:6px;text-align:right;padding-right:10px;font-family:'Barlow Semi Condensed',sans-serif;font-size:10px;color:var(--muted)">${label}</div>
       <div style="flex:1;border-left:1px solid rgba(255,255,255,0.08)"></div>
     </div>`;
   }
@@ -2899,7 +3161,7 @@ function renderDayView(date) {
     >
       <div style="font-size:13px;font-weight:700;color:${color};margin-bottom:2px">${ev.title}</div>
       <div style="font-size:11px;color:rgba(255,255,255,0.5)">${timeStr}${ev.notes ? ' · '+ev.notes.slice(0,36) : ''}</div>
-      ${!ev.fromPin ? `<div style="position:absolute;bottom:4px;right:8px;font-size:9px;color:rgba(255,255,255,0.25);font-family:'Exo 2',sans-serif;letter-spacing:1px">DRAG</div>` : ''}
+      ${!ev.fromPin ? `<div style="position:absolute;bottom:4px;right:8px;font-size:9px;color:rgba(255,255,255,0.25);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px">DRAG</div>` : ''}
     </div>`;
   }).join('');
 
@@ -2948,7 +3210,7 @@ function startDrag(e, evId, el, type) {
   // Ghost tooltip
   const tooltip = document.createElement('div');
   tooltip.id = 'drag-tooltip';
-  tooltip.style.cssText = 'position:fixed;background:#1e1e2e;border:1px solid #a78bfa;border-radius:8px;padding:5px 10px;font-family:Inter,sans-serif;font-size:12px;font-weight:700;color:#a78bfa;z-index:99999;pointer-events:none;white-space:nowrap';
+  tooltip.style.cssText = 'position:fixed;background:#1e1e2e;border:1px solid #a78bfa;border-radius:8px;padding:5px 10px;font-family:Barlow,sans-serif;font-size:12px;font-weight:700;color:#a78bfa;z-index:99999;pointer-events:none;white-space:nowrap';
   document.body.appendChild(tooltip);
 
   function onMove(e2) {
@@ -3119,7 +3381,7 @@ function renderPickerCal() {
     const isSel = thisDate.toDateString() === selStr;
     cells += `<div onclick="pickerSelectDay(${d})" style="
       height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-      cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;font-weight:${isSel||isToday?'700':'400'};
+      cursor:pointer;font-family:'Barlow',sans-serif;font-size:14px;font-weight:${isSel||isToday?'700':'400'};
       background:${isSel?'var(--green)':'transparent'};
       color:${isSel?'#000':isToday?'var(--green)':'var(--text)'};
       border:${isToday&&!isSel?'1px solid var(--green)':'none'};
@@ -3352,20 +3614,20 @@ window.renderComparison = function() {
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;margin-bottom:16px;align-items:center">
       <div style="background:var(--surface);border:2px solid ${rA.color};border-radius:12px;padding:14px;text-align:center">
         <div style="width:44px;height:44px;border-radius:50%;background:${rA.color}33;border:2px solid ${rA.color};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:${rA.color};margin:0 auto 8px">${nameA.charAt(0).toUpperCase()}</div>
-        <div style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:800;color:var(--text)">${nameA}</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;color:var(--text)">${nameA}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">${rA.stars > 0 ? '⭐'.repeat(rA.stars) : '—'}</div>
-        <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:${rA.color};margin-top:6px">${mA.closeRate}%</div>
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:22px;font-weight:700;color:${rA.color};margin-top:6px">${mA.closeRate}%</div>
         <div style="font-size:10px;color:var(--muted)">close rate</div>
       </div>
       <div style="text-align:center">
-        <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:var(--muted)">VS</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;color:var(--muted)">VS</div>
         <div style="font-size:10px;color:var(--muted);margin-top:6px">${winA}–${winB}</div>
       </div>
       <div style="background:var(--surface);border:2px solid ${rB.color};border-radius:12px;padding:14px;text-align:center">
         <div style="width:44px;height:44px;border-radius:50%;background:${rB.color}33;border:2px solid ${rB.color};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:${rB.color};margin:0 auto 8px">${nameB.charAt(0).toUpperCase()}</div>
-        <div style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:800;color:var(--text)">${nameB}</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;color:var(--text)">${nameB}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">${rB.stars > 0 ? '⭐'.repeat(rB.stars) : '—'}</div>
-        <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:${rB.color};margin-top:6px">${mB.closeRate}%</div>
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:22px;font-weight:700;color:${rB.color};margin-top:6px">${mB.closeRate}%</div>
         <div style="font-size:10px;color:var(--muted)">close rate</div>
       </div>
     </div>
@@ -3381,12 +3643,12 @@ window.renderComparison = function() {
         return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);text-align:center;margin-bottom:7px">${m.label}</div>
           <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center">
-            <div style="text-align:right;font-family:'Space Mono',monospace;font-size:17px;font-weight:700;color:${aWins?'var(--green)':'var(--text)'}">${m.a}${aWins?' 🏆':''}</div>
+            <div style="text-align:right;font-family:'Barlow Semi Condensed',sans-serif;font-size:17px;font-weight:700;color:${aWins?'var(--green)':'var(--text)'}">${m.a}${aWins?' 🏆':''}</div>
             <div style="height:6px;width:50px;background:var(--border);border-radius:3px;overflow:hidden;display:flex">
               <div style="width:${pctA}%;background:${rA.color};height:100%"></div>
               <div style="width:${pctB}%;background:${rB.color};height:100%"></div>
             </div>
-            <div style="text-align:left;font-family:'Space Mono',monospace;font-size:17px;font-weight:700;color:${bWins?'var(--green)':'var(--text)'}">${bWins?'🏆 ':''}${m.b}</div>
+            <div style="text-align:left;font-family:'Barlow Semi Condensed',sans-serif;font-size:17px;font-weight:700;color:${bWins?'var(--green)':'var(--text)'}">${bWins?'🏆 ':''}${m.b}</div>
           </div>
         </div>`;
       }).join('')}
@@ -3557,7 +3819,7 @@ function renderEvaluations(searchQuery) {
           { label:'Close %', value:m.closeRate+'%', color:'var(--accent)' },
           { label:'Leads', value:m.qualityLeads+m.leads, color:'#f97316' },
         ].map((s,i) => `<div style="padding:12px 8px;text-align:center${i<3?';border-right:1px solid var(--border)':''}">
-          <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${s.color}">${s.value}</div>
+          <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:18px;font-weight:700;color:${s.color}">${s.value}</div>
           <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">${s.label}</div>
         </div>`).join('')}
       </div>
@@ -3679,17 +3941,17 @@ function renderRepsList() {
           ${starsHtml}
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-          <button onclick="event.stopPropagation();toggleEditRep(${i})" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;color:var(--text)">✏️ Edit</button>
-          <button onclick="event.stopPropagation();removeRep(${i})" style="padding:5px 10px;background:rgba(250,120,30,0.12);color:#fa781e;border:1px solid rgba(250,120,30,0.3);border-radius:6px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer">Archive</button>
+          <button onclick="event.stopPropagation();toggleEditRep(${i})" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-family:'Barlow',sans-serif;font-size:12px;font-weight:600;cursor:pointer;color:var(--text)">✏️ Edit</button>
+          <button onclick="event.stopPropagation();removeRep(${i})" style="padding:5px 10px;background:rgba(250,120,30,0.12);color:#fa781e;border:1px solid rgba(250,120,30,0.3);border-radius:6px;font-family:'Barlow',sans-serif;font-size:12px;font-weight:600;cursor:pointer">Archive</button>
         </div>
       </div>
       <div id="rep-edit-${i}" style="display:none;padding:0 16px 12px">
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <input id="edit-rep-name-${i}" value="${r.name}" placeholder="Full Name" style="flex:1;min-width:120px;padding:8px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none"/>
-          <select id="edit-rep-role-${i}" style="flex:1;min-width:150px;padding:8px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;cursor:pointer">
+          <input id="edit-rep-name-${i}" value="${r.name}" placeholder="Full Name" style="flex:1;min-width:120px;padding:8px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none"/>
+          <select id="edit-rep-role-${i}" style="flex:1;min-width:150px;padding:8px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none;cursor:pointer">
             <option value="">— Role —</option>${roleOptions(r.role)}
           </select>
-          <button onclick="saveRepEdit(${i})" style="padding:8px 14px;background:var(--green-dim);color:#000;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Save</button>
+          <button onclick="saveRepEdit(${i})" style="padding:8px 14px;background:var(--green-dim);color:#000;border:none;border-radius:8px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Save</button>
         </div>
       </div>
     </div>`;
@@ -3707,7 +3969,7 @@ function renderRepsList() {
           <div style="font-size:12px;color:var(--muted)">${r.role||'Field Representative'} · Archived ${archivedDate}</div>
           <div style="font-size:11px;color:var(--muted)">${repKnocks.length} pins preserved · ${m.closeRate}% close</div>
         </div>
-        <button onclick="event.stopPropagation();restoreRep(${ai})" style="padding:6px 12px;background:rgba(74,222,128,0.12);color:var(--green);border:1px solid var(--green);border-radius:7px;font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">↩ Restore</button>
+        <button onclick="event.stopPropagation();restoreRep(${ai})" style="padding:6px 12px;background:rgba(74,222,128,0.12);color:var(--green);border:1px solid var(--green);border-radius:7px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">↩ Restore</button>
       </div>
     </div>`;
   }).join('');
@@ -3755,14 +4017,14 @@ window.openRepProfileFromPortal = function(name) {
 
   overlay.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:10">
-      <button onclick="document.getElementById('rep-profile-overlay').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer">← Back</button>
-      <div style="font-family:'Exo 2',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:${isArchived?'#fa781e':'var(--green)'}">REP PROFILE${isArchived?' · ARCHIVED':''}</div>
+      <button onclick="document.getElementById('rep-profile-overlay').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;cursor:pointer">← Back</button>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:${isArchived?'#fa781e':'var(--green)'}">REP PROFILE${isArchived?' · ARCHIVED':''}</div>
     </div>
     <div style="padding:20px;max-width:700px;margin:0 auto;width:100%">
       ${isArchived?`<div style="background:rgba(250,120,30,0.1);border:1px solid rgba(250,120,30,0.3);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
         <span style="font-size:16px">🗄️</span>
         <div style="flex:1;font-size:13px;color:#fa781e;font-weight:600">${name} is no longer active. All ${repData.length} pin${repData.length!==1?'s':''} are preserved.</div>
-        <button onclick="restoreRepByName('${name}')" style="padding:6px 12px;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid var(--green);border-radius:7px;font-family:'Exo 2',sans-serif;font-size:12px;font-weight:700;cursor:pointer">↩ Restore</button>
+        <button onclick="restoreRepByName('${name}')" style="padding:6px 12px;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid var(--green);border-radius:7px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;cursor:pointer">↩ Restore</button>
       </div>`:''}
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;display:flex;align-items:center;gap:16px">
         <div style="width:60px;height:60px;border-radius:50%;background:${avatarColor}33;border:3px solid ${avatarColor};display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:${avatarColor};flex-shrink:0">${name.charAt(0).toUpperCase()}</div>
@@ -3786,7 +4048,7 @@ window.openRepProfileFromPortal = function(name) {
           {label:'Appt Rate',value:m.apptRate+'%',color:'#bf8eff'},
           {label:'Not Home',value:m.notHome,color:'#ef4444'},
         ].map(c=>`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-          <div style="font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:${c.color}">${c.value}</div>
+          <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:20px;font-weight:700;color:${c.color}">${c.value}</div>
           <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-top:3px">${c.label}</div>
         </div>`).join('')}
       </div>
@@ -3802,7 +4064,7 @@ window.openRepProfileFromPortal = function(name) {
               <div style="width:28px;height:28px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:900;flex-shrink:0">${s.icon}</div>
               <div style="flex:1;font-size:13px;font-weight:600;color:var(--text)">${s.label}</div>
               <div style="width:80px;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;background:${s.color};width:${pct}%"></div></div>
-              <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:${s.color};min-width:28px;text-align:right">${count}</div>
+              <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:14px;font-weight:700;color:${s.color};min-width:28px;text-align:right">${count}</div>
               <div style="font-size:10px;color:var(--accent);font-weight:600">▶</div>
             </div>`;
           }).join('')}
@@ -3823,8 +4085,8 @@ window.openRepProfileFromPortal = function(name) {
                 ${k.notes?`<div style="font-size:11px;color:var(--muted);margin-top:1px">📝 ${k.notes}</div>`:''}
               </div>
               <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
-                <button onclick="openPinDetailPage('${k.id}')" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);cursor:pointer">📋 Details</button>
-                <button onclick="goToPinOnMap('${k.id}')" style="padding:5px 10px;background:var(--accent);border:none;border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:#fff;cursor:pointer">🗺 Map</button>
+                <button onclick="openPinDetailPage('${k.id}')" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-family:'Barlow',sans-serif;font-size:11px;font-weight:700;color:var(--text);cursor:pointer">📋 Details</button>
+                <button onclick="goToPinOnMap('${k.id}')" style="padding:5px 10px;background:var(--accent);border:none;border-radius:7px;font-family:'Barlow',sans-serif;font-size:11px;font-weight:700;color:#fff;cursor:pointer">🗺 Map</button>
               </div>
             </div>`;
           }).join('')}
@@ -3977,16 +4239,16 @@ function darkMapStyle() {
 <!-- ═══ BACKEND PORTAL ═══ -->
 <div id="backend-portal" style="display:none;position:fixed;inset:0;background:rgba(15,17,23,0.93);z-index:4000;flex-direction:column;overflow-y:auto">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
-    <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:800;letter-spacing:4px;text-transform:uppercase">🔐 <span style="color:var(--green)">OWNER</span> PORTAL</div>
-    <button onclick="closeBackendPortal()" style="padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer">✕ Close</button>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;letter-spacing:4px;text-transform:uppercase">🔐 <span style="color:var(--green)">OWNER</span> PORTAL</div>
+    <button onclick="closeBackendPortal()" style="padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;cursor:pointer">✕ Close</button>
   </div>
 
   <!-- Portal Tabs -->
   <div style="display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0">
-    <button class="dash-tab" id="ptab-reps" onclick="switchPortalTab('reps')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--green);border-bottom:2px solid var(--green)">👥 Manage Reps</button>
-    <button class="dash-tab" id="ptab-evals" onclick="switchPortalTab('evals')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">📝 Evaluations</button>
-    <button class="dash-tab" id="ptab-compare" onclick="switchPortalTab('compare')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">⚔️ Compare</button>
-    <button class="dash-tab" id="ptab-ratings" onclick="switchPortalTab('ratings')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">⭐ Guide</button>
+    <button class="dash-tab" id="ptab-reps" onclick="switchPortalTab('reps')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--green);border-bottom:2px solid var(--green)">👥 Manage Reps</button>
+    <button class="dash-tab" id="ptab-evals" onclick="switchPortalTab('evals')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">📝 Evaluations</button>
+    <button class="dash-tab" id="ptab-compare" onclick="switchPortalTab('compare')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">⚔️ Compare</button>
+    <button class="dash-tab" id="ptab-ratings" onclick="switchPortalTab('ratings')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">⭐ Guide</button>
   </div>
 
   <!-- Manage Reps Tab -->
@@ -3994,8 +4256,8 @@ function darkMapStyle() {
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:20px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px">Add New Rep</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input id="new-rep-name" type="text" placeholder="Full Name" style="flex:1;min-width:140px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none"/>
-        <select id="new-rep-role" style="flex:1;min-width:160px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;-webkit-appearance:none;cursor:pointer">
+        <input id="new-rep-name" type="text" placeholder="Full Name" style="flex:1;min-width:140px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;outline:none"/>
+        <select id="new-rep-role" style="flex:1;min-width:160px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;outline:none;-webkit-appearance:none;cursor:pointer">
           <option value="">— Select Role —</option>
           <option value="Field Representative">Field Representative</option>
           <option value="Team Lead">Team Lead</option>
@@ -4003,17 +4265,17 @@ function darkMapStyle() {
           <option value="Vice President">Vice President</option>
           <option value="CEO">CEO</option>
         </select>
-        <input id="new-rep-start" type="date" title="Start Date" style="flex:1;min-width:140px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none"/>
-        <button onclick="addRep()" style="padding:9px 18px;background:var(--green-dim);color:#000;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer">+ Add Rep</button>
+        <input id="new-rep-start" type="date" title="Start Date" style="flex:1;min-width:140px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;outline:none"/>
+        <button onclick="addRep()" style="padding:9px 18px;background:var(--green-dim);color:#000;border:none;border-radius:8px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;cursor:pointer">+ Add Rep</button>
       </div>
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
       <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)">Reps</div>
         <div style="display:flex;gap:6px">
-          <button id="filter-active-btn" onclick="setRepFilter('active')" style="padding:4px 12px;border-radius:20px;border:1px solid var(--green);background:var(--green-dim);color:#000;font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;cursor:pointer">Active</button>
-          <button id="filter-archived-btn" onclick="setRepFilter('archived')" style="padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;cursor:pointer">Archived</button>
-          <button id="filter-all-btn" onclick="setRepFilter('all')" style="padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;cursor:pointer">All</button>
+          <button id="filter-active-btn" onclick="setRepFilter('active')" style="padding:4px 12px;border-radius:20px;border:1px solid var(--green);background:var(--green-dim);color:#000;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;cursor:pointer">Active</button>
+          <button id="filter-archived-btn" onclick="setRepFilter('archived')" style="padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;cursor:pointer">Archived</button>
+          <button id="filter-all-btn" onclick="setRepFilter('all')" style="padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;cursor:pointer">All</button>
         </div>
       </div>
       <div id="reps-list"></div>
@@ -4025,7 +4287,7 @@ function darkMapStyle() {
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">Rep Performance Evaluations</div>
     <div style="position:relative;margin-bottom:14px">
       <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none">🔍</span>
-      <input id="eval-search" type="text" placeholder="Search rep by name…" oninput="renderEvaluations()" style="width:100%;padding:10px 12px 10px 36px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none"/>
+      <input id="eval-search" type="text" placeholder="Search rep by name…" oninput="renderEvaluations()" style="width:100%;padding:10px 12px 10px 36px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;outline:none"/>
     </div>
     <div id="eval-list"></div>
   </div>
@@ -4035,11 +4297,11 @@ function darkMapStyle() {
   <div id="portal-panel-compare" style="display:none;padding:20px;max-width:800px;margin:0 auto;width:100%">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px">Side-by-Side Rep Comparison</div>
     <div style="display:flex;gap:10px;margin-bottom:16px">
-      <select id="compare-rep-a" onchange="renderComparison()" style="flex:1;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:14px;font-weight:600;outline:none">
+      <select id="compare-rep-a" onchange="renderComparison()" style="flex:1;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;outline:none">
         <option value="">— Rep A —</option>
       </select>
-      <div style="display:flex;align-items:center;font-family:'Exo 2',sans-serif;font-size:18px;font-weight:800;color:var(--muted)">VS</div>
-      <select id="compare-rep-b" onchange="renderComparison()" style="flex:1;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:14px;font-weight:600;outline:none">
+      <div style="display:flex;align-items:center;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--muted)">VS</div>
+      <select id="compare-rep-b" onchange="renderComparison()" style="flex:1;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;outline:none">
         <option value="">— Rep B —</option>
       </select>
     </div>
@@ -4101,13 +4363,13 @@ function darkMapStyle() {
 <!-- ═══ PORTAL LOGIN ═══ -->
 <div id="portal-login" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:3999;align-items:center;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:320px;max-width:90vw">
-    <div style="font-family:'Exo 2',sans-serif;font-size:20px;font-weight:700;letter-spacing:2px;margin-bottom:6px">🔐 Owner Access</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;letter-spacing:2px;margin-bottom:6px">🔐 Owner Access</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:18px">Enter your owner password to continue</div>
-    <input id="portal-password" type="password" placeholder="Password" style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;margin-bottom:10px"/>
+    <input id="portal-password" type="password" placeholder="Password" style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;outline:none;margin-bottom:10px"/>
     <div id="portal-error" style="color:#e05c5c;font-size:12px;margin-bottom:10px;display:none">Incorrect password</div>
     <div style="display:flex;gap:8px">
-      <button onclick="closePortalLogin()" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Cancel</button>
-      <button onclick="submitPortalLogin()" style="flex:1;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Enter</button>
+      <button onclick="closePortalLogin()" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Cancel</button>
+      <button onclick="submitPortalLogin()" style="flex:1;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Enter</button>
     </div>
   </div>
 </div>
