@@ -87,7 +87,7 @@ h1,h2,h3 { font-family:'Barlow Condensed',sans-serif; }
 }
 .kpi-hero-label { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:2px;color:var(--muted);text-transform:uppercase; }
 .kpi-hero-value { font-family:'Barlow Semi Condensed',sans-serif;font-size:32px;font-weight:900;line-height:1;color:var(--text); }
-.kpi-hero-sub { font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--muted); }
+.kpi-hero-sub { font-family:'Barlow Condensed',sans-serif;font-size:11px;color:rgba(255,255,255,0.55); }
 .kpi-hero-icon { position:absolute;right:12px;top:12px;font-size:22px;opacity:0.25; }
 
 /* Activity feed */
@@ -97,8 +97,8 @@ h1,h2,h3 { font-family:'Barlow Condensed',sans-serif; }
   border-radius:10px;animation:fadeSlideIn 0.3s ease;
 }
 .activity-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
-.activity-text { flex:1;font-size:13px;font-weight:600;color:var(--text);font-family:'Barlow',sans-serif; }
-.activity-time { font-size:11px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;white-space:nowrap; }
+.activity-text { flex:1;font-size:13px;font-weight:600;color:#e8eaf0;font-family:'Barlow',sans-serif; }
+.activity-time { font-size:11px;color:rgba(255,255,255,0.5);font-family:'Barlow Condensed',sans-serif;white-space:nowrap; }
 
 /* Leaderboard podium */
 .lb-podium-card {
@@ -114,7 +114,7 @@ h1,h2,h3 { font-family:'Barlow Condensed',sans-serif; }
 .lb-avatar { width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;margin:0 auto 8px; }
 .lb-name { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--text);margin-bottom:2px; }
 .lb-kwh { font-family:'Barlow Semi Condensed',sans-serif;font-size:22px;font-weight:900;line-height:1; }
-.lb-sub { font-family:'Barlow Condensed',sans-serif;font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:2px;text-transform:uppercase; }
+.lb-sub { font-family:'Barlow Condensed',sans-serif;font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:1px;margin-top:2px;text-transform:uppercase; }
 
 /* Leaderboard rows */
 .lb-row {
@@ -206,10 +206,10 @@ h1,h2,h3 { font-family:'Barlow Condensed',sans-serif; }
   flex-direction:column;
   gap:5px;
 }
-.stat-card-label { font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); display:flex; align-items:center; gap:5px; }
+.stat-card-label { font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:rgba(255,255,255,0.65); display:flex; align-items:center; gap:5px; }
 .stat-card-icon { width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; flex-shrink:0; }
 .stat-card-value { font-family:'Barlow Semi Condensed',sans-serif; font-size:30px; font-weight:800; line-height:1; }
-.stat-card-sub { font-family:'Barlow Condensed',sans-serif; font-size:11px; color:var(--muted); }
+.stat-card-sub { font-family:'Barlow Condensed',sans-serif; font-size:11px; color:rgba(255,255,255,0.55); }
 
 .disposition-table { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:24px; }
 .disposition-row { display:flex; align-items:center; padding:10px 14px; border-bottom:1px solid var(--border); gap:10px; }
@@ -755,10 +755,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
         <button id="dtab-leaderboard" onclick="switchDashTab('leaderboard')" class="dash-pill-tab">
           <span class="dtab-icon">🏆</span><span class="dtab-label">Rankings</span>
         </button>
-        <button id="dtab-dispositions" onclick="switchDashTab('dispositions')" class="dash-pill-tab">
-          <span class="dtab-icon">📋</span><span class="dtab-label">Results</span>
-        </button>
-        <button id="dtab-reps" onclick="switchDashTab('reps')" class="dash-pill-tab">
+<button id="dtab-reps" onclick="switchDashTab('reps')" class="dash-pill-tab">
           <span class="dtab-icon">👥</span><span class="dtab-label">Reps</span>
         </button>
         <button id="dtab-calendar" onclick="switchDashTab('calendar')" class="dash-pill-tab">
@@ -773,12 +770,14 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       <div id="dash-kpi-hero" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px"></div>
       <!-- Stats grid -->
       <div id="company-stats-grid" class="stats-grid"></div>
-      <!-- Activity feed -->
+      <!-- Activity feed — collapsible -->
       <div style="margin-top:4px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px">
-          <span>Recent Activity</span><div style="flex:1;height:1px;background:var(--border)"></div>
+        <div onclick="toggleActivityFeed()" style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:2.5px;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+          <span>Recent Activity</span>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <span id="activity-toggle-icon" style="font-size:10px;color:var(--muted)">▶ SHOW</span>
         </div>
-        <div id="dash-activity-feed" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div id="dash-activity-feed" style="display:none;flex-direction:column;gap:6px"></div>
       </div>
     </div>
 
@@ -808,12 +807,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       </div>
     </div>
 
-    <!-- ── TAB: RESULTS ── -->
-    <div id="dash-panel-dispositions" style="display:none;padding:16px 14px;animation:fadeSlideIn 0.2s ease">
-      <div class="disposition-table" id="company-dispositions"></div>
-    </div>
-
-    <!-- ── TAB: REPS ── -->
+<!-- ── TAB: REPS ── -->
     <div id="dash-panel-reps" style="display:none;padding:16px 14px;animation:fadeSlideIn 0.2s ease">
       <div id="rep-breakdown-grid"></div>
     </div>
@@ -2338,7 +2332,6 @@ function renderDashboard() {
   }
 
   renderStatsGrid('company-stats-grid', data);
-  renderDispositions('company-dispositions', data);
   renderRepBreakdown(period);
   if (currentDashTab === 'overview') renderOverviewExtras();
   if (currentDashTab === 'leaderboard') renderLeaderboard();
@@ -2846,7 +2839,7 @@ function buildHeatmap() {
 let currentDashTab = 'overview';
 window.switchDashTab = function(tab) {
   currentDashTab = tab;
-  ['overview','leaderboard','dispositions','reps','calendar'].forEach(t => {
+  ['overview','leaderboard','reps','calendar'].forEach(t => {
     const panel = document.getElementById(`dash-panel-${t}`);
     const btn = document.getElementById(`dtab-${t}`);
     if (panel) {
@@ -3916,6 +3909,7 @@ function checkAlreadyKnocked(lat, lng) {
 let reps = JSON.parse(localStorage.getItem('knocktrack_reps') || '[]');
 let archivedReps = JSON.parse(localStorage.getItem('knocktrack_archived_reps') || '[]');
 const OWNER_PASSWORD = 'greennova2024';
+const OWNER_ALLOWED_REPS = ['Brock Allison', 'Sebastian Mieses', 'Beau Boyers', 'Joshua Guy', 'Michael Deangelo', 'Calvin Bingaman'];
 let isOwnerSession = false;
 
 function saveReps() {
@@ -4157,7 +4151,8 @@ window.addRep = function() {
   const startDate = document.getElementById('new-rep-start').value;
   if (!name) return;
   if (reps.find(r => r.name === name)) { alert('A rep with that name already exists.'); return; }
-  reps.push({ name, role: role||'Field Representative', startDate: startDate||new Date().toISOString().slice(0,10), added: new Date().toISOString() });
+  reps.push({ name, role: role||'Field Representative', startDate: startDate||new Date().toISOString().slice(0,10), added: new Date().toISOString(), pinHash: null });
+  // Pin will be set by owner via 🔑 PIN button, or by rep on first login
   saveReps();
   document.getElementById('new-rep-name').value = '';
   document.getElementById('new-rep-role').value = '';
@@ -4698,6 +4693,16 @@ function startLoginStarfield() {
   }
   draw();
 }
+
+window.toggleActivityFeed = function() {
+  const feed = document.getElementById('dash-activity-feed');
+  const icon = document.getElementById('activity-toggle-icon');
+  if (!feed) return;
+  const isHidden = feed.style.display === 'none';
+  feed.style.display = isHidden ? 'flex' : 'none';
+  if (icon) icon.textContent = isHidden ? '▼ HIDE' : '▶ SHOW';
+  if (isHidden) renderOverviewExtras();
+};
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
 </script>
