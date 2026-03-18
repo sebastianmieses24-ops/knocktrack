@@ -1627,13 +1627,59 @@ function addMarker(knock) {
     icon:makeMarkerIcon(knock.status), title:getStatusLabel(knock.status),
     animation:google.maps.Animation.DROP, draggable:true,
   });
-  marker.addListener('click', () => openBottomSheet(knock));
-  marker.addListener('dragstart', () => { isDragging = true; marker.setOpacity(0.7); });
-  marker.addListener('dragend', e => {
+  marker.addListener('click', () => { if (!isDragging) openBottomSheet(knock); });
+
+  let dragOrigin = null; // saved position before drag starts
+
+  marker.addListener('dragstart', () => {
     isDragging = true;
-    setTimeout(() => { isDragging = false; }, 300);
+    dragOrigin = marker.getPosition(); // capture original lat/lng
+    marker.setOpacity(0.6);
+  });
+
+  marker.addListener('dragend', e => {
+    setTimeout(() => { isDragging = false; }, 400);
     marker.setOpacity(1);
     const newLat = e.latLng.lat(), newLng = e.latLng.lng();
+
+    // Show custom confirm dialog instead of saving immediately
+    showMoveMarkerConfirm(knock, marker, dragOrigin, newLat, newLng);
+  });
+
+  markers[knock.id] = marker;
+}
+
+function showMoveMarkerConfirm(knock, marker, originalPos, newLat, newLng) {
+  // Remove any existing confirm
+  document.getElementById('marker-move-confirm')?.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'marker-move-confirm';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99000;display:flex;align-items:center;justify-content:center;padding:20px';
+
+  modal.innerHTML = `
+    <div style="background:#0f1318;border:1px solid rgba(255,255,255,0.1);border-radius:18px;padding:28px 24px;max-width:340px;width:100%;text-align:center">
+      <div style="font-size:26px;margin-bottom:10px">📍</div>
+      <div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#e8edf5;margin-bottom:6px">Move this pin?</div>
+      <div style="font-family:'Montserrat',sans-serif;font-size:12px;color:#9ca3af;margin-bottom:6px;font-weight:600">${knock.address || 'Unknown address'}</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#555;margin-bottom:20px">${newLat.toFixed(5)}, ${newLng.toFixed(5)}</div>
+      <div style="display:flex;gap:10px">
+        <button id="marker-move-cancel" style="flex:1;padding:12px;background:transparent;border:1px solid #2a2a2a;border-radius:10px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;color:#9ca3af;cursor:pointer">Cancel</button>
+        <button id="marker-move-confirm-btn" style="flex:2;padding:12px;background:var(--green);border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:800;color:#000;cursor:pointer">Move Pin ✓</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  document.getElementById('marker-move-cancel').onclick = () => {
+    // Revert marker to original position
+    if (originalPos) marker.setPosition(originalPos);
+    modal.remove();
+  };
+
+  document.getElementById('marker-move-confirm-btn').onclick = () => {
+    modal.remove();
+    // Save the new position
     const idx = knocks.findIndex(k => k.id === knock.id);
     if (idx !== -1) {
       knocks[idx].lat = newLat; knocks[idx].lng = newLng;
@@ -1643,8 +1689,15 @@ function addMarker(knock) {
         updateKnock(knocks[idx]); renderList();
       });
     }
+  };
+
+  // Clicking backdrop = cancel
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      if (originalPos) marker.setPosition(originalPos);
+      modal.remove();
+    }
   });
-  markers[knock.id] = marker;
 }
 
 window.quickStatus = function(knockId, statusKey) {
@@ -4046,6 +4099,31 @@ function checkAlreadyKnocked(lat, lng) {
 })();
 // ── END SEED ──────────────────────────────────────────────────────────────
 
+// ── SEED SESSION PINS (owner sees PINs from original sheet this session) ─
+(function seedSessionPins() {
+  // Only seed if owner just logged in and session pins not yet set
+  if (sessionStorage.getItem('kt_session_pins_seeded')) return;
+  const knownPins = {
+    "Adam Obest":"953924","Beau Boyers":"271901","Brandon Cavey":"333149",
+    "Brock Allison":"955266","Caleb Flack":"208624","Calvin Bingaman":"629503",
+    "Cody Harvey":"526200","Coen O'Hara":"620201","Dominic Lising":"320631",
+    "Emma Deca":"424068","Geo Duron":"187958","Jim":"905136",
+    "John Santana":"539615","Joshua Guy":"288780","Kahle Jacoby":"280941",
+    "Max King":"412936","Michael Deangelo":"818075","Sebastian Mieses":"746975",
+    "Stephen Ruiz":"148814","Stone Baldwin":"869419","Tori":"445863",
+    "Victoria Lising":"397949","Xaiver Sosa":"687445"
+  };
+  const existing = JSON.parse(sessionStorage.getItem('kt_session_pins') || '{}');
+  let added = 0;
+  Object.entries(knownPins).forEach(([name, pin]) => {
+    if (!existing[name]) { existing[name] = pin; added++; }
+  });
+  sessionStorage.setItem('kt_session_pins', JSON.stringify(existing));
+  sessionStorage.setItem('kt_session_pins_seeded', '1');
+  console.log('[KnockTrack] Session PINs seeded:', added);
+})();
+// ── END SEED SESSION PINS ─────────────────────────────────────────────────
+
 let reps = JSON.parse(localStorage.getItem('knocktrack_reps') || '[]');
 let archivedReps = JSON.parse(localStorage.getItem('knocktrack_archived_reps') || '[]');
 const OWNER_PASSWORD = 'greennova2024';
@@ -4182,13 +4260,37 @@ window.togglePinVisibility = function(repName, spanId) {
   const span = document.getElementById(spanId);
   const rep = [...reps, ...archivedReps].find(r => r.name === repName);
   if (!span || !rep) return;
+
   if (span.style.display === 'none') {
-    // Reveal — we only store hash so show "SET" or "••••" indicator
-    span.textContent = rep.pinHash ? '(PIN set)' : '(No PIN)';
-    span.style.display = 'inline';
-    span.style.fontSize = '11px';
-    span.style.color = rep.pinHash ? 'var(--green)' : '#fa781e';
-    span.style.marginLeft = '4px';
+    // Try to get actual PIN from this session first
+    const sessionPin = getSessionPin(repName);
+    if (sessionPin) {
+      span.textContent = sessionPin;
+      span.style.display = 'inline';
+      span.style.fontFamily = 'monospace';
+      span.style.fontSize = '15px';
+      span.style.fontWeight = '800';
+      span.style.color = 'var(--green)';
+      span.style.letterSpacing = '3px';
+      span.style.marginLeft = '6px';
+      span.style.background = 'rgba(34,197,94,0.1)';
+      span.style.padding = '2px 8px';
+      span.style.borderRadius = '6px';
+    } else if (rep.pinHash) {
+      // Hash exists but not in session — show indicator
+      span.textContent = '[ use ↺ to regenerate ]';
+      span.style.display = 'inline';
+      span.style.fontSize = '10px';
+      span.style.color = 'var(--muted)';
+      span.style.marginLeft = '4px';
+      span.style.letterSpacing = '0px';
+    } else {
+      span.textContent = 'No PIN set — use ↺ to generate';
+      span.style.display = 'inline';
+      span.style.fontSize = '10px';
+      span.style.color = '#fa781e';
+      span.style.marginLeft = '4px';
+    }
   } else {
     span.style.display = 'none';
   }
@@ -4612,6 +4714,26 @@ function hashPin(pin) {
   return h.toString(36);
 }
 
+// Session-level PIN store — plaintext PINs visible to owner in this session only
+// Cleared automatically when browser closes (sessionStorage)
+function storeSessionPin(repName, pin) {
+  try {
+    const pins = JSON.parse(sessionStorage.getItem('kt_session_pins') || '{}');
+    pins[repName] = pin;
+    sessionStorage.setItem('kt_session_pins', JSON.stringify(pins));
+  } catch(e) {}
+}
+function getSessionPin(repName) {
+  try {
+    const pins = JSON.parse(sessionStorage.getItem('kt_session_pins') || '{}');
+    return pins[repName] || null;
+  } catch(e) { return null; }
+}
+function getAllSessionPins() {
+  try { return JSON.parse(sessionStorage.getItem('kt_session_pins') || '{}'); }
+  catch(e) { return {}; }
+}
+
 // Session state (sessionStorage = clears on browser close)
 let currentSession = null; // { name, role, isOwner }
 
@@ -4956,56 +5078,145 @@ window.submitPinField = function() {
 
 // ── PDF PIN SHEET DOWNLOAD ────────────────────────────────────────────────
 window.downloadPinSheet = function() {
+  // Check jsPDF loaded
+  if (typeof window.jspdf === 'undefined') {
+    alert('PDF library loading... please try again in a moment.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
   const today = new Date().toLocaleDateString('en-US', {month:'numeric',day:'numeric',year:'numeric'});
   const todaySlug = new Date().toISOString().slice(0,10);
+  const sessionPins = getAllSessionPins();
 
-  const rows = reps.map((r, i) => {
-    // We cannot reverse the hash — show PIN as "SET" with instructions to use original sheet
-    // But for the HTML sheet, we note PIN is set
-    const pinDisplay = r.pinHash ? '••••••' : 'NOT SET';
-    return `<tr>
-      <td class="num">${String(i+1).padStart(2,'0')}</td>
-      <td class="name">${r.name}</td>
-      <td class="role" style="color:#888;font-size:.75rem">${r.role||'Field Representative'}</td>
-      <td class="pin" style="color:${r.pinHash?'#22c55e':'#ef4444'}">${pinDisplay}</td>
-    </tr>`;
-  }).join('');
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const pw = doc.internal.pageSize.width;
 
-  const html = `<html><head><meta charset="UTF-8"><title>Green Nova — PIN Sheet</title>
-  <style>
-    body{font-family:monospace;background:#060606;color:#f5f5f5;padding:32px;margin:0;}
-    h2{font-family:sans-serif;font-size:1rem;letter-spacing:6px;color:#22c55e;margin-bottom:4px;text-transform:uppercase;}
-    p{font-size:.65rem;color:#444;letter-spacing:2px;margin-bottom:24px;}
-    table{width:100%;border-collapse:collapse;}
-    th{text-align:left;font-size:.55rem;letter-spacing:4px;color:#444;padding:8px 12px;border-bottom:1px solid #1a1a1a;text-transform:uppercase;}
-    td{padding:11px 12px;border-bottom:1px solid #111;font-size:.85rem;}
-    td.num{color:#333;} td.name{color:#ccc;font-weight:700;}
-    td.pin{color:#22c55e;letter-spacing:6px;font-size:1.05rem;font-weight:700;}
-    .footer{margin-top:28px;font-size:.5rem;color:#222;letter-spacing:2px;}
-    .note{background:#111;border:1px solid #222;padding:12px 16px;border-radius:8px;font-family:sans-serif;font-size:.7rem;color:#666;margin-bottom:20px;line-height:1.7;}
-    @media print{body{background:#fff;color:#000;}td.pin{color:#16a34a;}td.name{color:#111;}h2{color:#16a34a;}.footer{color:#aaa;}}
-  </style></head><body>
-  <h2>Green Nova · PIN Status Sheet</h2>
-  <p>CONFIDENTIAL · OWNERS &amp; TEAM LEADS ONLY · ${today}</p>
-  <div class="note">
-    ℹ️ PINs are stored as one-way hashes for security. To view actual PINs, use the original PIN sheet or regenerate via the Owner Portal → Manage Reps → ↺ button.<br>
-    ✓ = PIN is SET (rep can log in) &nbsp;|&nbsp; ✗ = PIN NOT SET (contact owner)
-  </div>
-  <table><tbody>
-    <tr><th>#</th><th>Name</th><th>Role</th><th>PIN Status</th></tr>
-    ${rows}
-  </tbody></table>
-  <div class="footer">GREEN NOVA COMMUNITY ADVOCATES · DO NOT SHARE · CONFIDENTIAL</div>
-  <div style="margin-top:28px;text-align:center;">
-    <button style="display:inline-block;margin:0 6px;padding:10px 22px;border-radius:8px;font-size:.75rem;font-weight:700;letter-spacing:2px;cursor:pointer;border:none;background:#22c55e;color:#000;" onclick="window.print()">🖨️ PRINT</button>
-  </div>
-  </body></html>`;
+  // ── Header bar
+  doc.setFillColor(7, 11, 16);
+  doc.rect(0, 0, pw, 28, 'F');
+  doc.setFillColor(34, 197, 94);
+  doc.rect(0, 0, 4, 28, 'F');
 
-  const blob = new Blob([html], {type:'text/html'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'GreenNova-PIN-Status-' + todaySlug + '.html';
-  a.click();
+  doc.setTextColor(34, 197, 94);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('GREEN NOVA', 10, 12);
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('KNOCKTRACK · REP PIN SHEET', 10, 19);
+  doc.setTextColor(120, 130, 140);
+  doc.setFontSize(7);
+  doc.text('CONFIDENTIAL · OWNER ACCESS ONLY · Generated ' + today, 10, 25);
+
+  // ── Warning box
+  doc.setFillColor(30, 20, 10);
+  doc.setDrawColor(240, 180, 41);
+  doc.roundedRect(10, 32, pw - 20, 10, 2, 2, 'FD');
+  doc.setTextColor(240, 180, 41);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('⚠  CONFIDENTIAL: Do not share or distribute. PINs shown only for sessions where they were set this login.', 14, 38.5);
+
+  // ── Count active reps with session PINs
+  const visiblePinCount = reps.filter(r => sessionPins[r.name]).length;
+  const totalReps = reps.length;
+
+  // ── Sub-header info
+  doc.setTextColor(150, 163, 175);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${totalReps} reps · ${visiblePinCount} PINs visible this session · ${totalReps - visiblePinCount} require regeneration to view`, 10, 48);
+
+  // ── Table
+  const tableBody = reps.map((r, i) => {
+    const sessionPin = sessionPins[r.name];
+    const pinDisplay = sessionPin ? sessionPin : (r.pinHash ? '[ regenerate to view ]' : 'NOT SET');
+    const enrolled = knocks.filter(k => k.rep === r.name && k.status === 'enrolled').length;
+    return [
+      String(i + 1).padStart(2, '0'),
+      r.name,
+      r.role || 'Field Representative',
+      String(enrolled),
+      pinDisplay
+    ];
+  });
+
+  doc.autoTable({
+    startY: 52,
+    head: [['#', 'Rep Name', 'Role', 'Enrollments', 'PIN']],
+    body: tableBody,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [34, 197, 94],
+      textColor: [0, 0, 0],
+      fontStyle: 'bold',
+      fontSize: 9,
+      halign: 'left',
+      cellPadding: 4
+    },
+    bodyStyles: {
+      fontSize: 9,
+      textColor: [30, 30, 30],
+      cellPadding: 4
+    },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 12, textColor: [150, 150, 150] },
+      1: { cellWidth: 52, fontStyle: 'bold' },
+      2: { cellWidth: 46 },
+      3: { halign: 'center', cellWidth: 22 },
+      4: { cellWidth: 48, fontStyle: 'bold', halign: 'center' }
+    },
+    alternateRowStyles: { fillColor: [248, 252, 248] },
+    didParseCell: function(data) {
+      if (data.section === 'body' && data.column.index === 4) {
+        const raw = data.cell.raw;
+        if (raw === 'NOT SET') {
+          data.cell.styles.textColor = [239, 68, 68];
+          data.cell.styles.fontStyle = 'bold';
+        } else if (raw && raw.startsWith('[')) {
+          data.cell.styles.textColor = [156, 163, 175];
+          data.cell.styles.fontStyle = 'italic';
+          data.cell.styles.fontSize = 8;
+        } else {
+          // Actual PIN — green and bold
+          data.cell.styles.textColor = [34, 197, 94];
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontSize = 11;
+          data.cell.styles.letterSpacing = 2;
+        }
+      }
+    },
+    willDrawPage: function(data) {
+      // Page header on subsequent pages
+      if (data.pageNumber > 1) {
+        doc.setFillColor(7, 11, 16);
+        doc.rect(0, 0, pw, 14, 'F');
+        doc.setTextColor(34, 197, 94);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('GREEN NOVA · KNOCKTRACK · PIN SHEET (continued)', 10, 10);
+      }
+    }
+  });
+
+  // ── Footer on every page
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFillColor(240, 240, 240);
+    doc.rect(0, pageHeight - 10, pw, 10, 'F');
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+      'GREEN NOVA · COMMUNITY ADVOCATES · CONFIDENTIAL · Page ' + p + ' of ' + pageCount,
+      pw / 2, pageHeight - 4, { align: 'center' }
+    );
+  }
+
+  doc.save('GreenNova-PINs-' + todaySlug + '.pdf');
 };
 // ── END PDF PIN SHEET ──────────────────────────────────────────────────────
 
@@ -5016,15 +5227,21 @@ function generateRandomPin() {
 
 window.autoGeneratePin = function(repName) {
   if (!isOwnerSession) { alert('Owner access required.'); return; }
-  const newPin = generateRandomPin();
   const idx = reps.findIndex(r => r.name === repName);
   if (idx === -1) return;
+
+  // Confirm if rep already has a PIN
+  if (reps[idx].pinHash) {
+    if (!confirm(`${repName} already has a PIN set.\n\nAre you sure you want to generate a new PIN? This will invalidate their current PIN immediately.`)) return;
+  }
+
+  const newPin = generateRandomPin();
   reps[idx].pinHash = hashPin(newPin);
   reps[idx].pinLength = 6;
   saveReps();
+  // Store in session so owner can see it
+  storeSessionPin(repName, newPin);
   renderRepsList();
-
-  // Show the new PIN to the owner in a modal
   showNewPinModal(repName, newPin);
 };
 
