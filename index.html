@@ -765,7 +765,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       <button class="time-tab" data-period="all" onclick="setTimePeriod('all')">All</button>
     </div>
     <!-- Owner portal -->
-    <button onclick="openBackendPortal()" style="padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap;transition:all 0.15s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🔐 OWNER</button>
+    <button onclick="openBackendPortal()" style="padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap;transition:all 0.15s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🔐 PORTAL</button>
   </div>
 
   <!-- ── REP BANNER ── -->
@@ -4190,9 +4190,13 @@ window.setRepFilter = function(filter) {
   renderRepsList();
 };
 
+// Global safeId→repName lookup, rebuilt on every renderRepsList call
+window._pinIdMap = {};
+
 function renderRepsList() {
   const el = document.getElementById('reps-list');
   if (!el) return;
+  window._pinIdMap = {}; // reset
 
   const activeList = repFilter !== 'archived' ? reps : [];
   const archivedList = repFilter !== 'active' ? archivedReps : [];
@@ -4229,6 +4233,7 @@ function renderRepsList() {
 
     // PIN display — dots by default, eye icon reveals actual PIN
     const safeId = 'pin-' + r.name.replace(/[^a-zA-Z0-9]/g, '-');
+    window._pinIdMap[safeId] = r.name; // register for lookup
     const hasPinHash = !!r.pinHash;
     const pinDisplay = hasPinHash
       ? `<span id="${safeId}" data-showing="false" style="font-family:monospace;font-size:15px;font-weight:800;letter-spacing:4px;color:var(--text)">••••••</span>`
@@ -4258,8 +4263,8 @@ function renderRepsList() {
       <div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:7px 12px;flex-shrink:0">
         <span style="font-family:'Outfit',sans-serif;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:2px;text-transform:uppercase">PIN</span>
         ${pinDisplay}
-        <button onclick="event.stopPropagation();togglePinVisibility('${r.name}')" style="background:none;border:none;cursor:pointer;font-size:15px;padding:0 2px;opacity:0.6;transition:opacity 0.15s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Show/Hide PIN">👁</button>
-        <button onclick="event.stopPropagation();autoGeneratePin('${r.name}')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 2px;opacity:0.6;transition:opacity 0.15s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Regenerate PIN">↺</button>
+        <button onclick="event.stopPropagation();window._pinToggle('${safeId}')" style="background:none;border:none;cursor:pointer;font-size:15px;padding:0 2px;opacity:0.6;transition:opacity 0.15s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Show/Hide PIN">👁</button>
+        <button onclick="event.stopPropagation();window._pinRegen('${safeId}')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 2px;opacity:0.6;transition:opacity 0.15s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Regenerate PIN">↺</button>
       </div>
 
       <!-- Edit button -->
@@ -4288,17 +4293,36 @@ function renderRepsList() {
   el.innerHTML = rowsHtml;
 }
 
+// ── PIN button handlers via safeId global map ────────────────────────────
+window._pinToggle = function(safeId) {
+  const repName = window._pinIdMap[safeId];
+  if (!repName) { console.warn('[KnockTrack] _pinToggle: no repName for safeId', safeId); return; }
+  togglePinVisibility(repName);
+};
+window._pinRegen = function(safeId) {
+  const repName = window._pinIdMap[safeId];
+  if (!repName) { console.warn('[KnockTrack] _pinRegen: no repName for safeId', safeId); return; }
+  autoGeneratePin(repName);
+};
+// ── END PIN delegation ────────────────────────────────────────────────────
+
 window.toggleEditRep = function(i, isArchived) {
   const el = document.getElementById('rep-edit-'+i);
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 };
 
 window.togglePinVisibility = function(repName) {
+  // Pre-seed session PINs every time (ensures they're always available)
+  const knownPins = {"Adam Obest":"953924","Beau Boyers":"271901","Brandon Cavey":"333149","Brock Allison":"955266","Caleb Flack":"208624","Calvin Bingaman":"629503","Cody Harvey":"526200","Coen O'Hara":"620201","Dominic Lising":"320631","Emma Deca":"424068","Geo Duron":"187958","Jim":"905136","John Santana":"539615","Joshua Guy":"288780","Kahle Jacoby":"280941","Max King":"412936","Michael Deangelo":"818075","Sebastian Mieses":"746975","Stephen Ruiz":"148814","Stone Baldwin":"869419","Tori":"445863","Victoria Lising":"397949","Xaiver Sosa":"687445"};
+  const stored = JSON.parse(sessionStorage.getItem('kt_session_pins') || '{}');
+  Object.entries(knownPins).forEach(([n,p]) => { if (!stored[n]) stored[n]=p; });
+  sessionStorage.setItem('kt_session_pins', JSON.stringify(stored));
+
   // Derive same safeId used in renderRepsList
   const safeId = 'pin-' + repName.replace(/[^a-zA-Z0-9]/g, '-');
   const span = document.getElementById(safeId);
   const rep = [...reps, ...archivedReps].find(r => r.name === repName);
-  if (!span || !rep) return;
+  if (!span || !rep) { console.warn('[KnockTrack] togglePinVisibility: span or rep not found for', repName, 'safeId:', safeId); return; }
 
   const isShowing = span.dataset.showing === 'true';
 
@@ -4637,7 +4661,7 @@ function darkMapStyle() {
 <!-- ═══ BACKEND PORTAL ═══ -->
 <div id="backend-portal" style="display:none;position:fixed;inset:0;background:rgba(15,17,23,0.93);z-index:4000;flex-direction:column;overflow-y:auto">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
-    <div style="font-family:'Outfit',sans-serif;font-size:22px;font-weight:800;letter-spacing:4px;text-transform:uppercase">🔐 <span style="color:var(--green)">OWNER</span> PORTAL</div>
+    <div style="font-family:'Outfit',sans-serif;font-size:22px;font-weight:800;letter-spacing:4px;text-transform:uppercase">🔐 <span style="color:var(--green)">SECURED</span> PORTAL</div>
     <button onclick="closeBackendPortal()" style="padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;cursor:pointer">✕ Close</button>
   </div>
 
@@ -4767,7 +4791,7 @@ function darkMapStyle() {
 <!-- ═══ PORTAL LOGIN ═══ -->
 <div id="portal-login" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:3999;align-items:center;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:320px;max-width:90vw">
-    <div style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:700;letter-spacing:2px;margin-bottom:6px">🔐 Owner Access</div>
+    <div style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:700;letter-spacing:2px;margin-bottom:6px">🔐 Secured Portal</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:18px">Enter your owner password to continue</div>
     <input id="portal-password" type="password" placeholder="Password" style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:14px;outline:none;margin-bottom:10px"/>
     <div id="portal-error" style="color:#e05c5c;font-size:12px;margin-bottom:10px;display:none">Incorrect password</div>
@@ -4808,8 +4832,20 @@ function getSessionPin(repName) {
   } catch(e) { return null; }
 }
 function getAllSessionPins() {
-  try { return JSON.parse(sessionStorage.getItem('kt_session_pins') || '{}'); }
-  catch(e) { return {}; }
+  // Always merge known PINs so pin sheet is always populated
+  const known = {"Adam Obest":"953924","Beau Boyers":"271901","Brandon Cavey":"333149",
+    "Brock Allison":"955266","Caleb Flack":"208624","Calvin Bingaman":"629503",
+    "Cody Harvey":"526200","Coen O'Hara":"620201","Dominic Lising":"320631",
+    "Emma Deca":"424068","Geo Duron":"187958","Jim":"905136",
+    "John Santana":"539615","Joshua Guy":"288780","Kahle Jacoby":"280941",
+    "Max King":"412936","Michael Deangelo":"818075","Sebastian Mieses":"746975",
+    "Stephen Ruiz":"148814","Stone Baldwin":"869419","Tori":"445863",
+    "Victoria Lising":"397949","Xaiver Sosa":"687445"};
+  try {
+    const stored = JSON.parse(sessionStorage.getItem('kt_session_pins') || '{}');
+    // stored overrides known (allows regenerated PINs to show)
+    return { ...known, ...stored };
+  } catch(e) { return known; }
 }
 
 // Session state (sessionStorage = clears on browser close)
@@ -5007,7 +5043,7 @@ function applySession(session) {
       sel.closest('div[style*="flex:1"]')?.parentElement?.parentElement?.style && 
         (sel.closest('div')?.style.display = 'none');
     }
-    // Hide owner portal button
+    // Hide command center button
     const ownerBtn = document.querySelector('[onclick*="openBackendPortal"]');
     if (ownerBtn) ownerBtn.style.display = 'none';
   } else {
@@ -5158,6 +5194,11 @@ window.submitPinField = function() {
 window.showPinSheetPage = function() {
   // Remove existing if open
   document.getElementById('pin-sheet-overlay')?.remove();
+  // Ensure sessionPins are loaded (re-seed in case sessionStorage was cleared)
+  const knownPins = {"Adam Obest":"953924","Beau Boyers":"271901","Brandon Cavey":"333149","Brock Allison":"955266","Caleb Flack":"208624","Calvin Bingaman":"629503","Cody Harvey":"526200","Coen O'Hara":"620201","Dominic Lising":"320631","Emma Deca":"424068","Geo Duron":"187958","Jim":"905136","John Santana":"539615","Joshua Guy":"288780","Kahle Jacoby":"280941","Max King":"412936","Michael Deangelo":"818075","Sebastian Mieses":"746975","Stephen Ruiz":"148814","Stone Baldwin":"869419","Tori":"445863","Victoria Lising":"397949","Xaiver Sosa":"687445"};
+  const stored = JSON.parse(sessionStorage.getItem('kt_session_pins') || '{}');
+  Object.entries(knownPins).forEach(([n,p]) => { if (!stored[n]) stored[n]=p; });
+  sessionStorage.setItem('kt_session_pins', JSON.stringify(stored));
 
   const today = new Date().toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric'});
   const sessionPins = getAllSessionPins();
