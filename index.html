@@ -3300,10 +3300,10 @@ function startDrag(e, evId, el, type) {
     el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
     document.getElementById('drag-tooltip')?.remove();
 
-    const scrollTop = document.getElementById('cal-day-scroll').scrollTop;
-    const cy = type === 'touch' ? (e2.changedTouches[0]?.clientY || 0) : e2.clientY;
-    const relY = cy - hoursRect.top + scrollTop - offsetY;
-    const clampedY = Math.max(0, Math.min(relY, 24 * PX_PER_HOUR - 50));
+    // Read the element's current top position (set during onMove) directly
+    // This is the most reliable: we already set el.style.top correctly during drag
+    const currentTop = parseFloat(el.style.top) || 0;
+    const clampedY = Math.max(0, Math.min(currentTop, 24 * PX_PER_HOUR - 50));
     const totalMins = Math.round((clampedY / PX_PER_HOUR) * 60 / 15) * 15;
     const h = Math.floor(totalMins / 60) % 24;
     const m = totalMins % 60;
@@ -3311,8 +3311,6 @@ function startDrag(e, evId, el, type) {
     // Update event time
     const idx = calEvents.findIndex(ev => ev.id === evId);
     if (idx !== -1) {
-      const old = new Date(calEvents[idx].datetime);
-      // Keep same date, update time
       const newDt = new Date(calDayViewDate);
       newDt.setHours(h, m, 0, 0);
       calEvents[idx].datetime = newDt.toISOString().slice(0,16);
@@ -3402,18 +3400,20 @@ window.openDatePicker = function(target) {
 };
 
 window.closeDatePicker = function() {
-  // Read selected wheel values
-  const h = getWheelValue('wheel-hour');
-  const m = getWheelValue('wheel-minute');
-  const ap = getWheelValue('wheel-ampm');
-  let hour24 = parseInt(h);
-  if (ap === 'PM' && hour24 !== 12) hour24 += 12;
-  if (ap === 'AM' && hour24 === 12) hour24 = 0;
-  pickerSelectedDate.setHours(hour24, parseInt(m), 0, 0);
+  // Read wheel values by scroll position (reliable across all browsers/mobile)
+  const hVal = getWheelValueByScroll('wheel-hour');
+  const mVal = getWheelValueByScroll('wheel-minute');
+  const apVal = getWheelValueByScroll('wheel-ampm');
+
+  let hour24 = parseInt(hVal) || 12;
+  const minVal = parseInt(mVal) || 0;
+  if (apVal === 'PM' && hour24 !== 12) hour24 += 12;
+  if (apVal === 'AM' && hour24 === 12) hour24 = 0;
+
+  pickerSelectedDate.setHours(hour24, minVal, 0, 0);
 
   if (pickerTarget === 'start') {
     calStartDate = new Date(pickerSelectedDate);
-    // Auto-advance end date if needed
     if (calEndDate <= calStartDate) calEndDate = new Date(calStartDate.getTime() + 3600000);
   } else {
     calEndDate = new Date(pickerSelectedDate);
@@ -3421,6 +3421,24 @@ window.closeDatePicker = function() {
   updateDateLabels();
   document.getElementById('date-picker-sheet').style.display = 'none';
 };
+
+// Reliable wheel value reader — uses scroll position to determine center item
+function getWheelValueByScroll(id) {
+  const el = document.getElementById(id);
+  if (!el) return '';
+  const items = el.querySelectorAll('.wheel-item');
+  if (!items.length) return '';
+  // Center of the visible area
+  const center = el.scrollTop + (el.clientHeight / 2);
+  let closest = null;
+  let minDist = Infinity;
+  items.forEach(item => {
+    const itemCenter = item.offsetTop + (item.offsetHeight / 2);
+    const dist = Math.abs(itemCenter - center);
+    if (dist < minDist) { minDist = dist; closest = item; }
+  });
+  return closest ? closest.dataset.val : '';
+}
 
 window.pickerNavMonth = function(dir) {
   pickerMonth += dir;
@@ -3534,12 +3552,22 @@ window.editCalEvent = function(id) {
   document.getElementById('cal-modal-title-label').textContent = 'Edit Event';
   document.getElementById('cal-event-title').value = ev.title;
   document.getElementById('cal-event-location').value = ev.notes || '';
-  document.getElementById('cal-event-repeat').value = ev.repeat || 'never';
-  calStartDate = new Date(ev.datetime);
+  const repeatEl = document.getElementById('cal-event-repeat');
+  if (repeatEl) repeatEl.value = ev.repeat || 'never';
+
+  // Parse datetime carefully — handle both ISO string and local formats
+  calStartDate = ev.datetime ? new Date(ev.datetime) : new Date();
   calEndDate = ev.endDatetime ? new Date(ev.endDatetime) : new Date(calStartDate.getTime() + 3600000);
+
+  // Guard against invalid dates
+  if (isNaN(calStartDate.getTime())) calStartDate = new Date();
+  if (isNaN(calEndDate.getTime())) calEndDate = new Date(calStartDate.getTime() + 3600000);
+
   calIsAllDay = false;
-  document.getElementById('allday-toggle').style.background = '#3a3a3c';
-  document.getElementById('allday-knob').style.left = '2px';
+  const toggleEl = document.getElementById('allday-toggle');
+  const knobEl = document.getElementById('allday-knob');
+  if (toggleEl) toggleEl.style.background = '#3a3a3c';
+  if (knobEl) knobEl.style.left = '2px';
   document.querySelectorAll('.allday-hide').forEach(el => el.style.display = '');
   updateDateLabels();
   document.getElementById('cal-event-modal').style.display = 'flex';
@@ -3554,21 +3582,52 @@ window.deleteCalEvent = function(id) {
 
 window.saveCalEvent = function() {
   const title = document.getElementById('cal-event-title').value.trim();
-  const notes = document.getElementById('cal-event-location').value.trim();
+  const notes = document.getElementById('cal-event-location')?.value?.trim() || '';
   const repeat = document.getElementById('cal-event-repeat')?.value || 'never';
   if (!title) { alert('Please add a title.'); return; }
+
+  // Validate dates
+  if (!calStartDate || isNaN(calStartDate.getTime())) {
+    alert('Please set a valid start date and time.'); return;
+  }
+
   const datetime = calStartDate.toISOString().slice(0,16);
-  const endDatetime = calEndDate.toISOString().slice(0,16);
+  const endDatetime = calEndDate && !isNaN(calEndDate.getTime())
+    ? calEndDate.toISOString().slice(0,16)
+    : new Date(calStartDate.getTime() + 3600000).toISOString().slice(0,16);
+
   if (calEditId) {
     const idx = calEvents.findIndex(e => e.id === calEditId);
-    if (idx !== -1) Object.assign(calEvents[idx], { title, datetime, endDatetime, notes, repeat });
+    if (idx !== -1) {
+      calEvents[idx].title = title;
+      calEvents[idx].datetime = datetime;
+      calEvents[idx].endDatetime = endDatetime;
+      calEvents[idx].notes = notes;
+      calEvents[idx].repeat = repeat;
+      calEvents[idx].updatedAt = new Date().toISOString();
+    }
   } else {
-    calEvents.push({ id: 'evt_'+Date.now(), rep: calCurrentRep, title, datetime, endDatetime, notes, repeat, created: new Date().toISOString() });
+    calEvents.push({
+      id: 'evt_' + Date.now(),
+      rep: calCurrentRep,
+      title,
+      datetime,
+      endDatetime,
+      notes,
+      repeat,
+      created: new Date().toISOString()
+    });
   }
+
   saveCalEvents();
   closeCalEventModal();
   renderCalendar();
-  if (currentDashTab === 'calendar' && calCurrentRep) renderDayView(calDayViewDate || calStartDate);
+
+  // Re-render day view on the correct date
+  if (currentDashTab === 'calendar' && calCurrentRep) {
+    const targetDate = calDayViewDate || calStartDate;
+    if (targetDate) renderDayView(targetDate);
+  }
   scheduleNotifications();
 };
 
@@ -4577,17 +4636,34 @@ function initAuth() {
   if (session) {
     currentSession = session;
     applySession(session);
+    // Ensure dashboard is shown for valid sessions
+    const dash = document.getElementById('dashboard');
+    if (dash && dash.style.display === 'none') showDashboard();
     return;
   }
+  // No session — force login screen, hide everything else
+  const dash = document.getElementById('dashboard');
+  if (dash) dash.style.display = 'none';
   showLoginScreen();
 }
 
 function showLoginScreen() {
+  // Always hide dashboard and map when showing login
+  const dash = document.getElementById('dashboard');
+  if (dash) dash.style.display = 'none';
+  const portal = document.getElementById('backend-portal');
+  if (portal) portal.style.display = 'none';
+
   const ls = document.getElementById('login-screen');
   ls.style.display = 'flex';
   const f = document.getElementById('login-pin-field');
-  if (f) { f.value = ''; f.focus(); }
-  document.getElementById('login-pin-error').textContent = '';
+  if (f) {
+    f.value = '';
+    // Small delay to ensure DOM is ready before focus
+    setTimeout(() => f.focus(), 100);
+  }
+  const errEl = document.getElementById('login-pin-error');
+  if (errEl) errEl.textContent = '';
   startLoginStarfield();
 }
 
