@@ -4191,10 +4191,11 @@ function renderRepsList() {
     const globalIdx = isArchived ? archivedReps.findIndex(a=>a.name===r.name) : reps.findIndex(a=>a.name===r.name);
     const rankNum = activeList.findIndex(a=>a.name===r.name);
 
-    // PIN display
+    // PIN display — single toggleable span, keyed by sanitized rep name
+    const safeId = 'pin-' + r.name.replace(/[^a-zA-Z0-9]/g,'-');
     const pinDisplay = r.pinHash
-      ? `<span style="font-family:monospace;font-size:15px;font-weight:800;letter-spacing:3px;color:var(--text)">••••••</span>`
-      : `<span style="font-size:11px;color:var(--muted)">Not set</span>`;
+      ? `<span id="${safeId}" data-showing="false" style="font-family:monospace;font-size:15px;font-weight:800;letter-spacing:3px;color:var(--text)">••••••</span>`
+      : `<span id="${safeId}" data-showing="false" style="font-size:11px;color:var(--muted)">Not set</span>`;
 
     const activeStyle = isArchived
       ? 'border-left:3px solid #fa781e;opacity:0.75;'
@@ -4220,10 +4221,9 @@ function renderRepsList() {
       <div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;flex-shrink:0">
         <span style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px">PIN</span>
         ${pinDisplay}
-        <button onclick="event.stopPropagation();togglePinVisibility('${r.name}','pin-val-${i}')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0;opacity:0.6" title="Show/Hide PIN">👁</button>
-        <button onclick="event.stopPropagation();autoGeneratePin('${r.name}')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0;opacity:0.6" title="Regenerate PIN">↺</button>
+        <button onclick="event.stopPropagation();togglePinVisibility('${r.name}')" style="background:none;border:none;cursor:pointer;font-size:16px;padding:0 2px;opacity:0.7;transition:opacity 0.15s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'" title="Show/Hide PIN">👁</button>
+        <button onclick="event.stopPropagation();autoGeneratePin('${r.name}')" style="background:none;border:none;cursor:pointer;font-size:16px;padding:0 2px;opacity:0.7;transition:opacity 0.15s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'" title="Regenerate PIN">↺</button>
       </div>
-      <span id="pin-val-${i}" data-rep="${r.name}" style="display:none"></span>
 
       <!-- Edit button -->
       <button onclick="event.stopPropagation();toggleEditRep(${globalIdx},${isArchived?1:0})" style="padding:6px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;color:var(--text);cursor:pointer;white-space:nowrap;transition:all 0.15s;display:flex;align-items:center;gap:5px" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">✏️ Edit</button>
@@ -4256,43 +4256,67 @@ window.toggleEditRep = function(i, isArchived) {
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 };
 
-window.togglePinVisibility = function(repName, spanId) {
-  const span = document.getElementById(spanId);
+window.togglePinVisibility = function(repName) {
+  // Derive same safeId used in renderRepsList
+  const safeId = 'pin-' + repName.replace(/[^a-zA-Z0-9]/g, '-');
+  const span = document.getElementById(safeId);
   const rep = [...reps, ...archivedReps].find(r => r.name === repName);
   if (!span || !rep) return;
 
-  if (span.style.display === 'none') {
-    // Try to get actual PIN from this session first
-    const sessionPin = getSessionPin(repName);
-    if (sessionPin) {
-      span.textContent = sessionPin;
-      span.style.display = 'inline';
+  const isShowing = span.dataset.showing === 'true';
+
+  if (isShowing) {
+    // Collapse back to dots or "Not set"
+    span.dataset.showing = 'false';
+    if (rep.pinHash) {
+      span.textContent = '••••••';
       span.style.fontFamily = 'monospace';
       span.style.fontSize = '15px';
       span.style.fontWeight = '800';
-      span.style.color = 'var(--green)';
+      span.style.color = 'var(--text)';
       span.style.letterSpacing = '3px';
-      span.style.marginLeft = '6px';
-      span.style.background = 'rgba(34,197,94,0.1)';
-      span.style.padding = '2px 8px';
-      span.style.borderRadius = '6px';
-    } else if (rep.pinHash) {
-      // Hash exists but not in session — show indicator
-      span.textContent = '[ use ↺ to regenerate ]';
-      span.style.display = 'inline';
-      span.style.fontSize = '10px';
-      span.style.color = 'var(--muted)';
-      span.style.marginLeft = '4px';
-      span.style.letterSpacing = '0px';
+      span.style.background = 'transparent';
+      span.style.padding = '0';
+      span.style.borderRadius = '0';
     } else {
-      span.textContent = 'No PIN set — use ↺ to generate';
-      span.style.display = 'inline';
-      span.style.fontSize = '10px';
-      span.style.color = '#fa781e';
-      span.style.marginLeft = '4px';
+      span.textContent = 'Not set';
+      span.style.color = 'var(--muted)';
+      span.style.fontSize = '11px';
     }
   } else {
-    span.style.display = 'none';
+    // Reveal
+    span.dataset.showing = 'true';
+    const sessionPin = getSessionPin(repName);
+
+    if (sessionPin) {
+      // Show actual PIN — green, large, readable
+      span.textContent = sessionPin;
+      span.style.fontFamily = 'monospace';
+      span.style.fontSize = '17px';
+      span.style.fontWeight = '900';
+      span.style.color = '#22c55e';
+      span.style.letterSpacing = '4px';
+      span.style.background = 'rgba(34,197,94,0.12)';
+      span.style.padding = '2px 10px';
+      span.style.borderRadius = '6px';
+    } else if (rep.pinHash) {
+      // PIN set but not in this session — instruct owner
+      span.textContent = '[ click ↺ to reveal ]';
+      span.style.fontFamily = "'Montserrat',sans-serif";
+      span.style.fontSize = '10px';
+      span.style.fontWeight = '600';
+      span.style.color = '#9ca3af';
+      span.style.letterSpacing = '0';
+      span.style.background = 'transparent';
+      span.style.padding = '0';
+    } else {
+      span.textContent = 'No PIN — click ↺ to set';
+      span.style.fontFamily = "'Montserrat',sans-serif";
+      span.style.fontSize = '10px';
+      span.style.fontWeight = '600';
+      span.style.color = '#fa781e';
+      span.style.letterSpacing = '0';
+    }
   }
 };
 
@@ -5078,17 +5102,30 @@ window.submitPinField = function() {
 
 // ── PDF PIN SHEET DOWNLOAD ────────────────────────────────────────────────
 window.downloadPinSheet = function() {
-  // Check jsPDF loaded
-  if (typeof window.jspdf === 'undefined') {
-    alert('PDF library loading... please try again in a moment.');
+  // Resolve jsPDF from multiple possible global names (UMD sets window.jspdf)
+  let jsPDF = null;
+  if (typeof window.jspdf !== 'undefined' && window.jspdf.jsPDF) {
+    jsPDF = window.jspdf.jsPDF;
+  } else if (typeof window.jsPDF !== 'undefined') {
+    jsPDF = window.jsPDF;
+  } else {
+    // Last resort: try loading inline
+    console.error('[KnockTrack] jsPDF not found on window. window.jspdf=', typeof window.jspdf, 'window.jsPDF=', typeof window.jsPDF);
+    alert('PDF library not loaded. Please refresh the page and try again.');
     return;
   }
-  const { jsPDF } = window.jspdf;
   const today = new Date().toLocaleDateString('en-US', {month:'numeric',day:'numeric',year:'numeric'});
   const todaySlug = new Date().toISOString().slice(0,10);
   const sessionPins = getAllSessionPins();
 
-  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  let doc;
+  try {
+    doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  } catch(e) {
+    console.error('[KnockTrack] jsPDF instantiation failed:', e);
+    alert('Failed to create PDF: ' + e.message);
+    return;
+  }
   const pw = doc.internal.pageSize.width;
 
   // ── Header bar
