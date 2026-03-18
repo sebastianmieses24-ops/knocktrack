@@ -4191,11 +4191,11 @@ function renderRepsList() {
     const globalIdx = isArchived ? archivedReps.findIndex(a=>a.name===r.name) : reps.findIndex(a=>a.name===r.name);
     const rankNum = activeList.findIndex(a=>a.name===r.name);
 
-    // PIN display — single toggleable span, keyed by sanitized rep name
-    const safeId = 'pin-' + r.name.replace(/[^a-zA-Z0-9]/g,'-');
-    const pinDisplay = r.pinHash
-      ? `<span id="${safeId}" data-showing="false" style="font-family:monospace;font-size:15px;font-weight:800;letter-spacing:3px;color:var(--text)">••••••</span>`
-      : `<span id="${safeId}" data-showing="false" style="font-size:11px;color:var(--muted)">Not set</span>`;
+    // PIN display — always visible, shows actual PIN from session
+    const sessionPin = getSessionPin(r.name);
+    const pinDigits = sessionPin || '——————';
+    const pinColor = sessionPin ? '#22c55e' : 'var(--muted)';
+    const pinDisplay = `<span style="font-family:'Rajdhani',monospace;font-size:18px;font-weight:700;letter-spacing:5px;color:${pinColor};min-width:80px">${pinDigits}</span>`;
 
     const activeStyle = isArchived
       ? 'border-left:3px solid #fa781e;opacity:0.75;'
@@ -4218,11 +4218,10 @@ function renderRepsList() {
       </div>
 
       <!-- PIN display + controls -->
-      <div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;flex-shrink:0">
-        <span style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px">PIN</span>
+      <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:7px 13px;flex-shrink:0">
+        <span style="font-family:'Outfit',sans-serif;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:2px;text-transform:uppercase">PIN</span>
         ${pinDisplay}
-        <button onclick="event.stopPropagation();togglePinVisibility('${r.name}')" style="background:none;border:none;cursor:pointer;font-size:16px;padding:0 2px;opacity:0.7;transition:opacity 0.15s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'" title="Show/Hide PIN">👁</button>
-        <button onclick="event.stopPropagation();autoGeneratePin('${r.name}')" style="background:none;border:none;cursor:pointer;font-size:16px;padding:0 2px;opacity:0.7;transition:opacity 0.15s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'" title="Regenerate PIN">↺</button>
+        <button onclick="event.stopPropagation();autoGeneratePin('${r.name}')" style="background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;padding:3px 7px;color:var(--muted);transition:all 0.15s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'" title="Regenerate PIN">↺</button>
       </div>
 
       <!-- Edit button -->
@@ -4613,7 +4612,7 @@ function darkMapStyle() {
     <input id="new-rep-name" type="text" placeholder="Full name (e.g. John Smith)"
       style="flex:1;min-width:200px;padding:11px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:14px;outline:none;box-sizing:border-box"/>
     <button onclick="addRep()" style="padding:11px 22px;background:#a855f7;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;color:#fff;cursor:pointer;white-space:nowrap;transition:all 0.15s" onmouseover="this.style.background='#9333ea'" onmouseout="this.style.background='#a855f7'">+ ADD REP</button>
-    <button onclick="downloadPinSheet()" style="padding:11px 22px;background:var(--green);border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;color:#000;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:all 0.15s" onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='var(--green)'">
+    <button onclick="showPinSheetPage()" style="padding:11px 22px;background:var(--green);border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;color:#000;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:all 0.15s" onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='var(--green)'">
       <span style="font-size:16px">📋</span> PIN SHEET
     </button>
   </div>
@@ -5100,162 +5099,161 @@ window.submitPinField = function() {
   document.getElementById('login-pin-field').focus();
 };
 
-// ── PDF PIN SHEET DOWNLOAD ────────────────────────────────────────────────
-window.downloadPinSheet = function() {
-  // Resolve jsPDF from multiple possible global names (UMD sets window.jspdf)
+// ── PIN SHEET PAGE ──────────────────────────────────────────────────────
+window.showPinSheetPage = function() {
+  // Remove existing if open
+  document.getElementById('pin-sheet-overlay')?.remove();
+
+  const today = new Date().toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric'});
+  const sessionPins = getAllSessionPins();
+
+  // Build rows
+  const rows = reps.map((r, i) => {
+    const pin = sessionPins[r.name] || '——————';
+    const pinColor = sessionPins[r.name] ? '#22c55e' : '#333';
+    return `<tr>
+      <td style="color:#333;padding:10px 14px;border-bottom:1px solid #111;font-size:14px">${String(i+1).padStart(2,'0')}</td>
+      <td style="color:#cccccc;padding:10px 14px;border-bottom:1px solid #111;font-size:15px;font-weight:700">${r.name}</td>
+      <td style="color:${pinColor};padding:10px 14px;border-bottom:1px solid #111;font-size:20px;font-weight:900;letter-spacing:8px;font-family:monospace">${pin}</td>
+    </tr>`;
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'pin-sheet-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:#060606;z-index:999999;overflow-y:auto;font-family:monospace';
+
+  overlay.innerHTML = `
+    <div style="max-width:700px;margin:0 auto;padding:40px 32px 80px">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
+        <div>
+          <div style="font-family:sans-serif;font-size:11px;letter-spacing:6px;color:#22c55e;margin-bottom:4px;text-transform:uppercase">Green Nova · PIN Sheet</div>
+          <div style="font-size:10px;color:#444;letter-spacing:2px">CONFIDENTIAL · OWNERS & TEAM LEADS ONLY · ${today}</div>
+        </div>
+        <button onclick="document.getElementById('pin-sheet-overlay').remove()" style="background:#111;border:1px solid #222;border-radius:8px;color:#666;font-size:12px;padding:8px 14px;cursor:pointer;font-family:sans-serif;letter-spacing:1px">✕ CLOSE</button>
+      </div>
+
+      <div style="height:1px;background:#1a1a1a;margin:20px 0 24px"></div>
+
+      <!-- Table -->
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr>
+            <th style="text-align:left;font-size:9px;letter-spacing:4px;color:#333;padding:8px 14px;border-bottom:1px solid #1a1a1a;text-transform:uppercase">#</th>
+            <th style="text-align:left;font-size:9px;letter-spacing:4px;color:#333;padding:8px 14px;border-bottom:1px solid #1a1a1a;text-transform:uppercase">Name</th>
+            <th style="text-align:left;font-size:9px;letter-spacing:4px;color:#333;padding:8px 14px;border-bottom:1px solid #1a1a1a;text-transform:uppercase">PIN</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      <!-- Footer -->
+      <div style="margin-top:32px;font-size:8px;color:#222;letter-spacing:2px;text-transform:uppercase">
+        Green Nova Community Advocates &nbsp;|&nbsp; Do Not Share &nbsp;|&nbsp; Confidential
+      </div>
+
+      <!-- Action buttons -->
+      <div style="position:fixed;bottom:0;left:0;right:0;background:#060606;border-top:1px solid #1a1a1a;padding:16px 24px;display:flex;justify-content:center;gap:12px">
+        <button onclick="window.print()" style="padding:12px 28px;border-radius:10px;font-size:12px;font-weight:700;letter-spacing:2px;cursor:pointer;border:none;font-family:sans-serif;background:#22c55e;color:#000;display:flex;align-items:center;gap:8px">
+          🖨️ PRINT
+        </button>
+        <button onclick="downloadPinSheetPDF()" style="padding:12px 28px;border-radius:10px;font-size:12px;font-weight:700;letter-spacing:2px;cursor:pointer;border:1px solid #333;font-family:sans-serif;background:#111;color:#22c55e;display:flex;align-items:center;gap:8px">
+          📥 DOWNLOAD PDF
+        </button>
+      </div>
+
+    </div>
+
+    <style>
+      @media print {
+        #pin-sheet-overlay { position:static !important; overflow:visible !important; }
+        #pin-sheet-overlay button { display:none !important; }
+        body > *:not(#pin-sheet-overlay) { display:none !important; }
+        td, th { color: #000 !important; }
+        td[style*="22c55e"] { color: #16a34a !important; }
+        #pin-sheet-overlay { background: #fff !important; }
+      }
+    </style>`;
+
+  document.body.appendChild(overlay);
+};
+
+// Download as PDF using jsPDF
+window.downloadPinSheetPDF = function() {
   let jsPDF = null;
   if (typeof window.jspdf !== 'undefined' && window.jspdf.jsPDF) {
     jsPDF = window.jspdf.jsPDF;
   } else if (typeof window.jsPDF !== 'undefined') {
     jsPDF = window.jsPDF;
   } else {
-    // Last resort: try loading inline
-    console.error('[KnockTrack] jsPDF not found on window. window.jspdf=', typeof window.jspdf, 'window.jsPDF=', typeof window.jsPDF);
-    alert('PDF library not loaded. Please refresh the page and try again.');
+    alert('PDF library not loaded — please try again after refreshing.');
     return;
   }
+
   const today = new Date().toLocaleDateString('en-US', {month:'numeric',day:'numeric',year:'numeric'});
   const todaySlug = new Date().toISOString().slice(0,10);
   const sessionPins = getAllSessionPins();
 
   let doc;
-  try {
-    doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-  } catch(e) {
-    console.error('[KnockTrack] jsPDF instantiation failed:', e);
-    alert('Failed to create PDF: ' + e.message);
-    return;
-  }
+  try { doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' }); }
+  catch(e) { alert('PDF error: ' + e.message); return; }
+
   const pw = doc.internal.pageSize.width;
 
-  // ── Header bar
-  doc.setFillColor(7, 11, 16);
-  doc.rect(0, 0, pw, 28, 'F');
+  // Header
+  doc.setFillColor(6, 6, 6);
+  doc.rect(0, 0, pw, 297, 'F');
   doc.setFillColor(34, 197, 94);
-  doc.rect(0, 0, 4, 28, 'F');
+  doc.rect(0, 0, pw, 24, 'F');
 
-  doc.setTextColor(34, 197, 94);
-  doc.setFontSize(18);
+  doc.setTextColor(6, 6, 6);
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('GREEN NOVA', 10, 12);
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text('KNOCKTRACK · REP PIN SHEET', 10, 19);
-  doc.setTextColor(120, 130, 140);
-  doc.setFontSize(7);
-  doc.text('CONFIDENTIAL · OWNER ACCESS ONLY · Generated ' + today, 10, 25);
-
-  // ── Warning box
-  doc.setFillColor(30, 20, 10);
-  doc.setDrawColor(240, 180, 41);
-  doc.roundedRect(10, 32, pw - 20, 10, 2, 2, 'FD');
-  doc.setTextColor(240, 180, 41);
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'bold');
-  doc.text('⚠  CONFIDENTIAL: Do not share or distribute. PINs shown only for sessions where they were set this login.', 14, 38.5);
-
-  // ── Count active reps with session PINs
-  const visiblePinCount = reps.filter(r => sessionPins[r.name]).length;
-  const totalReps = reps.length;
-
-  // ── Sub-header info
-  doc.setTextColor(150, 163, 175);
+  doc.text('GREEN NOVA  ·  PIN SHEET', 14, 10);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(`${totalReps} reps · ${visiblePinCount} PINs visible this session · ${totalReps - visiblePinCount} require regeneration to view`, 10, 48);
+  doc.text('CONFIDENTIAL · OWNERS & TEAM LEADS ONLY · ' + today, 14, 17);
 
-  // ── Table
+  // Table body
   const tableBody = reps.map((r, i) => {
-    const sessionPin = sessionPins[r.name];
-    const pinDisplay = sessionPin ? sessionPin : (r.pinHash ? '[ regenerate to view ]' : 'NOT SET');
-    const enrolled = knocks.filter(k => k.rep === r.name && k.status === 'enrolled').length;
-    return [
-      String(i + 1).padStart(2, '0'),
-      r.name,
-      r.role || 'Field Representative',
-      String(enrolled),
-      pinDisplay
-    ];
+    const pin = sessionPins[r.name] || '——————';
+    return [ String(i+1).padStart(2,'0'), r.name, pin ];
   });
 
   doc.autoTable({
-    startY: 52,
-    head: [['#', 'Rep Name', 'Role', 'Enrollments', 'PIN']],
+    startY: 30,
+    head: [['#', 'Name', 'PIN']],
     body: tableBody,
-    theme: 'grid',
-    headStyles: {
-      fillColor: [34, 197, 94],
-      textColor: [0, 0, 0],
-      fontStyle: 'bold',
-      fontSize: 9,
-      halign: 'left',
-      cellPadding: 4
-    },
-    bodyStyles: {
-      fontSize: 9,
-      textColor: [30, 30, 30],
-      cellPadding: 4
-    },
+    theme: 'plain',
+    styles: { fillColor: [6,6,6], textColor: [180,180,180], fontSize: 11, cellPadding: 5 },
+    headStyles: { fillColor: [20,20,20], textColor: [80,80,80], fontSize: 8, fontStyle:'normal', letterSpacing: 3 },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 12, textColor: [150, 150, 150] },
-      1: { cellWidth: 52, fontStyle: 'bold' },
-      2: { cellWidth: 46 },
-      3: { halign: 'center', cellWidth: 22 },
-      4: { cellWidth: 48, fontStyle: 'bold', halign: 'center' }
+      0: { cellWidth: 18, textColor: [60,60,60] },
+      1: { cellWidth: 90, textColor: [200,200,200], fontStyle: 'bold' },
+      2: { cellWidth: 70, textColor: [34,197,94], fontStyle: 'bold', fontSize: 14 }
     },
-    alternateRowStyles: { fillColor: [248, 252, 248] },
     didParseCell: function(data) {
-      if (data.section === 'body' && data.column.index === 4) {
-        const raw = data.cell.raw;
-        if (raw === 'NOT SET') {
-          data.cell.styles.textColor = [239, 68, 68];
-          data.cell.styles.fontStyle = 'bold';
-        } else if (raw && raw.startsWith('[')) {
-          data.cell.styles.textColor = [156, 163, 175];
-          data.cell.styles.fontStyle = 'italic';
-          data.cell.styles.fontSize = 8;
-        } else {
-          // Actual PIN — green and bold
-          data.cell.styles.textColor = [34, 197, 94];
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fontSize = 11;
-          data.cell.styles.letterSpacing = 2;
-        }
+      if (data.section === 'body' && data.column.index === 2 && data.cell.raw === '——————') {
+        data.cell.styles.textColor = [50,50,50];
       }
     },
-    willDrawPage: function(data) {
-      // Page header on subsequent pages
-      if (data.pageNumber > 1) {
-        doc.setFillColor(7, 11, 16);
-        doc.rect(0, 0, pw, 14, 'F');
-        doc.setTextColor(34, 197, 94);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text('GREEN NOVA · KNOCKTRACK · PIN SHEET (continued)', 10, 10);
-      }
-    }
+    alternateRowStyles: { fillColor: [10,10,10] }
   });
 
-  // ── Footer on every page
+  // Footer
   const pageCount = doc.internal.getNumberOfPages();
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p);
-    const pageHeight = doc.internal.pageSize.height;
-    doc.setFillColor(240, 240, 240);
-    doc.rect(0, pageHeight - 10, pw, 10, 'F');
+    const ph = doc.internal.pageSize.height;
     doc.setFontSize(7);
-    doc.setTextColor(150, 150, 150);
-    doc.setFont('helvetica', 'normal');
-    doc.text(
-      'GREEN NOVA · COMMUNITY ADVOCATES · CONFIDENTIAL · Page ' + p + ' of ' + pageCount,
-      pw / 2, pageHeight - 4, { align: 'center' }
-    );
+    doc.setTextColor(40,40,40);
+    doc.text('GREEN NOVA COMMUNITY ADVOCATES  ·  DO NOT SHARE  ·  CONFIDENTIAL  ·  Page ' + p + '/' + pageCount, pw/2, ph - 6, { align:'center' });
   }
 
   doc.save('GreenNova-PINs-' + todaySlug + '.pdf');
 };
-// ── END PDF PIN SHEET ──────────────────────────────────────────────────────
+// ── END PIN SHEET ─────────────────────────────────────────────────────────
 
 // ── AUTO-GENERATE PIN (6 digit) ──────────────────────────────────────────
 function generateRandomPin() {
