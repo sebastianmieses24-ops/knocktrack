@@ -4312,12 +4312,6 @@ window.toggleEditRep = function(i, isArchived) {
 };
 
 window.togglePinVisibility = function(repName) {
-  // Pre-seed session PINs every time (ensures they're always available)
-  const knownPins = {"Adam Obest":"953924","Beau Boyers":"271901","Brandon Cavey":"333149","Brock Allison":"955266","Caleb Flack":"208624","Calvin Bingaman":"629503","Cody Harvey":"526200","Coen O'Hara":"620201","Dominic Lising":"320631","Emma Deca":"424068","Geo Duron":"187958","Jim":"905136","John Santana":"539615","Joshua Guy":"288780","Kahle Jacoby":"280941","Max King":"412936","Michael Deangelo":"818075","Sebastian Mieses":"746975","Stephen Ruiz":"148814","Stone Baldwin":"869419","Tori":"445863","Victoria Lising":"397949","Xaiver Sosa":"687445"};
-  const stored = JSON.parse(sessionStorage.getItem('kt_session_pins') || '{}');
-  Object.entries(knownPins).forEach(([n,p]) => { if (!stored[n]) stored[n]=p; });
-  sessionStorage.setItem('kt_session_pins', JSON.stringify(stored));
-
   // Derive same safeId used in renderRepsList
   const safeId = 'pin-' + repName.replace(/[^a-zA-Z0-9]/g, '-');
   const span = document.getElementById(safeId);
@@ -4825,27 +4819,34 @@ function storeSessionPin(repName, pin) {
     sessionStorage.setItem('kt_session_pins', JSON.stringify(pins));
   } catch(e) {}
 }
+// Master PIN lookup — hardcoded as fallback, sessionStorage overrides
+// (sessionStorage holds any regenerated PINs from this session)
+const MASTER_PINS = {
+  "Adam Obest":"953924","Beau Boyers":"271901","Brandon Cavey":"333149",
+  "Brock Allison":"955266","Caleb Flack":"208624","Calvin Bingaman":"629503",
+  "Cody Harvey":"526200","Coen O'Hara":"620201","Dominic Lising":"320631",
+  "Emma Deca":"424068","Geo Duron":"187958","Jim":"905136",
+  "John Santana":"539615","Joshua Guy":"288780","Kahle Jacoby":"280941",
+  "Max King":"412936","Michael Deangelo":"818075","Sebastian Mieses":"746975",
+  "Stephen Ruiz":"148814","Stone Baldwin":"869419","Tori":"445863",
+  "Victoria Lising":"397949","Xaiver Sosa":"687445"
+};
+
 function getSessionPin(repName) {
-  try {
-    const pins = JSON.parse(sessionStorage.getItem('kt_session_pins') || '{}');
-    return pins[repName] || null;
-  } catch(e) { return null; }
-}
-function getAllSessionPins() {
-  // Always merge known PINs so pin sheet is always populated
-  const known = {"Adam Obest":"953924","Beau Boyers":"271901","Brandon Cavey":"333149",
-    "Brock Allison":"955266","Caleb Flack":"208624","Calvin Bingaman":"629503",
-    "Cody Harvey":"526200","Coen O'Hara":"620201","Dominic Lising":"320631",
-    "Emma Deca":"424068","Geo Duron":"187958","Jim":"905136",
-    "John Santana":"539615","Joshua Guy":"288780","Kahle Jacoby":"280941",
-    "Max King":"412936","Michael Deangelo":"818075","Sebastian Mieses":"746975",
-    "Stephen Ruiz":"148814","Stone Baldwin":"869419","Tori":"445863",
-    "Victoria Lising":"397949","Xaiver Sosa":"687445"};
+  // 1. Check sessionStorage first (catches regenerated PINs)
   try {
     const stored = JSON.parse(sessionStorage.getItem('kt_session_pins') || '{}');
-    // stored overrides known (allows regenerated PINs to show)
-    return { ...known, ...stored };
-  } catch(e) { return known; }
+    if (stored[repName]) return stored[repName];
+  } catch(e) {}
+  // 2. Fall back to hardcoded master list (always works, no storage needed)
+  return MASTER_PINS[repName] || null;
+}
+function getAllSessionPins() {
+  // MASTER_PINS is the base, sessionStorage overrides with any regenerated PINs
+  try {
+    const stored = JSON.parse(sessionStorage.getItem('kt_session_pins') || '{}');
+    return { ...MASTER_PINS, ...stored };
+  } catch(e) { return { ...MASTER_PINS }; }
 }
 
 // Session state (sessionStorage = clears on browser close)
@@ -5043,7 +5044,7 @@ function applySession(session) {
       sel.closest('div[style*="flex:1"]')?.parentElement?.parentElement?.style && 
         (sel.closest('div')?.style.display = 'none');
     }
-    // Hide command center button
+    // Hide secured portal button
     const ownerBtn = document.querySelector('[onclick*="openBackendPortal"]');
     if (ownerBtn) ownerBtn.style.display = 'none';
   } else {
@@ -5194,11 +5195,7 @@ window.submitPinField = function() {
 window.showPinSheetPage = function() {
   // Remove existing if open
   document.getElementById('pin-sheet-overlay')?.remove();
-  // Ensure sessionPins are loaded (re-seed in case sessionStorage was cleared)
-  const knownPins = {"Adam Obest":"953924","Beau Boyers":"271901","Brandon Cavey":"333149","Brock Allison":"955266","Caleb Flack":"208624","Calvin Bingaman":"629503","Cody Harvey":"526200","Coen O'Hara":"620201","Dominic Lising":"320631","Emma Deca":"424068","Geo Duron":"187958","Jim":"905136","John Santana":"539615","Joshua Guy":"288780","Kahle Jacoby":"280941","Max King":"412936","Michael Deangelo":"818075","Sebastian Mieses":"746975","Stephen Ruiz":"148814","Stone Baldwin":"869419","Tori":"445863","Victoria Lising":"397949","Xaiver Sosa":"687445"};
-  const stored = JSON.parse(sessionStorage.getItem('kt_session_pins') || '{}');
-  Object.entries(knownPins).forEach(([n,p]) => { if (!stored[n]) stored[n]=p; });
-  sessionStorage.setItem('kt_session_pins', JSON.stringify(stored));
+  // sessionPins always available via MASTER_PINS fallback in getAllSessionPins()
 
   const today = new Date().toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric'});
   const sessionPins = getAllSessionPins();
