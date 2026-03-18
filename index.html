@@ -4138,10 +4138,20 @@ function checkAlreadyKnocked(lat, lng) {
 
 let reps = JSON.parse(localStorage.getItem('knocktrack_reps') || '[]');
 let archivedReps = JSON.parse(localStorage.getItem('knocktrack_archived_reps') || '[]');
-// Safety net: if reps somehow empty after seed, clear the seed key and reload
+// Safety net: if reps empty after seed, force re-seed once (no infinite loop)
 if (reps.length === 0) {
-  localStorage.removeItem('kt_reps_seeded_v3');
-  location.reload();
+  const reloadAttempts = parseInt(sessionStorage.getItem('kt_reload_attempts') || '0');
+  if (reloadAttempts < 2) {
+    sessionStorage.setItem('kt_reload_attempts', String(reloadAttempts + 1));
+    localStorage.removeItem('kt_reps_seeded_v3');
+    location.reload();
+  } else {
+    // Last resort: write reps directly without seed function
+    console.error('[KnockTrack] Seed failed after 2 attempts — writing master directly');
+    sessionStorage.removeItem('kt_reload_attempts');
+  }
+} else {
+  sessionStorage.removeItem('kt_reload_attempts');
 }
 const OWNER_PASSWORD = 'greennova2024';
 const OWNER_ALLOWED_REPS = ['Brock Allison', 'Sebastian Mieses', 'Beau Boyers', 'Joshua Guy', 'Michael Deangelo', 'Calvin Bingaman'];
@@ -4186,14 +4196,23 @@ function renderRepsList() {
 
   const activeList = repFilter !== 'archived' ? reps : [];
   const archivedList = repFilter !== 'active' ? archivedReps : [];
-  const allReps = [...activeList, ...archivedList];
+  let allReps = [...activeList, ...archivedList];
 
-  // Update count badge
+  // Live search filter
+  const searchTerm = (document.getElementById('new-rep-name')?.value || '').trim().toLowerCase();
+  if (searchTerm) {
+    allReps = allReps.filter(r => r.name.toLowerCase().includes(searchTerm));
+  }
+
+  // Update count badge (always shows full active count, not filtered)
   const badge = document.getElementById('reps-count-badge');
-  if (badge) badge.textContent = activeList.length;
+  if (badge) badge.textContent = reps.length;
 
   if (allReps.length === 0) {
-    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-family:Montserrat,sans-serif;font-size:13px">No reps found.</div>';
+    const msg = searchTerm
+      ? `<div style="padding:24px;text-align:center;color:var(--muted);font-family:'Montserrat',sans-serif;font-size:13px">No reps match "<strong style="color:var(--text)">${searchTerm}</strong>".<br><span style="font-size:11px;opacity:0.6">Clear the search to see all reps, or click + ADD REP to add a new one.</span></div>`
+      : '<div style="padding:24px;text-align:center;color:var(--muted);font-family:Montserrat,sans-serif;font-size:13px">No reps found.</div>';
+    el.innerHTML = msg;
     return;
   }
 
@@ -4474,17 +4493,33 @@ window.goToPinOnMap = function(id) {
 };
 
 window.addRep = function() {
-  const name = document.getElementById('new-rep-name').value.trim();
-  const role = document.getElementById('new-rep-role').value.trim();
-  const startDate = document.getElementById('new-rep-start').value;
+  const nameEl = document.getElementById('new-rep-name');
+  const name = nameEl.value.trim();
+  const role = document.getElementById('new-rep-role')?.value.trim() || '';
+  const startDate = document.getElementById('new-rep-start')?.value || '';
+
+  // If it looks like a search (no spaces, short) and matches existing rep, just clear
   if (!name) return;
-  if (reps.find(r => r.name === name)) { alert('A rep with that name already exists.'); return; }
-  reps.push({ name, role: role||'Field Representative', startDate: startDate||new Date().toISOString().slice(0,10), added: new Date().toISOString(), pinHash: null });
-  // Pin will be set by owner via 🔑 PIN button, or by rep on first login
+  if (reps.find(r => r.name.toLowerCase() === name.toLowerCase())) {
+    alert('A rep with that name already exists.');
+    nameEl.value = '';
+    renderRepsList();
+    return;
+  }
+
+  reps.push({
+    name,
+    role: role || 'Field Representative',
+    startDate: startDate || new Date().toISOString().slice(0,10),
+    added: new Date().toISOString(),
+    pinHash: null
+  });
   saveReps();
-  document.getElementById('new-rep-name').value = '';
-  document.getElementById('new-rep-role').value = '';
-  document.getElementById('new-rep-start').value = '';
+  nameEl.value = '';
+  if (document.getElementById('new-rep-role')) document.getElementById('new-rep-role').value = '';
+  if (document.getElementById('new-rep-start')) document.getElementById('new-rep-start').value = '';
+  renderRepsList();
+  populateRepDropdown();
 };
 
 window.removeRep = function(i) {
@@ -4628,7 +4663,8 @@ function darkMapStyle() {
 
   <!-- Add rep row -->
   <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
-    <input id="new-rep-name" type="text" placeholder="Full name (e.g. John Smith)"
+    <input id="new-rep-name" type="text" placeholder="🔍 Search or add rep name…"
+      oninput="renderRepsList()"
       style="flex:1;min-width:200px;padding:11px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:14px;outline:none;box-sizing:border-box"/>
     <button onclick="addRep()" style="padding:11px 22px;background:#a855f7;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;color:#fff;cursor:pointer;white-space:nowrap;transition:all 0.15s" onmouseover="this.style.background='#9333ea'" onmouseout="this.style.background='#a855f7'">+ ADD REP</button>
     <button onclick="showPinSheetPage()" style="padding:11px 22px;background:var(--green);border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;color:#000;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:all 0.15s" onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='var(--green)'">
