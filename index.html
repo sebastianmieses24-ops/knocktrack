@@ -4051,58 +4051,70 @@ function checkAlreadyKnocked(lat, lng) {
 
 // ── SEED REPS (runs once on first load) ─────────────────────────────────
 (function seedReps() {
-  const SEEDED_KEY = 'kt_reps_seeded_v1';
-  if (localStorage.getItem(SEEDED_KEY)) return; // already seeded
-
-  const seedData = [
-    {"name":"Adam Obest","role":"Field Representative","startDate":"2026-03-17","pinHash":"rtnbr8","pinLength":6},
-    {"name":"Beau Boyers","role":"Field Representative","startDate":"2026-03-17","pinHash":"ojea5q","pinLength":6},
-    {"name":"Brandon Cavey","role":"Field Representative","startDate":"2026-03-17","pinHash":"oy9ubn","pinLength":6},
-    {"name":"Brock Allison","role":"Team Lead","startDate":"2026-03-17","pinHash":"rtogmx","pinLength":6},
-    {"name":"Caleb Flack","role":"Field Representative","startDate":"2026-03-17","pinHash":"ofo4qm","pinLength":6},
-    {"name":"Calvin Bingaman","role":"Team Lead","startDate":"2026-03-17","pinHash":"qcytp7","pinLength":6},
-    {"name":"Cody Harvey","role":"Field Representative","startDate":"2026-03-17","pinHash":"pvv849","pinLength":6},
-    {"name":"Coen O'Hara","role":"Field Representative","startDate":"2026-03-17","pinHash":"qct0lb","pinLength":6},
-    {"name":"Dominic Lising","role":"Field Representative","startDate":"2026-03-17","pinHash":"oxo8g3","pinLength":6},
-    {"name":"Emma Deca","role":"Field Representative","startDate":"2026-03-17","pinHash":"pesaf0","pinLength":6},
-    {"name":"Geo Duron","role":"Field Representative","startDate":"2026-03-17","pinHash":"o30aek","pinLength":6},
-    {"name":"Jim","role":"Field Representative","startDate":"2026-03-17","pinHash":"rqxguu","pinLength":6},
-    {"name":"John Santana","role":"Field Representative","startDate":"2026-03-17","pinHash":"pwh0nz","pinLength":6},
-    {"name":"Joshua Guy","role":"Team Lead","startDate":"2026-03-17","pinHash":"ok2id9","pinLength":6},
-    {"name":"Kahle Jacoby","role":"Field Representative","startDate":"2026-03-17","pinHash":"ojxfv0","pinLength":6},
-    {"name":"Max King","role":"Field Representative","startDate":"2026-03-17","pinHash":"pe7eg7","pinLength":6},
-    {"name":"Michael Deangelo","role":"Team Lead","startDate":"2026-03-17","pinHash":"rahjdb","pinLength":6},
-    {"name":"Sebastian Mieses","role":"CEO","startDate":"2026-03-17","pinHash":"qv27ge","pinLength":6},
-    {"name":"Stephen Ruiz","role":"Field Representative","startDate":"2026-03-17","pinHash":"o0tq6e","pinLength":6},
-    {"name":"Stone Baldwin","role":"Field Representative","startDate":"2026-03-17","pinHash":"rd985d","pinLength":6},
-    {"name":"Tori","role":"Field Representative","startDate":"2026-03-17","pinHash":"pfwoio","pinLength":6},
-    {"name":"Victoria Lising","role":"Field Representative","startDate":"2026-03-17","pinHash":"p1nbrh","pinLength":6},
-    {"name":"Xaiver Sosa","role":"Field Representative","startDate":"2026-03-17","pinHash":"qg8an4","pinLength":6}
+  // ── MASTER REP ROSTER ─────────────────────────────────────────────────
+  // Source of truth. Always reconciles if reps are missing.
+  const MASTER = [
+    {name:"Adam Obest",      role:"Field Representative", pinHash:"rtnbr8", pinLength:6},
+    {name:"Beau Boyers",     role:"Field Representative", pinHash:"ojea5q", pinLength:6},
+    {name:"Brandon Cavey",   role:"Field Representative", pinHash:"oy9ubn", pinLength:6},
+    {name:"Brock Allison",   role:"Team Lead",            pinHash:"rtogmx", pinLength:6},
+    {name:"Caleb Flack",     role:"Field Representative", pinHash:"ofo4qm", pinLength:6},
+    {name:"Calvin Bingaman", role:"Team Lead",            pinHash:"qcytp7", pinLength:6},
+    {name:"Cody Harvey",     role:"Field Representative", pinHash:"pvv849", pinLength:6},
+    {name:"Coen O'Hara",     role:"Field Representative", pinHash:"qct0lb", pinLength:6},
+    {name:"Dominic Lising",  role:"Field Representative", pinHash:"oxo8g3", pinLength:6},
+    {name:"Emma Deca",       role:"Field Representative", pinHash:"pesaf0", pinLength:6},
+    {name:"Geo Duron",       role:"Field Representative", pinHash:"o30aek", pinLength:6},
+    {name:"Jim",             role:"Field Representative", pinHash:"rqxguu", pinLength:6},
+    {name:"John Santana",    role:"Field Representative", pinHash:"pwh0nz", pinLength:6},
+    {name:"Joshua Guy",      role:"Team Lead",            pinHash:"ok2id9", pinLength:6},
+    {name:"Kahle Jacoby",    role:"Field Representative", pinHash:"ojxfv0", pinLength:6},
+    {name:"Max King",        role:"Field Representative", pinHash:"pe7eg7", pinLength:6},
+    {name:"Michael Deangelo",role:"Team Lead",            pinHash:"rahjdb", pinLength:6},
+    {name:"Sebastian Mieses",role:"CEO",                  pinHash:"qv27ge", pinLength:6},
+    {name:"Stephen Ruiz",    role:"Field Representative", pinHash:"o0tq6e", pinLength:6},
+    {name:"Stone Baldwin",   role:"Field Representative", pinHash:"rd985d", pinLength:6},
+    {name:"Tori",            role:"Field Representative", pinHash:"pfwoio", pinLength:6},
+    {name:"Victoria Lising", role:"Field Representative", pinHash:"p1nbrh", pinLength:6},
+    {name:"Xaiver Sosa",     role:"Field Representative", pinHash:"qg8an4", pinLength:6}
   ];
+  const SEED_KEY = 'kt_reps_seeded_v3'; // bump version = forces re-check on all browsers
 
-  // Merge: only add reps that don't already exist by name
   const existing = JSON.parse(localStorage.getItem('knocktrack_reps') || '[]');
+  const alreadySeeded = localStorage.getItem(SEED_KEY);
+
+  // Always reconcile if: never seeded, OR rep list is empty/too small
+  const needsReconcile = !alreadySeeded || existing.length < MASTER.length;
+
+  if (!needsReconcile) return;
+
+  // Merge: add any missing reps, never delete existing ones
   const existingNames = new Set(existing.map(r => r.name));
   let added = 0;
-  seedData.forEach(r => {
+  MASTER.forEach(r => {
     if (!existingNames.has(r.name)) {
-      r.added = new Date().toISOString();
-      existing.push(r);
+      existing.push({
+        ...r,
+        startDate: '2026-03-17',
+        added: new Date().toISOString()
+      });
       added++;
     }
   });
-  if (added > 0) {
-    localStorage.setItem('knocktrack_reps', JSON.stringify(existing));
-  }
-  localStorage.setItem(SEEDED_KEY, '1');
-  console.log(`[KnockTrack] Seeded ${added} reps from PIN sheet.`);
+
+  localStorage.setItem('knocktrack_reps', JSON.stringify(existing));
+  localStorage.setItem(SEED_KEY, '1');
+  // Clear old seed keys so they don't interfere
+  localStorage.removeItem('kt_reps_seeded_v1');
+  localStorage.removeItem('kt_reps_seeded_v2');
+  console.log(`[KnockTrack] Reconciled roster. Added ${added} missing reps. Total: ${existing.length}`);
 })();
 // ── END SEED ──────────────────────────────────────────────────────────────
 
 // ── SEED SESSION PINS (owner sees PINs from original sheet this session) ─
 (function seedSessionPins() {
-  // Only seed if owner just logged in and session pins not yet set
-  if (sessionStorage.getItem('kt_session_pins_seeded')) return;
+  // Always ensure known PINs are in session — runs every page load
+  // Does not overwrite PINs that were regenerated this session
   const knownPins = {
     "Adam Obest":"953924","Beau Boyers":"271901","Brandon Cavey":"333149",
     "Brock Allison":"955266","Caleb Flack":"208624","Calvin Bingaman":"629503",
@@ -4126,6 +4138,11 @@ function checkAlreadyKnocked(lat, lng) {
 
 let reps = JSON.parse(localStorage.getItem('knocktrack_reps') || '[]');
 let archivedReps = JSON.parse(localStorage.getItem('knocktrack_archived_reps') || '[]');
+// Safety net: if reps somehow empty after seed, clear the seed key and reload
+if (reps.length === 0) {
+  localStorage.removeItem('kt_reps_seeded_v3');
+  location.reload();
+}
 const OWNER_PASSWORD = 'greennova2024';
 const OWNER_ALLOWED_REPS = ['Brock Allison', 'Sebastian Mieses', 'Beau Boyers', 'Joshua Guy', 'Michael Deangelo', 'Calvin Bingaman'];
 let isOwnerSession = false;
@@ -4191,11 +4208,12 @@ function renderRepsList() {
     const globalIdx = isArchived ? archivedReps.findIndex(a=>a.name===r.name) : reps.findIndex(a=>a.name===r.name);
     const rankNum = activeList.findIndex(a=>a.name===r.name);
 
-    // PIN display — always visible, shows actual PIN from session
-    const sessionPin = getSessionPin(r.name);
-    const pinDigits = sessionPin || '——————';
-    const pinColor = sessionPin ? '#22c55e' : 'var(--muted)';
-    const pinDisplay = `<span style="font-family:'Rajdhani',monospace;font-size:18px;font-weight:700;letter-spacing:5px;color:${pinColor};min-width:80px">${pinDigits}</span>`;
+    // PIN display — dots by default, eye icon reveals actual PIN
+    const safeId = 'pin-' + r.name.replace(/[^a-zA-Z0-9]/g, '-');
+    const hasPinHash = !!r.pinHash;
+    const pinDisplay = hasPinHash
+      ? `<span id="${safeId}" data-showing="false" style="font-family:monospace;font-size:15px;font-weight:800;letter-spacing:4px;color:var(--text)">••••••</span>`
+      : `<span id="${safeId}" data-showing="false" style="font-size:11px;color:var(--muted);font-family:'Montserrat',sans-serif">Not set</span>`;
 
     const activeStyle = isArchived
       ? 'border-left:3px solid #fa781e;opacity:0.75;'
@@ -4218,10 +4236,11 @@ function renderRepsList() {
       </div>
 
       <!-- PIN display + controls -->
-      <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:7px 13px;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:7px 12px;flex-shrink:0">
         <span style="font-family:'Outfit',sans-serif;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:2px;text-transform:uppercase">PIN</span>
         ${pinDisplay}
-        <button onclick="event.stopPropagation();autoGeneratePin('${r.name}')" style="background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;padding:3px 7px;color:var(--muted);transition:all 0.15s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'" title="Regenerate PIN">↺</button>
+        <button onclick="event.stopPropagation();togglePinVisibility('${r.name}')" style="background:none;border:none;cursor:pointer;font-size:15px;padding:0 2px;opacity:0.6;transition:opacity 0.15s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Show/Hide PIN">👁</button>
+        <button onclick="event.stopPropagation();autoGeneratePin('${r.name}')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 2px;opacity:0.6;transition:opacity 0.15s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Regenerate PIN">↺</button>
       </div>
 
       <!-- Edit button -->
