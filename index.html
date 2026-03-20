@@ -1564,15 +1564,15 @@ async function initMap() {
   populateRepDropdown();
 
   // Mark app as fully ready
-  appReady = true;
+  window.appReady = true;
 
   // Auth gate — show login or restore session  
   initAuth();
 
   // If user already clicked a landing button before Maps loaded, apply it now
-  if (pendingDestination) {
-    const dest = pendingDestination;
-    pendingDestination = null;
+  if (window.pendingDestination) {
+    const dest = window.pendingDestination;
+    window.pendingDestination = null;
     applyDestination(dest);
   }
 
@@ -5047,7 +5047,7 @@ function initAuth() {
     const ls = document.getElementById('landing-screen');
     if (ls) ls.style.display = 'none';
     applySession(session);
-    if (landingDestination === 'map') {
+    if (window.landingDestination === 'map') {
       const dash = document.getElementById('dashboard');
       if (dash) dash.style.display = 'none';
     } else {
@@ -5058,9 +5058,9 @@ function initAuth() {
 }
 
 // ── LANDING SCREEN ────────────────────────────────────────────────────────
-let landingDestination = 'home'; // 'home' or 'map'
-let appReady = false;         // true once initMap() has fully completed
-let pendingDestination = null; // set if user clicks before app is ready
+window.landingDestination = 'home'; // 'home' or 'map'
+window.appReady = false;         // true once initMap() has fully completed
+window.pendingDestination = null; // set if user clicks before app is ready
 
 function showLandingScreen() {
   const ls = document.getElementById('landing-screen');
@@ -5132,7 +5132,7 @@ function applyDestination(dest) {
 // ── END APPLY DESTINATION ─────────────────────────────────────────────────
 
 window.chooseLanding = function(dest) {
-  landingDestination = dest;
+  window.landingDestination = dest;
   const ls = document.getElementById('landing-screen');
 
   // Animate landing out
@@ -5151,10 +5151,10 @@ window.chooseLanding = function(dest) {
       ls.style.transition = '';
     }
 
-    if (!appReady) {
+    if (!window.appReady) {
       // App still initializing (Maps API loading) — show loading screen,
       // queue the destination for when initMap() completes
-      pendingDestination = dest;
+      window.pendingDestination = dest;
       showLoadingOverlay(dest);
     } else {
       // App ready — navigate immediately
@@ -5734,7 +5734,7 @@ window.toggleActivityFeed = function() {
     <!-- Logo -->
     <div style="margin-bottom:16px">
       <div style="font-family:'Michroma',sans-serif;font-size:clamp(26px,5vw,46px);letter-spacing:6px;color:#fff;line-height:1">
-        <span style="color:#22c55e">KNOCK</span>&nbsp;<span style="color:#fff">TRACK</span>
+        <span style="color:#22c55e">KNOCK</span>&nbsp;<span style="color:#ffffff">TRACK</span>
       </div>
       <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:4px;color:rgba(255,255,255,0.3);margin-top:10px;text-transform:uppercase">Official Partner: Green Nova</div>
     </div>
@@ -5743,7 +5743,7 @@ window.toggleActivityFeed = function() {
     <div style="width:48px;height:2px;background:linear-gradient(90deg,transparent,#22c55e,transparent);margin:24px 0 32px"></div>
 
     <!-- Prompt -->
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(13px,2vw,16px);letter-spacing:6px;color:rgba(255,255,255,0.18);margin-bottom:36px">WHERE WOULD YOU LIKE TO GO?</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(13px,2vw,16px);letter-spacing:6px;color:rgba(255,255,255,0.75);margin-bottom:36px">WHERE WOULD YOU LIKE TO GO?</div>
 
     <!-- Two large buttons -->
     <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;width:100%;max-width:580px">
@@ -5756,8 +5756,8 @@ window.toggleActivityFeed = function() {
         onmouseover="this.style.borderColor='#22c55e';this.style.background='rgba(34,197,94,0.07)';this.style.transform='translateY(-6px)';this.style.boxShadow='0 20px 60px rgba(34,197,94,0.18)'"
         onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.background='rgba(15,19,24,0.9)';this.style.transform='translateY(0)';this.style.boxShadow='none'">
         <div style="font-size:36px;line-height:1">🏠</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:5px;color:#e8edf5">HOME</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;color:#555;text-transform:uppercase">Dashboard &amp; Stats</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:5px;color:#ffffff">HOME</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;color:rgba(255,255,255,0.6);text-transform:uppercase">Dashboard &amp; Stats</div>
       </button>
 
       <!-- KNOCK MAP button -->
@@ -5768,14 +5768,14 @@ window.toggleActivityFeed = function() {
         onmouseover="this.style.borderColor='#22c55e';this.style.background='rgba(34,197,94,0.07)';this.style.transform='translateY(-6px)';this.style.boxShadow='0 20px 60px rgba(34,197,94,0.18)'"
         onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.background='rgba(15,19,24,0.9)';this.style.transform='translateY(0)';this.style.boxShadow='none'">
         <div style="font-size:36px;line-height:1">🗺️</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:5px;color:#e8edf5">KNOCK MAP</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;color:#555;text-transform:uppercase">Territory &amp; Pins</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:5px;color:#ffffff">KNOCK MAP</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;color:rgba(255,255,255,0.6);text-transform:uppercase">Territory &amp; Pins</div>
       </button>
 
     </div>
 
     <!-- Footer -->
-    <div style="margin-top:44px;font-family:'Outfit',sans-serif;font-size:10px;color:rgba(255,255,255,0.1);letter-spacing:3px;text-transform:uppercase">
+    <div style="margin-top:44px;font-family:'Outfit',sans-serif;font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:3px;text-transform:uppercase">
       KnockTrack · Official Partner: Green Nova
     </div>
   </div>
