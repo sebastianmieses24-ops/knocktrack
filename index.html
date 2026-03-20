@@ -5,23 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Knock Track — by Green Nova</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&family=Rajdhani:wght@400;500;600;700&family=Michroma&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Michroma&family=Rajdhani:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #070b10;
-  --surface: #0f1318;
-  --surface2: #1a1a1a;
-  --border: #1a2030;
-  --text: #e8edf5;
-  --muted: #9ca3af;
-  --accent: #4f8ef7;
-  --green: #22c55e;
-  --green-dim: #16a34a;
-  --gold: #f0b429;
-  --green-light: #4ade80;
-  --danger: #ef4444;
-  --danger-soft: #fb7185;
-  --purple: #d8b4fe;
+  /* ── Brand Greens ─────── */
+  --g:        #22C55E;   /* primary green */
+  --gd:       #16A34A;   /* dark green — hover, gradients */
+  --gl:       #4ADE80;   /* light green — highlights */
+  --gold:     #F0B429;   /* gold — leaderboard, kWh */
+  /* ── Backgrounds ──────── */
+  --black:    #070B10;   /* deepest bg */
+  --card:     #0F1318;   /* card surfaces */
+  --bg:       #070B10;
+  --surface:  #0F1318;
+  --surface2: #1A1A1A;
+  --border:   #1A2030;
+  /* ── Text ──────────────── */
+  --text:     #E8EDF5;
+  --muted:    #9CA3AF;
+  /* ── Alerts ────────────── */
+  --danger:   #EF4444;
+  --danger-soft: #FB7185;
+  /* ── Accent ────────────── */
+  --purple:   #D8B4FE;
+  /* ── Aliases (backwards compat) ──── */
+  --green:      #22C55E;
+  --green-dim:  #16A34A;
+  --green-light:#4ADE80;
+  --accent:     #4f8ef7;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -29,7 +40,7 @@
 html { height:100%; }
 
 body {
-  font-family:'Montserrat',sans-serif;
+  font-family:'Outfit',sans-serif;
   background:var(--bg);
   color:var(--text);
   height:100%;
@@ -707,6 +718,48 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 .text-green-light { color:var(--green-light); }
 .text-purple { color:var(--purple); }
 .text-danger { color:var(--danger); }
+
+/* ── LANDING SCREEN ─────────────────────────────────────────── */
+#landing-screen {
+  position:fixed;inset:0;z-index:99998;
+  background:#070b10;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.landing-btn {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;
+  width:260px;height:160px;
+  border-radius:24px;
+  border:2px solid rgba(255,255,255,0.08);
+  background:rgba(15,19,24,0.95);
+  cursor:pointer;
+  transition:all 0.2s ease;
+  text-decoration:none;
+}
+.landing-btn:hover {
+  border-color:var(--green);
+  background:rgba(34,197,94,0.06);
+  transform:translateY(-4px);
+  box-shadow:0 16px 48px rgba(34,197,94,0.15);
+}
+.landing-btn-icon { font-size:40px; }
+.landing-btn-label {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:26px;
+  letter-spacing:4px;
+  color:#e8edf5;
+}
+.landing-btn-sub {
+  font-family:'Outfit',sans-serif;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:2px;
+  color:#555;
+  text-transform:uppercase;
+}
+/* ── END LANDING ─────────────────────────────────────────────── */
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -1237,7 +1290,7 @@ const STATUSES = [
   { key:'competitor',     label:'Competitor',      icon:'✕', color:'#f43f5e', desc:'Homeowner is already with a competing provider.' },
   { key:'jerk',           label:'Jerk',            icon:'😠', color:'#b91c1c', desc:'Hostile or rude homeowner, do not revisit.' },
   { key:'solar-roof',     label:'Solar on Roof',   icon:'☀', color:'#f0b429', desc:'Home already has solar panels installed on the roof.' },
-  { key:'spanish',        label:'Spanish Only',    icon:'💬', color:'#06b6d4', desc:'Homeowner speaks Spanish only, send a Spanish-speaking rep.' },
+  { key:'spanish',        label:'No English',      icon:'💬', color:'#06b6d4', desc:'Homeowner does not speak English. Send a rep who speaks their language.' },
 ];
 
 const ABBREVS = { 'not-home':'NOT','enrolled':'ENR','quality-lead':'QL','lead':'LEAD','missed-lead':'MISS','not-interested':'NI','not-qualified':'NQ','competitor':'COMP','jerk':'JERK','solar-roof':'SOLAR','spanish':'ESP' };
@@ -1625,28 +1678,131 @@ function addMarker(knock) {
   const marker = new google.maps.Marker({
     position:{ lat:knock.lat, lng:knock.lng }, map,
     icon:makeMarkerIcon(knock.status), title:getStatusLabel(knock.status),
-    animation:google.maps.Animation.DROP, draggable:true,
-  });
-  marker.addListener('click', () => { if (!isDragging) openBottomSheet(knock); });
-
-  let dragOrigin = null; // saved position before drag starts
-
-  marker.addListener('dragstart', () => {
-    isDragging = true;
-    dragOrigin = marker.getPosition(); // capture original lat/lng
-    marker.setOpacity(0.6);
+    animation:google.maps.Animation.DROP,
+    draggable:false,  // NOT draggable by default — right-click to move
+    cursor:'pointer',
   });
 
-  marker.addListener('dragend', e => {
-    setTimeout(() => { isDragging = false; }, 400);
-    marker.setOpacity(1);
-    const newLat = e.latLng.lat(), newLng = e.latLng.lng();
+  // Normal left-click → open bottom sheet
+  marker.addListener('click', () => openBottomSheet(knock));
 
-    // Show custom confirm dialog instead of saving immediately
-    showMoveMarkerConfirm(knock, marker, dragOrigin, newLat, newLng);
+  // Right-click → show "Move this pin?" context menu
+  marker.addListener('rightclick', (e) => {
+    e.domEvent?.preventDefault?.();
+    showMoveMarkerContext(knock, marker, e.latLng || marker.getPosition());
   });
 
   markers[knock.id] = marker;
+}
+
+function showMoveMarkerContext(knock, marker, clickLatLng) {
+  // Remove any existing context menu
+  document.getElementById('marker-ctx-menu')?.remove();
+
+  const mapDiv = document.getElementById('map');
+  const mapRect = mapDiv.getBoundingClientRect();
+
+  // Convert latLng to screen pixel position for menu placement
+  const overlay = new google.maps.OverlayView();
+  overlay.draw = function() {};
+  overlay.setMap(map);
+
+  const menu = document.createElement('div');
+  menu.id = 'marker-ctx-menu';
+  menu.style.cssText = [
+    'position:fixed',
+    'background:#0f1318',
+    'border:1px solid rgba(255,255,255,0.12)',
+    'border-radius:12px',
+    'padding:6px',
+    'z-index:99999',
+    'min-width:200px',
+    'box-shadow:0 8px 32px rgba(0,0,0,0.6)',
+    'animation:fadeSlideIn 0.15s ease',
+  ].join(';');
+
+  menu.innerHTML = `
+    <div style="padding:8px 12px 6px;font-family:'Outfit',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:#555;text-transform:uppercase">PIN OPTIONS</div>
+    <button id="ctx-move-pin" style="width:100%;text-align:left;padding:10px 14px;background:none;border:none;border-radius:8px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;color:#e8edf5;display:flex;align-items:center;gap:10px;transition:background 0.1s"
+      onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">
+      📍 <span>Move this pin</span>
+    </button>
+    <button id="ctx-cancel-pin" style="width:100%;text-align:left;padding:10px 14px;background:none;border:none;border-radius:8px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;color:#9ca3af;display:flex;align-items:center;gap:10px;transition:background 0.1s"
+      onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='none'">
+      ✕ <span>Cancel</span>
+    </button>`;
+
+  document.body.appendChild(menu);
+
+  // Position near the click — use mouse position from last right-click event
+  const positionMenu = () => {
+    // Try to use the map's projection to get screen coords
+    try {
+      const proj = overlay.getProjection();
+      if (proj) {
+        const pt = proj.fromLatLngToContainerPixel(clickLatLng);
+        const x = Math.min(mapRect.left + pt.x + 10, window.innerWidth - 220);
+        const y = Math.min(mapRect.top + pt.y - 10, window.innerHeight - 120);
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+      } else {
+        menu.style.left = (window.innerWidth / 2 - 100) + 'px';
+        menu.style.top = (window.innerHeight / 2 - 50) + 'px';
+      }
+    } catch(e) {
+      menu.style.left = (window.innerWidth / 2 - 100) + 'px';
+      menu.style.top = (window.innerHeight / 2 - 50) + 'px';
+    }
+  };
+  setTimeout(positionMenu, 50);
+
+  // "Move this pin" — enable drag mode
+  document.getElementById('ctx-move-pin').onclick = () => {
+    menu.remove();
+    overlay.setMap(null);
+    // Enable dragging temporarily
+    marker.setDraggable(true);
+    marker.setOpacity(0.7);
+    marker.setCursor('grabbing');
+
+    // Show instructions toast
+    showToast('📍 Drag the pin to its new location, then release');
+
+    const dragOrigin = marker.getPosition();
+
+    const onDragEnd = google.maps.event.addListenerOnce(marker, 'dragend', (de) => {
+      marker.setDraggable(false);
+      marker.setOpacity(1);
+      marker.setCursor('pointer');
+      const newLat = de.latLng.lat(), newLng = de.latLng.lng();
+      showMoveMarkerConfirm(knock, marker, dragOrigin, newLat, newLng);
+    });
+  };
+
+  document.getElementById('ctx-cancel-pin').onclick = () => {
+    menu.remove();
+    overlay.setMap(null);
+  };
+
+  // Click anywhere else = close
+  const closeHandler = (e) => {
+    if (!menu.contains(e.target)) {
+      menu.remove();
+      overlay.setMap(null);
+      document.removeEventListener('click', closeHandler);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeHandler), 100);
+}
+
+function showToast(msg, duration=3000) {
+  document.getElementById('kt-toast')?.remove();
+  const t = document.createElement('div');
+  t.id = 'kt-toast';
+  t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#0f1318;border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:12px 20px;font-family:Outfit,sans-serif;font-size:13px;font-weight:700;color:#22c55e;z-index:99998;animation:fadeSlideIn 0.2s ease;white-space:nowrap;pointer-events:none';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), duration);
 }
 
 function showMoveMarkerConfirm(knock, marker, originalPos, newLat, newLng) {
@@ -4873,16 +5029,66 @@ function initAuth() {
   if (session) {
     currentSession = session;
     applySession(session);
-    // Ensure dashboard is shown for valid sessions
     const dash = document.getElementById('dashboard');
     if (dash && dash.style.display === 'none') showDashboard();
     return;
   }
-  // No session — force login screen, hide everything else
+  // No session — show landing screen first
   const dash = document.getElementById('dashboard');
   if (dash) dash.style.display = 'none';
-  showLoginScreen();
+  showLandingScreen();
 }
+
+// ── LANDING SCREEN ────────────────────────────────────────────────────────
+let landingDestination = 'home'; // 'home' or 'map'
+
+function showLandingScreen() {
+  const ls = document.getElementById('landing-screen');
+  if (!ls) { showLoginScreen(); return; }
+  ls.style.display = 'flex';
+  startLandingStarfield();
+}
+
+function hideLandingScreen() {
+  const ls = document.getElementById('landing-screen');
+  if (ls) ls.style.display = 'none';
+}
+
+window.chooseLanding = function(dest) {
+  landingDestination = dest;
+  hideLandingScreen();
+  showLoginScreen();
+};
+
+function startLandingStarfield() {
+  const canvas = document.getElementById('landing-starfield');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const stars = Array.from({length:120}, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    r: Math.random() * 1.4 + 0.3,
+    o: Math.random() * 0.7 + 0.3,
+    speed: Math.random() * 0.3 + 0.05
+  }));
+  function draw() {
+    if (document.getElementById('landing-screen')?.style.display === 'none') return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    stars.forEach(s => {
+      s.o += (Math.random() - 0.5) * 0.04;
+      s.o = Math.max(0.1, Math.min(1, s.o));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${s.o})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+// ── END LANDING SCREEN ─────────────────────────────────────────────────────
 
 function showLoginScreen() {
   // Always hide dashboard and map when showing login
@@ -4906,6 +5112,12 @@ function showLoginScreen() {
 
 function hideLoginScreen() {
   document.getElementById('login-screen').style.display = 'none';
+  // After login, redirect to chosen destination
+  if (landingDestination === 'map') {
+    setTimeout(() => {
+      hideDashboard();
+    }, 100);
+  }
 }
 
 function populateLoginRepSelect() {
@@ -5412,6 +5624,50 @@ window.toggleActivityFeed = function() {
 </script>
 
 <!-- ═══ LOGIN SCREEN ═══ -->
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- LANDING SCREEN — first page users see                     -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="landing-screen" style="display:none">
+  <canvas id="landing-starfield" style="position:absolute;inset:0;pointer-events:none;opacity:0.3"></canvas>
+
+  <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;text-align:center;animation:fadeSlideIn 0.5s ease">
+
+    <!-- Logo -->
+    <div style="margin-bottom:48px">
+      <div style="font-family:'Michroma',sans-serif;font-size:38px;letter-spacing:4px;color:#fff;line-height:1">
+        <span style="color:#22c55e">GREEN</span> NOVA
+      </div>
+      <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:6px;color:rgba(255,255,255,0.25);margin-top:6px">COMMUNITY ADVOCATES</div>
+    </div>
+
+    <!-- Tagline -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:5px;color:rgba(255,255,255,0.2);margin-bottom:40px">WHERE WOULD YOU LIKE TO GO?</div>
+
+    <!-- Two big buttons -->
+    <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center">
+
+      <button class="landing-btn" onclick="chooseLanding('home')">
+        <div class="landing-btn-icon">🏠</div>
+        <div class="landing-btn-label">HOME</div>
+        <div class="landing-btn-sub">Dashboard & Stats</div>
+      </button>
+
+      <button class="landing-btn" onclick="chooseLanding('map')">
+        <div class="landing-btn-icon">🗺️</div>
+        <div class="landing-btn-label">KNOCK MAP</div>
+        <div class="landing-btn-sub">Territory & Pins</div>
+      </button>
+
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top:48px;font-family:'Outfit',sans-serif;font-size:11px;color:rgba(255,255,255,0.12);letter-spacing:2px">
+      KNOCKTRACK · POWERED BY GREEN NOVA
+    </div>
+  </div>
+</div>
+
 <div id="login-screen" style="display:none;position:fixed;inset:0;z-index:99999;background:#000;flex-direction:column;align-items:center;justify-content:center;overflow:hidden">
   <canvas id="login-starfield" style="position:absolute;inset:0;pointer-events:none;opacity:0.35"></canvas>
 
