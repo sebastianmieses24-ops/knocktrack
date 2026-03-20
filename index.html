@@ -760,6 +760,8 @@ textarea#knock-notes:focus { border-color:var(--accent); }
   text-transform:uppercase;
 }
 /* ── END LANDING ─────────────────────────────────────────────── */
+
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -1561,8 +1563,18 @@ async function initMap() {
   startPolling();
   populateRepDropdown();
 
-  // Auth gate — show login or restore session
+  // Mark app as fully ready
+  appReady = true;
+
+  // Auth gate — show login or restore session  
   initAuth();
+
+  // If user already clicked a landing button before Maps loaded, apply it now
+  if (pendingDestination) {
+    const dest = pendingDestination;
+    pendingDestination = null;
+    applyDestination(dest);
+  }
 
   // Open map button
   document.getElementById('open-map-btn').addEventListener('click', () => hideDashboard());
@@ -5047,6 +5059,8 @@ function initAuth() {
 
 // ── LANDING SCREEN ────────────────────────────────────────────────────────
 let landingDestination = 'home'; // 'home' or 'map'
+let appReady = false;         // true once initMap() has fully completed
+let pendingDestination = null; // set if user clicks before app is ready
 
 function showLandingScreen() {
   const ls = document.getElementById('landing-screen');
@@ -5060,33 +5074,93 @@ function hideLandingScreen() {
   if (ls) ls.style.display = 'none';
 }
 
+
+// ── LOADING OVERLAY (shown while Maps API initializes) ───────────────────
+function showLoadingOverlay(dest) {
+  document.getElementById('kt-loading-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'kt-loading-overlay';
+  overlay.style.cssText = [
+    'position:fixed','inset:0','background:#070b10',
+    'z-index:99990','display:flex','flex-direction:column',
+    'align-items:center','justify-content:center','gap:20px',
+    'animation:fadeSlideIn 0.2s ease'
+  ].join(';');
+  overlay.innerHTML = `
+    <div style="width:40px;height:40px;border:3px solid rgba(34,197,94,0.15);border-top-color:#22c55e;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+    <div style="font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;letter-spacing:3px;color:rgba(255,255,255,0.3);text-transform:uppercase">
+      Loading ${dest === 'map' ? 'Map' : 'Dashboard'}…
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function hideLoadingOverlay() {
+  const overlay = document.getElementById('kt-loading-overlay');
+  if (overlay) {
+    overlay.style.transition = 'opacity 0.2s ease';
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 200);
+  }
+}
+// ── END LOADING OVERLAY ───────────────────────────────────────────────────
+
+// ── APPLY DESTINATION ────────────────────────────────────────────────────
+// Single source of truth for navigating to home or map after landing
+function applyDestination(dest) {
+  // Remove loading overlay if present
+  hideLoadingOverlay();
+
+  if (dest === 'map') {
+    const dash = document.getElementById('dashboard');
+    if (dash) dash.style.display = 'none';
+    if (typeof showToast === 'function') {
+      setTimeout(() => showToast('📍 Right-click any pin to move it', 4000), 400);
+    }
+  } else {
+    // Home — fully render dashboard with fresh data
+    populateRepDropdown();
+    populateDashRepSelect();
+    renderDashboard();
+    const dash = document.getElementById('dashboard');
+    if (dash) {
+      dash.style.display = 'flex';
+      const dc = document.getElementById('dashboard-content');
+      if (dc) dc.scrollTop = 0;
+    }
+  }
+}
+// ── END APPLY DESTINATION ─────────────────────────────────────────────────
+
 window.chooseLanding = function(dest) {
   landingDestination = dest;
   const ls = document.getElementById('landing-screen');
 
-  // Fade out animation
+  // Animate landing out
   if (ls) {
-    ls.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+    ls.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
     ls.style.opacity = '0';
-    ls.style.transform = 'scale(0.98)';
-    setTimeout(() => {
+    ls.style.transform = 'scale(0.97)';
+  }
+
+  setTimeout(() => {
+    // Hide landing
+    if (ls) {
       ls.style.display = 'none';
       ls.style.opacity = '1';
       ls.style.transform = '';
       ls.style.transition = '';
+    }
 
-      if (dest === 'map') {
-        // Map view — ensure dashboard is hidden so map shows
-        const dash = document.getElementById('dashboard');
-        if (dash) dash.style.display = 'none';
-        // Show a subtle hint on the map
-        if (typeof showToast === 'function') showToast('📍 Tap anywhere on the map to drop a pin', 4000);
-      } else {
-        // Home — show dashboard
-        showDashboard();
-      }
-    }, 350);
-  }
+    if (!appReady) {
+      // App still initializing (Maps API loading) — show loading screen,
+      // queue the destination for when initMap() completes
+      pendingDestination = dest;
+      showLoadingOverlay(dest);
+    } else {
+      // App ready — navigate immediately
+      applyDestination(dest);
+    }
+  }, 300);
 };
 
 function startLandingStarfield() {
@@ -5659,10 +5733,10 @@ window.toggleActivityFeed = function() {
 
     <!-- Logo -->
     <div style="margin-bottom:16px">
-      <div style="font-family:'Michroma',sans-serif;font-size:clamp(28px,5vw,44px);letter-spacing:5px;color:#fff;line-height:1">
-        <span style="color:#22c55e">GREEN</span>&nbsp;NOVA
+      <div style="font-family:'Michroma',sans-serif;font-size:clamp(26px,5vw,46px);letter-spacing:6px;color:#fff;line-height:1">
+        <span style="color:#22c55e">KNOCK</span>&nbsp;<span style="color:#fff">TRACK</span>
       </div>
-      <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:7px;color:rgba(255,255,255,0.2);margin-top:8px;text-transform:uppercase">Community Advocates</div>
+      <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:4px;color:rgba(255,255,255,0.3);margin-top:10px;text-transform:uppercase">Official Partner: Green Nova</div>
     </div>
 
     <!-- Divider -->
@@ -5702,7 +5776,7 @@ window.toggleActivityFeed = function() {
 
     <!-- Footer -->
     <div style="margin-top:44px;font-family:'Outfit',sans-serif;font-size:10px;color:rgba(255,255,255,0.1);letter-spacing:3px;text-transform:uppercase">
-      KnockTrack · Powered by Green Nova
+      KnockTrack · Official Partner: Green Nova
     </div>
   </div>
 </div>
@@ -5713,12 +5787,12 @@ window.toggleActivityFeed = function() {
 
   <div style="position:relative;z-index:2;width:100%;max-width:480px;padding:0 24px;animation:fadeSlideIn 0.4s ease">
 
-    <!-- GREEN NOVA logo matching screenshot -->
+    <!-- KNOCK TRACK logo -->
     <div style="text-align:center;margin-bottom:40px">
-      <div style="font-family:'Outfit',sans-serif;font-size:48px;font-weight:900;letter-spacing:6px;color:#fff;text-transform:uppercase;line-height:1">
-        <span style="color:#22c55e">GREEN</span><span style="color:#fff">NOVA</span>
+      <div style="font-family:'Michroma',sans-serif;font-size:clamp(24px,6vw,36px);letter-spacing:5px;color:#fff;line-height:1">
+        <span style="color:#22c55e">KNOCK</span><span style="color:#fff"> TRACK</span>
       </div>
-      <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;letter-spacing:5px;color:rgba(255,255,255,0.35);margin-top:4px">COMMUNITY ADVOCATES</div>
+      <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:4px;color:rgba(255,255,255,0.3);margin-top:6px;text-transform:uppercase">Official Partner: Green Nova</div>
     </div>
 
     <!-- Login card — single clean box like screenshot -->
