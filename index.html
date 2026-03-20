@@ -155,16 +155,16 @@ h1,h2,h3 { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; }
 
 .gn-logo-title {
   font-family:'Michroma',sans-serif;
-  font-size:22px;
-  font-weight:900;
-  letter-spacing:7px;
+  font-size:20px;
+  font-weight:400;
+  letter-spacing:5px;
   line-height:1;
   text-transform:uppercase;
 }
 .gn-logo-title .green { color:var(--green); }
 .gn-logo-title .white { color:var(--text); }
 .gn-logo-line { width:100%; height:1px; background:linear-gradient(90deg,var(--green),transparent); margin-top:3px; box-shadow:0 0 8px rgba(34,197,94,0.4); }
-.gn-logo-sub { font-family:'Outfit',sans-serif; font-size:9px; font-weight:600; letter-spacing:5px; color:var(--muted); text-transform:uppercase; }
+.gn-logo-sub { font-family:'Outfit',sans-serif; font-size:9px; font-weight:700; letter-spacing:3px; color:rgba(255,255,255,0.75); text-transform:uppercase; }
 
 #open-map-btn {
   padding:8px 16px;
@@ -784,7 +784,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       </svg>
       <div>
         <div class="gn-logo-title"><span class="green">KNOCK</span>&nbsp;<span class="white">TRACK</span></div>
-        <div class="gn-logo-sub">GREEN NOVA · COMMUNITY ADVOCATES</div>
+        <div class="gn-logo-sub">Official Partner: Green Nova</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
@@ -1089,12 +1089,16 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 <div id="map-shell">
   <!-- Topbar -->
   <div id="topbar">
-    <div id="topbar-logo" style="display:flex;align-items:center;gap:7px">
-      <svg width="24" height="24" viewBox="0 0 44 44" fill="none">
-        <path d="M22 2C13.163 2 6 9.163 6 18c0 12 16 28 16 28S38 30 38 18C38 9.163 30.837 2 22 2z" fill="#22c55e"/>
-        <path d="M14 18l6 6 10-10" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <div id="topbar-logo" style="display:flex;align-items:center;gap:9px">
+      <svg width="28" height="28" viewBox="0 0 44 44" fill="none">
+        <circle cx="22" cy="22" r="22" fill="#0a0e1a"/>
+        <path d="M22 4C14.268 4 8 10.268 8 18c0 11 14 26 14 26S36 29 36 18C36 10.268 29.732 4 22 4z" fill="#22c55e"/>
+        <circle cx="22" cy="18" r="4" fill="white" opacity="0.9"/>
       </svg>
-      <span style="font-family:'Outfit',sans-serif;font-size:14px;letter-spacing:4px;font-weight:900"><span style="color:var(--green)">KNOCK</span> <span style="color:var(--text)">TRACK</span></span>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <span style="font-family:'Michroma',sans-serif;font-size:15px;letter-spacing:4px;font-weight:400;line-height:1"><span style="color:#22c55e">KNOCK</span> <span style="color:#fff">TRACK</span></span>
+        <span style="font-family:'Outfit',sans-serif;font-size:8px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.75);text-transform:uppercase">Official Partner: Green Nova</span>
+      </div>
     </div>
     <div id="search-wrap">
       <span class="search-icon">🔍</span>
@@ -4339,7 +4343,7 @@ function populateRepDropdown() {
   sel.innerHTML = '<option value="">— Select a rep —</option>';
   reps.forEach(r => {
     const opt = document.createElement('option');
-    opt.value = r.name; opt.textContent = `${r.name}${r.role ? ' · ' + r.role : ''}`;
+    opt.value = r.name; opt.textContent = r.name;
     sel.appendChild(opt);
   });
   if (current) sel.value = current;
