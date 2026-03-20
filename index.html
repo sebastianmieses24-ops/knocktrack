@@ -4964,7 +4964,7 @@ function darkMapStyle() {
   </div>
 </div>
 
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyS5-AK1G0rZNrn0vsdCn9_PkKzpxiV3A&libraries=places,visualization&callback=initMap">
+<script>
 // ╔══════════════════════════════════════════════════════╗
 // ║              KNOCKTRACK AUTH SYSTEM                  ║
 // ╚══════════════════════════════════════════════════════╝
@@ -5351,8 +5351,8 @@ function applySession(session) {
     if (sel) {
       sel.value = session.name;
       // Hide the rep selector — reps only see their own data
-      sel.closest('div[style*="flex:1"]')?.parentElement?.parentElement?.style && 
-        (sel.closest('div')?.style.display = 'none');
+      const selParent = sel.closest('div[style*="flex:1"]')?.parentElement?.parentElement;
+        if (selParent) selParent.style.display = 'none';
     }
     // Hide secured portal button
     const ownerBtn = document.querySelector('[onclick*="openBackendPortal"]');
@@ -5720,6 +5720,8 @@ window.toggleActivityFeed = function() {
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
 </script>
+
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyS5-AK1G0rZNrn0vsdCn9_PkKzpxiV3A&libraries=places,visualization&callback=initMap"></script>
 
 <!-- ═══ LOGIN SCREEN ═══ -->
 
