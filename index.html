@@ -723,7 +723,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 #landing-screen {
   position:fixed;inset:0;z-index:99998;
   background:#070b10;
-  display:flex;flex-direction:column;
+  flex-direction:column;
   align-items:center;justify-content:center;
   overflow:hidden;
 }
@@ -770,7 +770,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 <canvas id="starfield-canvas"></canvas>
 
 <!-- ═══ DASHBOARD ═══ -->
-<div id="dashboard">
+<div id="dashboard" style="display:none">
 
   <!-- ── TOP HEADER ── -->
   <div id="dashboard-topbar">
@@ -5025,18 +5025,24 @@ function clearSession() {
 
 // ── STARTUP ──────────────────────────────────────────────────────────────
 function initAuth() {
+  // Landing screen is already display:flex in HTML — start its starfield
+  startLandingStarfield();
+
   const session = loadSession();
   if (session) {
+    // Returning user with saved session — skip landing entirely
     currentSession = session;
+    const ls = document.getElementById('landing-screen');
+    if (ls) ls.style.display = 'none';
     applySession(session);
-    const dash = document.getElementById('dashboard');
-    if (dash && dash.style.display === 'none') showDashboard();
-    return;
+    if (landingDestination === 'map') {
+      const dash = document.getElementById('dashboard');
+      if (dash) dash.style.display = 'none';
+    } else {
+      showDashboard();
+    }
   }
-  // No session — show landing screen first
-  const dash = document.getElementById('dashboard');
-  if (dash) dash.style.display = 'none';
-  showLandingScreen();
+  // No session = landing screen stays visible, user picks their destination
 }
 
 // ── LANDING SCREEN ────────────────────────────────────────────────────────
@@ -5056,8 +5062,31 @@ function hideLandingScreen() {
 
 window.chooseLanding = function(dest) {
   landingDestination = dest;
-  hideLandingScreen();
-  showLoginScreen();
+  const ls = document.getElementById('landing-screen');
+
+  // Fade out animation
+  if (ls) {
+    ls.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+    ls.style.opacity = '0';
+    ls.style.transform = 'scale(0.98)';
+    setTimeout(() => {
+      ls.style.display = 'none';
+      ls.style.opacity = '1';
+      ls.style.transform = '';
+      ls.style.transition = '';
+
+      if (dest === 'map') {
+        // Map view — ensure dashboard is hidden so map shows
+        const dash = document.getElementById('dashboard');
+        if (dash) dash.style.display = 'none';
+        // Show a subtle hint on the map
+        if (typeof showToast === 'function') showToast('📍 Tap anywhere on the map to drop a pin', 4000);
+      } else {
+        // Home — show dashboard
+        showDashboard();
+      }
+    }, 350);
+  }
 };
 
 function startLandingStarfield() {
@@ -5111,13 +5140,8 @@ function showLoginScreen() {
 }
 
 function hideLoginScreen() {
-  document.getElementById('login-screen').style.display = 'none';
-  // After login, redirect to chosen destination
-  if (landingDestination === 'map') {
-    setTimeout(() => {
-      hideDashboard();
-    }, 100);
-  }
+  const ls = document.getElementById('login-screen');
+  if (ls) ls.style.display = 'none';
 }
 
 function populateLoginRepSelect() {
@@ -5626,47 +5650,63 @@ window.toggleActivityFeed = function() {
 <!-- ═══ LOGIN SCREEN ═══ -->
 
 <!-- ══════════════════════════════════════════════════════════ -->
-<!-- LANDING SCREEN — first page users see                     -->
+<!-- LANDING SCREEN — first page, always shown on load         -->
 <!-- ══════════════════════════════════════════════════════════ -->
-<div id="landing-screen" style="display:none">
+<div id="landing-screen" style="display:flex;position:fixed;inset:0;z-index:99998;background:#070b10;flex-direction:column;align-items:center;justify-content:center;overflow:hidden">
   <canvas id="landing-starfield" style="position:absolute;inset:0;pointer-events:none;opacity:0.3"></canvas>
 
-  <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;text-align:center;animation:fadeSlideIn 0.5s ease">
+  <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 24px;animation:fadeSlideIn 0.5s ease">
 
     <!-- Logo -->
-    <div style="margin-bottom:48px">
-      <div style="font-family:'Michroma',sans-serif;font-size:38px;letter-spacing:4px;color:#fff;line-height:1">
-        <span style="color:#22c55e">GREEN</span> NOVA
+    <div style="margin-bottom:16px">
+      <div style="font-family:'Michroma',sans-serif;font-size:clamp(28px,5vw,44px);letter-spacing:5px;color:#fff;line-height:1">
+        <span style="color:#22c55e">GREEN</span>&nbsp;NOVA
       </div>
-      <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:6px;color:rgba(255,255,255,0.25);margin-top:6px">COMMUNITY ADVOCATES</div>
+      <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:7px;color:rgba(255,255,255,0.2);margin-top:8px;text-transform:uppercase">Community Advocates</div>
     </div>
 
-    <!-- Tagline -->
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:5px;color:rgba(255,255,255,0.2);margin-bottom:40px">WHERE WOULD YOU LIKE TO GO?</div>
+    <!-- Divider -->
+    <div style="width:48px;height:2px;background:linear-gradient(90deg,transparent,#22c55e,transparent);margin:24px 0 32px"></div>
 
-    <!-- Two big buttons -->
-    <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center">
+    <!-- Prompt -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(13px,2vw,16px);letter-spacing:6px;color:rgba(255,255,255,0.18);margin-bottom:36px">WHERE WOULD YOU LIKE TO GO?</div>
 
-      <button class="landing-btn" onclick="chooseLanding('home')">
-        <div class="landing-btn-icon">🏠</div>
-        <div class="landing-btn-label">HOME</div>
-        <div class="landing-btn-sub">Dashboard & Stats</div>
+    <!-- Two large buttons -->
+    <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;width:100%;max-width:580px">
+
+      <!-- HOME button -->
+      <button onclick="chooseLanding('home')"
+        style="flex:1;min-width:220px;max-width:260px;height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+               background:rgba(15,19,24,0.9);border:1.5px solid rgba(255,255,255,0.07);border-radius:24px;
+               cursor:pointer;transition:all 0.25s ease;outline:none;"
+        onmouseover="this.style.borderColor='#22c55e';this.style.background='rgba(34,197,94,0.07)';this.style.transform='translateY(-6px)';this.style.boxShadow='0 20px 60px rgba(34,197,94,0.18)'"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.background='rgba(15,19,24,0.9)';this.style.transform='translateY(0)';this.style.boxShadow='none'">
+        <div style="font-size:36px;line-height:1">🏠</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:5px;color:#e8edf5">HOME</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;color:#555;text-transform:uppercase">Dashboard &amp; Stats</div>
       </button>
 
-      <button class="landing-btn" onclick="chooseLanding('map')">
-        <div class="landing-btn-icon">🗺️</div>
-        <div class="landing-btn-label">KNOCK MAP</div>
-        <div class="landing-btn-sub">Territory & Pins</div>
+      <!-- KNOCK MAP button -->
+      <button onclick="chooseLanding('map')"
+        style="flex:1;min-width:220px;max-width:260px;height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+               background:rgba(15,19,24,0.9);border:1.5px solid rgba(255,255,255,0.07);border-radius:24px;
+               cursor:pointer;transition:all 0.25s ease;outline:none;"
+        onmouseover="this.style.borderColor='#22c55e';this.style.background='rgba(34,197,94,0.07)';this.style.transform='translateY(-6px)';this.style.boxShadow='0 20px 60px rgba(34,197,94,0.18)'"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.background='rgba(15,19,24,0.9)';this.style.transform='translateY(0)';this.style.boxShadow='none'">
+        <div style="font-size:36px;line-height:1">🗺️</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:5px;color:#e8edf5">KNOCK MAP</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;color:#555;text-transform:uppercase">Territory &amp; Pins</div>
       </button>
 
     </div>
 
     <!-- Footer -->
-    <div style="margin-top:48px;font-family:'Outfit',sans-serif;font-size:11px;color:rgba(255,255,255,0.12);letter-spacing:2px">
-      KNOCKTRACK · POWERED BY GREEN NOVA
+    <div style="margin-top:44px;font-family:'Outfit',sans-serif;font-size:10px;color:rgba(255,255,255,0.1);letter-spacing:3px;text-transform:uppercase">
+      KnockTrack · Powered by Green Nova
     </div>
   </div>
 </div>
+
 
 <div id="login-screen" style="display:none;position:fixed;inset:0;z-index:99999;background:#000;flex-direction:column;align-items:center;justify-content:center;overflow:hidden">
   <canvas id="login-starfield" style="position:absolute;inset:0;pointer-events:none;opacity:0.35"></canvas>
