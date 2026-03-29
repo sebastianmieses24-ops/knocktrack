@@ -956,7 +956,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       <!-- Rep selector gate -->
       <div id="cal-rep-gate" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;text-align:center;gap:16px">
         <div style="font-size:40px">📅</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;color:var(--text)">Whose calendar?</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;color:var(--text)">Select a Rep's Calendar</div>
         <div style="font-size:13px;color:var(--muted);max-width:280px;line-height:1.6">Select a rep to view their appointments, reminders, and schedule.</div>
         <select id="cal-rep-select" onchange="loadCalendarForRep(this.value)" style="margin-top:8px;padding:12px 18px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:15px;font-weight:600;outline:none;cursor:pointer;min-width:220px;-webkit-appearance:none;text-align:center">
           <option value="">— Select a Rep —</option>
@@ -969,7 +969,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
         <!-- Cal Header -->
         <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5">
           <div style="display:flex;align-items:center;gap:10px">
-            <button onclick="loadCalendarForRep('')" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:5px 12px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer">← Change</button>
+            <button onclick="loadCalendarForRep('')" id="cal-change-rep-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:5px 12px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer">← Change Rep</button>
             <div id="cal-rep-name-display" style="font-family:'Outfit',sans-serif;font-size:15px;font-weight:800;color:var(--green)"></div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
@@ -3202,10 +3202,28 @@ window.switchDashTab = function(tab) {
     if (btn) btn.classList.toggle('dash-pill-active', t === tab);
   });
   if (tab === 'calendar') {
-    populateCalRepSelect();
-    if (!calCurrentRep) {
-      document.getElementById('cal-rep-gate').style.display = 'flex';
-      document.getElementById('cal-main').style.display = 'none';
+    const isOwner = window._auth ? window._auth.canAccessPortal() : false;
+    if (!isOwner && window.currentSession?.name) {
+      // Rep: auto-load their own calendar immediately — no gate, no dropdown
+      window.calCurrentRep = window.currentSession.name;
+      document.getElementById('cal-rep-gate').style.display = 'none';
+      document.getElementById('cal-main').style.display = 'flex';
+      const nameDisplay = document.getElementById('cal-rep-name-display');
+      if (nameDisplay) nameDisplay.textContent = '📅 ' + window.currentSession.name;
+      const changeBtn = document.querySelector('[onclick="loadCalendarForRep(\'\')"]');
+      if (changeBtn) changeBtn.style.display = 'none'; // reps can't change to another rep
+      renderCalendar();
+    } else {
+      // Owner: show rep selector dropdown
+      populateCalRepSelect();
+      if (!window.calCurrentRep) {
+        document.getElementById('cal-rep-gate').style.display = 'flex';
+        document.getElementById('cal-main').style.display = 'none';
+      } else {
+        document.getElementById('cal-rep-gate').style.display = 'none';
+        document.getElementById('cal-main').style.display = 'flex';
+        renderCalendar();
+      }
     }
   }
   if (tab === 'leaderboard') renderLeaderboard();
@@ -3353,7 +3371,7 @@ function timeAgo(date) {
 // ── PORTAL TABS ──
 // ── CALENDAR ──────────────────────────────────────────
 let calEvents = JSON.parse(localStorage.getItem('knocktrack_cal_events') || '[]');
-let calCurrentRep = '';
+window.calCurrentRep = ''; // Cross-block global — window.X needed so Block 4 (applySession) and Block 1 (calendar fns) share the same reference
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth();
 let calEditId = null;
@@ -3371,16 +3389,29 @@ function populateCalRepSelect() {
 }
 
 window.loadCalendarForRep = function(repName) {
-  calCurrentRep = repName;
+  // Access control: reps can only load their own calendar
+  const isOwner = window._auth ? window._auth.canAccessPortal() : false;
+  if (!isOwner && window.currentSession?.name && repName && repName !== window.currentSession.name) {
+    console.warn('[KnockTrack] Rep attempted to load another rep\'s calendar — blocked');
+    return;
+  }
+  window.calCurrentRep = repName;
   const gate = document.getElementById('cal-rep-gate');
   const main = document.getElementById('cal-main');
   if (!repName) {
-    gate.style.display = 'flex'; main.style.display = 'none';
-    populateCalRepSelect();
+    if (isOwner) {
+      gate.style.display = 'flex'; main.style.display = 'none';
+      populateCalRepSelect();
+    } else {
+      // Rep can't clear their calendar — re-load their own
+      window.calCurrentRep = window.currentSession?.name || '';
+      if (window.calCurrentRep) renderCalendar();
+    }
     return;
   }
   gate.style.display = 'none'; main.style.display = 'flex';
-  document.getElementById('cal-rep-name-display').textContent = '📅 ' + repName;
+  const nameDisplay = document.getElementById('cal-rep-name-display');
+  if (nameDisplay) nameDisplay.textContent = '📅 ' + repName;
   calYear = new Date().getFullYear();
   calMonth = new Date().getMonth();
   renderCalendar();
@@ -3930,9 +3961,12 @@ window.saveCalEvent = function() {
       calEvents[idx].updatedAt = new Date().toISOString();
     }
   } else {
+    // Security: for non-owners, force rep to logged-in user — cannot be spoofed
+    const isOwner = window._auth ? window._auth.canAccessPortal() : false;
+    const eventRep = isOwner ? window.calCurrentRep : (window.currentSession?.name || window.calCurrentRep);
     calEvents.push({
       id: 'evt_' + Date.now(),
-      rep: calCurrentRep,
+      rep: eventRep,
       title,
       datetime,
       endDatetime,
@@ -5831,6 +5865,21 @@ function applySession(session) {
   // Auto-filter calendar to this rep
   if (!session.isOwner) {
     calCurrentRep = session.name;
+  }
+
+  // Show/hide calendar "← Change Rep" button based on role
+  const changeBtn = document.getElementById('cal-change-rep-btn');
+  if (changeBtn) {
+    changeBtn.style.display = session.isOwner ? '' : 'none';
+  }
+  // Hide/show cal gate dropdown based on role
+  const calRepGate = document.getElementById('cal-rep-gate');
+  if (calRepGate && !session.isOwner) {
+    // Reps never see the rep selector gate
+    const calGateSel = document.getElementById('cal-rep-select');
+    if (calGateSel) calGateSel.style.display = 'none';
+    const gateTitle = calRepGate.querySelector('[style*="font-size:20px"]');
+    if (gateTitle) gateTitle.style.display = 'none';
   }
 
   // Re-render dashboard with correct filter
