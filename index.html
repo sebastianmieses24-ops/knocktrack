@@ -2027,6 +2027,20 @@ window.deleteKnock = function(id) {
   const knock = knocks.find(k => k.id === id);
   if (!knock) return;
 
+  // ── Confirm before deleting ───────────────────────────────────────────
+  const addrShort = (knock.address || 'this pin').split(',').slice(0,2).join(',').trim();
+  const statusObj = STATUSES.find(s => s.key === knock.status);
+  const statusLabel = statusObj ? statusObj.label : knock.status;
+  if (!confirm(
+    `🗑️ Delete this pin permanently?\n\n` +
+    `📍 ${addrShort}\n` +
+    `Status: ${statusLabel}\n` +
+    `Rep: ${knock.rep || 'Unassigned'}\n\n` +
+    `This pin will be logged in the Secured Portal → Deleted Pins.\n` +
+    `You can restore it from there if needed.`
+  )) return;
+  // ─────────────────────────────────────────────────────────────────────
+
   // ── Log deletion to localStorage ─────────────────────────────────────
   const deletedLog = JSON.parse(localStorage.getItem('kt_deleted_knocks') || '[]');
   deletedLog.unshift({
@@ -2339,7 +2353,7 @@ window.flyToKnockAndClose = function(id) {
 };
 
 window.exportCSV = function() {
-  if (!isOwnerSession) {
+  if (!window.isOwnerSession) {
     alert('Export CSV is only available to owners.\nPlease log in via the 🔐 Secured Portal.');
     return;
   }
@@ -2354,7 +2368,7 @@ window.editKnock = function(id) {
   document.getElementById('detail-page').classList.add('open');
 };
 function closeDetailPage() { document.getElementById('detail-page').classList.remove('open'); currentDetailId = null; }
-window.deleteCurrentKnock = function() { if (!currentDetailId) return; if (!confirm('Delete this knock?')) return; deleteKnock(currentDetailId); closeDetailPage(); };
+window.deleteCurrentKnock = function() { if (!currentDetailId) return; deleteKnock(currentDetailId); closeDetailPage(); };
 window.switchTab = function(tab) {
   currentDetailTab = tab;
   document.querySelectorAll('.detail-tab').forEach(t => t.classList.toggle('active', t.textContent.toLowerCase() === tab));
@@ -2732,8 +2746,8 @@ window.openRepProfile = function(name) {
   const m = calcMetrics(repData);
   const rating = getStarRating(m.closeRate, m.totalDoors);
   const tenure = getTenure(name, (repObj||archivedObj)?.startDate);
-  const avatarColor = isOwnerSession ? rating.color : 'var(--accent)';
-  const starSection = isOwnerSession
+  const avatarColor = window.isOwnerSession ? rating.color : 'var(--accent)';
+  const starSection = window.isOwnerSession
     ? `<div style="text-align:right">
         <div style="font-size:22px">${((repObj||archivedObj)?.rating||rating.stars)>0?'⭐'.repeat((repObj||archivedObj)?.rating||rating.stars):'—'}</div>
         <div style="font-size:12px;font-weight:700;color:${rating.color}">${rating.label}</div>
@@ -4118,12 +4132,7 @@ window.clearDeletedLog = function() {
   updateDeletedBadge();
 };
 
-// Update badge whenever portal opens
-const _origOpenPortal = window.openBackendPortal;
-window.openBackendPortal = function() {
-  _origOpenPortal && _origOpenPortal();
-  setTimeout(updateDeletedBadge, 100);
-};
+// (openBackendPortal defined below with badge update included)
 
 // ══════════════════════════════════════════════════════════════════════
 // END DELETED PINS LOG
@@ -4799,8 +4808,8 @@ window.openRepProfileFromPortal = function(name) {
   const m = calcMetrics(repData);
   const rating = getStarRating(m.closeRate, m.totalDoors);
   const tenure = getTenure(name, (repObj||archivedObj)?.startDate);
-  const avatarColor = isOwnerSession ? rating.color : 'var(--accent)';
-  const starSection = isOwnerSession
+  const avatarColor = window.isOwnerSession ? rating.color : 'var(--accent)';
+  const starSection = window.isOwnerSession
     ? `<div style="text-align:right">
         <div style="font-size:22px">${((repObj||archivedObj)?.rating||rating.stars)>0?'⭐'.repeat((repObj||archivedObj)?.rating||rating.stars):'—'}</div>
         <div style="font-size:12px;font-weight:700;color:${rating.color}">${rating.label}</div>
@@ -4956,6 +4965,15 @@ window.removeRep = function(i) {
 
 
 window.openBackendPortal = function() {
+  // Skip password gate if owner already authenticated via master password
+  if (window.isOwnerSession) {
+    document.getElementById('backend-portal').style.display = 'flex';
+    switchPortalTab('reps');
+    renderRepsList();
+    setTimeout(updateDeletedBadge, 100);
+    return;
+  }
+  // Not an owner session — show password gate
   document.getElementById('portal-login').style.display = 'flex';
   document.getElementById('portal-password').value = '';
   document.getElementById('portal-error').style.display = 'none';
@@ -4975,7 +4993,7 @@ window.submitPortalLogin = function() {
 };
 window.closeBackendPortal = function() {
   document.getElementById('backend-portal').style.display = 'none';
-  isOwnerSession = false;
+  window.isOwnerSession = false;
 };
 
 document.getElementById('portal-password').addEventListener('keydown', e => { if (e.key === 'Enter') window.submitPortalLogin(); });
@@ -5657,7 +5675,7 @@ window.ownerLogin = function() {
   if (pw === window.OWNER_PASSWORD || window.OWNER_PASSWORDS[pw]) {
     const session = { name: 'Owner', role: 'Owner', isOwner: true };
     saveSession(session);
-    isOwnerSession = true;
+    window.isOwnerSession = true;
     applySession(session);
     hideLoginScreen();
     showDashboard();
@@ -5669,7 +5687,7 @@ window.ownerLogin = function() {
 
 function applySession(session) {
   currentSession = session;
-  isOwnerSession = session.isOwner === true;
+  window.isOwnerSession = session.isOwner === true;
 
   // Update rep badge in topbar
   const badge = document.getElementById('current-rep-badge');
@@ -6007,7 +6025,7 @@ function generateRandomPin() {
 }
 
 window.autoGeneratePin = function(repName) {
-  if (!isOwnerSession) { alert('Owner access required.'); return; }
+  if (!window.isOwnerSession) { alert('Owner access required.'); return; }
   const idx = reps.findIndex(r => r.name === repName);
   if (idx === -1) return;
 
@@ -6147,8 +6165,10 @@ window.toggleActivityFeed = function() {
       <div style="width:48px;height:2px;background:#22c55e;margin:10px auto 0;border-radius:2px"></div>
     </div>
 
-    <!-- Login card -->
-    <div style="background:rgba(14,14,16,0.9);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:34px 30px;backdrop-filter:blur(24px);box-shadow:0 24px 64px rgba(0,0,0,0.6)">
+    <!-- Login card — wrapped in a real <form> so browsers offer to save credentials -->
+    <form id="login-form" action="javascript:void(0)" method="post"
+      onsubmit="submitPinField(); return false;"
+      style="background:rgba(14,14,16,0.9);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:34px 30px;backdrop-filter:blur(24px);box-shadow:0 24px 64px rgba(0,0,0,0.6)">
 
       <!-- Lock icon -->
       <div style="text-align:center;font-size:26px;margin-bottom:12px">🔒</div>
@@ -6157,14 +6177,23 @@ window.toggleActivityFeed = function() {
       <div style="text-align:center;font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;letter-spacing:3px;color:#fff;margin-bottom:6px">ENTER YOUR PIN</div>
       <div style="text-align:center;font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:2px;color:rgba(255,255,255,0.35);margin-bottom:26px">YOUR PIN IDENTIFIES YOU AUTOMATICALLY</div>
 
-      <!-- PIN input — white background, green border, dots, exactly like screenshot -->
-      <input id="login-pin-field" type="password" maxlength="20" placeholder="••••••••••"
-        style="width:100%;padding:13px 18px;background:#ffffff;border:2px solid #22c55e;border-radius:10px;color:#111;font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;outline:none;box-sizing:border-box;text-align:center;letter-spacing:4px;margin-bottom:12px"
-        onkeydown="if(event.key==='Enter')submitPinField()"
-        oninput="onPinFieldInput(this)" autocomplete="current-password"/>
+      <!-- Hidden username field — helps password managers associate credentials with site -->
+      <input type="text" name="username" autocomplete="username"
+        style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden"
+        tabindex="-1" aria-hidden="true" value="knocktrack-user"/>
 
-      <!-- ENTER PORTAL button — solid green like screenshot -->
-      <button onclick="submitPinField()"
+      <!-- PIN / Password input -->
+      <input id="login-pin-field"
+        type="password"
+        name="password"
+        maxlength="20"
+        placeholder="••••••••••"
+        autocomplete="current-password"
+        style="width:100%;padding:13px 18px;background:#ffffff;border:2px solid #22c55e;border-radius:10px;color:#111;font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;outline:none;box-sizing:border-box;text-align:center;letter-spacing:4px;margin-bottom:12px"
+        oninput="onPinFieldInput(this)"/>
+
+      <!-- Submit button — type="submit" triggers browser save-password prompt -->
+      <button type="submit"
         style="width:100%;padding:14px;background:#22c55e;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;letter-spacing:3px;color:#000;cursor:pointer;transition:background 0.15s;margin-bottom:16px"
         onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">
         ENTER PORTAL →
@@ -6181,7 +6210,7 @@ window.toggleActivityFeed = function() {
           Owners: use your master password.
         </div>
       </div>
-    </div>
+    </form>
 
     <!-- KnockTrack attribution -->
     <div style="text-align:center;margin-top:22px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;letter-spacing:4px;color:#ffffff;text-transform:uppercase">
