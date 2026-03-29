@@ -478,7 +478,7 @@ h1,h2,h3 { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; }
 .knock-delete { position:absolute; top:5px; right:5px; background:rgba(224,92,92,0.15); color:#e05c5c; border:none; border-radius:4px; padding:2px 5px; font-size:10px; cursor:pointer; display:none; }
 .knock-card:hover .knock-delete { display:block; }
 
-#export-btn { margin:0 8px 8px; padding:8px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--muted); font-family:'Outfit',sans-serif; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
+#export-btn { margin:0 8px 8px; padding:8px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--muted); font-family:'Outfit',sans-serif; font-size:12px; font-weight:600; cursor:pointer; display:none; align-items:center; justify-content:center; gap:6px; }
 
 #empty-state { text-align:center; padding:32px 16px; color:var(--muted); }
 #empty-state .empty-icon { font-size:28px; margin-bottom:8px; }
@@ -804,6 +804,9 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 /* ── END LANDING ─────────────────────────────────────────────── */
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* CSV export only visible to owners */
+.owner-only-csv { display:none; }
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -1227,7 +1230,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
       <div id="kp-streak-badge" style="display:none;align-items:center;gap:4px;background:rgba(250,120,30,0.15);border:1px solid rgba(250,120,30,0.4);border-radius:20px;padding:3px 9px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;color:#fa781e">🔥 <span id="kp-streak-count">0</span> today</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <button onclick="exportCSV()" style="padding:6px 12px;background:rgba(99,130,247,0.15);border:1px solid rgba(99,130,247,0.4);border-radius:7px;color:#6382f7;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer">📊 CSV</button>
+      <button onclick="exportCSV()" class="owner-only-csv" style="padding:6px 12px;background:rgba(99,130,247,0.15);border:1px solid rgba(99,130,247,0.4);border-radius:7px;color:#6382f7;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer">📊 CSV</button>
       <button onclick="toggleKnocksPanel()" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
   </div>
@@ -2013,6 +2016,22 @@ window.flyToKnock = function(id) {
 };
 
 window.deleteKnock = function(id) {
+  const knock = knocks.find(k => k.id === id);
+  if (!knock) return;
+
+  // ── Log deletion to localStorage ─────────────────────────────────────
+  const deletedLog = JSON.parse(localStorage.getItem('kt_deleted_knocks') || '[]');
+  deletedLog.unshift({
+    ...knock,
+    deletedAt:   new Date().toISOString(),
+    deletedBy:   currentSession ? currentSession.name : 'Unknown',
+    deletedById: currentSession ? (currentSession.isOwner ? 'owner' : currentSession.name) : 'unknown',
+  });
+  // Keep last 500 deleted entries max
+  if (deletedLog.length > 500) deletedLog.splice(500);
+  localStorage.setItem('kt_deleted_knocks', JSON.stringify(deletedLog));
+  // ── End log ───────────────────────────────────────────────────────────
+
   knocks = knocks.filter(k => k.id !== id);
   if (markers[id]) { markers[id].setMap(null); delete markers[id]; }
   removeKnock(id);
@@ -2312,6 +2331,10 @@ window.flyToKnockAndClose = function(id) {
 };
 
 window.exportCSV = function() {
+  if (!isOwnerSession) {
+    alert('Export CSV is only available to owners.\nPlease log in via the 🔐 Secured Portal.');
+    return;
+  }
   document.getElementById('export-btn')?.click();
 };
 
@@ -3952,7 +3975,7 @@ setTimeout(() => { scheduleNotifications(); checkUpcomingNotifications(); }, 300
 // ── END CALENDAR ──────────────────────────────────────
 
 window.switchPortalTab = function(tab) {
-  ['reps','evals','compare','ratings'].forEach(t => {
+  ['reps','evals','compare','ratings','deleted'].forEach(t => {
     const panel = document.getElementById(`portal-panel-${t}`);
     const btn = document.getElementById(`ptab-${t}`);
     if (panel) panel.style.display = t === tab ? 'block' : 'none';
@@ -3963,7 +3986,140 @@ window.switchPortalTab = function(tab) {
   });
   if (tab === 'evals') renderEvaluations();
   if (tab === 'compare') populateCompareDropdowns();
+  if (tab === 'deleted') renderDeletedLog();
 };
+
+// ══════════════════════════════════════════════════════════════════════
+// DELETED PINS LOG — Owner Portal
+// ══════════════════════════════════════════════════════════════════════
+
+function getDeletedLog() {
+  return JSON.parse(localStorage.getItem('kt_deleted_knocks') || '[]');
+}
+
+function updateDeletedBadge() {
+  const log = getDeletedLog();
+  const badge = document.getElementById('deleted-pins-badge');
+  const countEl = document.getElementById('deleted-count-label');
+  if (badge) {
+    badge.style.display = log.length > 0 ? 'inline-block' : 'none';
+    badge.textContent = log.length > 99 ? '99+' : String(log.length);
+  }
+  if (countEl) countEl.textContent = log.length;
+}
+
+window.renderDeletedLog = function() {
+  const list = document.getElementById('deleted-pins-list');
+  if (!list) return;
+
+  const log = getDeletedLog();
+  const query = (document.getElementById('deleted-search')?.value || '').toLowerCase().trim();
+  const filtered = query
+    ? log.filter(k => (k.address||'').toLowerCase().includes(query) || (k.rep||'').toLowerCase().includes(query) || (k.deletedBy||'').toLowerCase().includes(query))
+    : log;
+
+  // Update count
+  const countEl = document.getElementById('deleted-count-label');
+  if (countEl) countEl.textContent = log.length;
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);font-family:'Montserrat',sans-serif;font-size:13px">${query ? 'No results match your search.' : 'No deleted pins yet.'}</div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map((k, idx) => {
+    const statusObj = STATUSES.find(s => s.key === k.status);
+    const statusColor = statusObj ? statusObj.color : '#888';
+    const statusLabel = statusObj ? statusObj.label : k.status;
+    const deletedDate = new Date(k.deletedAt);
+    const pinDate = new Date(k.time);
+    const addrParts = (k.address || 'Unknown address').split(',');
+    const line1 = addrParts.slice(0,2).join(',').trim();
+    const line2 = addrParts.slice(2).join(',').trim();
+
+    return `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:14px;transition:border-color 0.15s" onmouseover="this.style.borderColor='rgba(239,68,68,0.3)'" onmouseout="this.style.borderColor='var(--border)'">
+
+      <!-- Status dot -->
+      <div style="width:40px;height:40px;border-radius:50%;background:${statusColor};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;color:#fff;font-weight:900">
+        ${statusObj ? statusObj.icon : '📍'}
+      </div>
+
+      <!-- Info -->
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${line1}</div>
+        <div style="font-family:'Montserrat',sans-serif;font-size:11px;color:var(--muted);margin-bottom:6px">${line2}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <span style="background:${statusColor}22;border:1px solid ${statusColor}44;border-radius:6px;padding:2px 8px;font-family:'Outfit',sans-serif;font-size:10px;font-weight:700;color:${statusColor}">${statusLabel}</span>
+          ${k.rep ? `<span style="font-family:'Montserrat',sans-serif;font-size:11px;color:var(--muted)">👤 ${k.rep}</span>` : ''}
+          ${k.notes ? `<span style="font-family:'Montserrat',sans-serif;font-size:11px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📝 ${k.notes}</span>` : ''}
+        </div>
+      </div>
+
+      <!-- Deletion info -->
+      <div style="text-align:right;flex-shrink:0;min-width:120px">
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:700;color:var(--danger);letter-spacing:1px;margin-bottom:2px">DELETED</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--muted)">${deletedDate.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'})}</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:var(--muted)">${deletedDate.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+        <div style="font-family:'Montserrat',sans-serif;font-size:10px;color:#555;margin-top:2px">by ${k.deletedBy || 'Unknown'}</div>
+        <button onclick="restoreDeletedKnock(${idx})" style="margin-top:8px;padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:7px;color:var(--green);font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;width:100%;transition:all 0.15s" onmouseover="this.style.background='rgba(34,197,94,0.2)'" onmouseout="this.style.background='rgba(34,197,94,0.1)'">↩ Restore</button>
+      </div>
+
+    </div>`;
+  }).join('');
+
+  updateDeletedBadge();
+};
+
+window.restoreDeletedKnock = function(logIdx) {
+  const log = getDeletedLog();
+  const entry = log[logIdx];
+  if (!entry) return;
+
+  if (!confirm(`Restore this pin to the map?\n\n${entry.address}\nStatus: ${entry.status}\nRep: ${entry.rep || 'Unassigned'}`)) return;
+
+  // Restore to knocks array with a fresh ID to avoid conflicts
+  const restored = { ...entry };
+  delete restored.deletedAt;
+  delete restored.deletedBy;
+  delete restored.deletedById;
+  restored.id = 'restored_' + Date.now();
+  restored.restoredAt = new Date().toISOString();
+
+  knocks.push(restored);
+  addMarker(restored);
+  updateKnock(restored); // sync to Supabase
+  renderList();
+  updateStats();
+
+  // Remove from deleted log
+  log.splice(logIdx, 1);
+  localStorage.setItem('kt_deleted_knocks', JSON.stringify(log));
+  renderDeletedLog();
+
+  // Show confirmation toast
+  if (typeof showToast === 'function') showToast('✓ Pin restored to map', 3000);
+};
+
+window.clearDeletedLog = function() {
+  const log = getDeletedLog();
+  if (log.length === 0) { alert('The deleted pins log is already empty.'); return; }
+  if (!confirm(`Permanently clear all ${log.length} deleted pin records?\n\nThis cannot be undone.`)) return;
+  localStorage.setItem('kt_deleted_knocks', '[]');
+  renderDeletedLog();
+  updateDeletedBadge();
+};
+
+// Update badge whenever portal opens
+const _origOpenPortal = window.openBackendPortal;
+window.openBackendPortal = function() {
+  _origOpenPortal && _origOpenPortal();
+  setTimeout(updateDeletedBadge, 100);
+};
+
+// ══════════════════════════════════════════════════════════════════════
+// END DELETED PINS LOG
+// ══════════════════════════════════════════════════════════════════════
 
 function populateCompareDropdowns() {
   const repNames = reps.map(r => r.name);
@@ -4890,6 +5046,10 @@ function darkMapStyle() {
     <button class="dash-tab" id="ptab-evals" onclick="switchPortalTab('evals')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">📝 Evaluations</button>
     <button class="dash-tab" id="ptab-compare" onclick="switchPortalTab('compare')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">⚔️ Compare</button>
     <button class="dash-tab" id="ptab-ratings" onclick="switchPortalTab('ratings')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">⭐ Guide</button>
+    <button class="dash-tab" id="ptab-deleted" onclick="switchPortalTab('deleted')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;position:relative">
+      🗑️ Deleted
+      <span id="deleted-pins-badge" style="display:none;position:absolute;top:6px;right:4px;background:var(--danger);color:#fff;border-radius:10px;font-size:9px;font-weight:900;padding:1px 5px;min-width:14px;text-align:center"></span>
+    </button>
   </div>
 
   <!-- Manage Reps Tab -->
@@ -4912,6 +5072,9 @@ function darkMapStyle() {
     <button onclick="addRep()" style="padding:11px 22px;background:#a855f7;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;color:#fff;cursor:pointer;white-space:nowrap;transition:all 0.15s" onmouseover="this.style.background='#9333ea'" onmouseout="this.style.background='#a855f7'">+ ADD REP</button>
     <button onclick="showPinSheetPage()" style="padding:11px 22px;background:var(--green);border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;color:#000;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:all 0.15s" onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='var(--green)'">
       <span style="font-size:16px">📋</span> PIN SHEET
+    </button>
+    <button onclick="exportCSV()" style="padding:11px 22px;background:rgba(99,130,247,0.15);border:1px solid rgba(99,130,247,0.4);border-radius:10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;color:#6382f7;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:all 0.15s" onmouseover="this.style.background='rgba(99,130,247,0.25)'" onmouseout="this.style.background='rgba(99,130,247,0.15)'">
+      <span style="font-size:16px">📊</span> EXPORT CSV
     </button>
   </div>
 
@@ -4938,6 +5101,37 @@ function darkMapStyle() {
     </div>
     <div id="eval-list"></div>
   </div>
+
+  <!-- Deleted Pins Log Tab -->
+  <div id="portal-panel-deleted" style="display:none;padding:20px;max-width:900px;margin:0 auto;width:100%">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:var(--danger)">🗑️ Deleted Pins Log</div>
+        <div style="font-family:'Montserrat',sans-serif;font-size:12px;color:var(--muted);margin-top:2px">Full audit trail of every deleted pin — who deleted it and when</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="deleted-count-label" style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:var(--danger)">0</span>
+        <span style="font-family:'Outfit',sans-serif;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1px">TOTAL DELETED</span>
+        <button onclick="clearDeletedLog()" style="margin-left:12px;padding:7px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:var(--danger);font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">🗑 Clear Log</button>
+      </div>
+    </div>
+
+    <!-- Filter row -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <input id="deleted-search" type="text" placeholder="🔍 Search address or rep…"
+        oninput="renderDeletedLog()"
+        style="flex:1;min-width:200px;padding:9px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:13px;outline:none"/>
+    </div>
+
+    <!-- Log list -->
+    <div id="deleted-pins-list" style="display:flex;flex-direction:column;gap:8px">
+      <div style="text-align:center;padding:40px;color:var(--muted);font-family:'Montserrat',sans-serif;font-size:13px">No deleted pins yet.</div>
+    </div>
+
+  </div>
+  <!-- End Deleted Pins Tab -->
 
   <!-- Rating Guide Tab ---->
   <!-- Compare Tab -->
@@ -5414,10 +5608,18 @@ function applySession(session) {
     // Hide secured portal button
     const ownerBtn = document.querySelector('[onclick*="openBackendPortal"]');
     if (ownerBtn) ownerBtn.style.display = 'none';
+    // Hide CSV export from non-owners
+    const exportBtn = document.getElementById('export-btn');
+    if (exportBtn) exportBtn.style.display = 'none';
+    document.querySelectorAll('.owner-only-csv').forEach(el => el.style.display = 'none');
   } else {
     // Owner sees all reps
     const ownerBtn = document.querySelector('[onclick*="openBackendPortal"]');
     if (ownerBtn) ownerBtn.style.display = '';
+    // Show CSV export to owners
+    const exportBtn = document.getElementById('export-btn');
+    if (exportBtn) exportBtn.style.display = '';
+    document.querySelectorAll('.owner-only-csv').forEach(el => el.style.display = '');
   }
 
   // Auto-filter calendar to this rep
