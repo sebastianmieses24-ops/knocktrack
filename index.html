@@ -5041,6 +5041,68 @@ function darkMapStyle() {
 })();
 </script>
 
+<script>
+// ── Start login screen starfield IMMEDIATELY (no Maps API dependency) ────
+(function() {
+  function initLoginStarfield() {
+    const canvas = document.getElementById('login-starfield');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const stars = Array.from({length: 160}, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.4 + 0.3,
+      o: Math.random() * 0.6 + 0.2,
+      speed: Math.random() * 0.25 + 0.05,
+      dir: Math.random() > 0.5 ? 1 : -1
+    }));
+    function draw() {
+      const ls = document.getElementById('login-screen');
+      if (ls && ls.style.display === 'none') return; // stop when login hidden
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      stars.forEach(s => {
+        s.o += s.dir * 0.008;
+        if (s.o > 0.85 || s.o < 0.05) s.dir *= -1;
+        s.y -= s.speed;
+        if (s.y < -2) { s.y = canvas.height + 2; s.x = Math.random() * canvas.width; }
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,' + s.o + ')';
+        ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    }
+    draw();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initLoginStarfield);
+  else initLoginStarfield();
+
+  // ── Immediate session check — skip login for returning users ──────────
+  // This runs BEFORE Maps loads so returning users see their destination fast
+  (function immediateSessionCheck() {
+    try {
+      const s = sessionStorage.getItem('kt_session');
+      if (!s) return; // No session = login screen stays, user must log in
+      const session = JSON.parse(s);
+      if (!session || !session.name) return;
+      // Has a valid session — hide login immediately, show appropriate screen
+      const loginEl = document.getElementById('login-screen');
+      if (loginEl) loginEl.style.display = 'none';
+      if (session.isOwner) {
+        // Owner — dashboard shows when Maps loads + applySession opens portal
+        // For now just hide the login, initAuth will handle the rest
+      } else {
+        // Rep — show landing screen immediately
+        const landingEl = document.getElementById('landing-screen');
+        if (landingEl) landingEl.style.display = 'flex';
+      }
+    } catch(e) {}
+  })();
+})();
+</script>
+
 <!-- ═══ BACKEND PORTAL ═══ -->
 <div id="backend-portal" style="display:none;position:fixed;inset:0;background:rgba(15,17,23,0.93);z-index:4000;flex-direction:column;overflow-y:auto">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
@@ -5395,7 +5457,7 @@ window.chooseLanding = function(dest) {
   window.landingDestination = dest;
   const ls = document.getElementById('landing-screen');
 
-  // Animate landing out
+  // Fade out
   if (ls) {
     ls.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
     ls.style.opacity = '0';
@@ -5403,7 +5465,6 @@ window.chooseLanding = function(dest) {
   }
 
   setTimeout(() => {
-    // Hide landing
     if (ls) {
       ls.style.display = 'none';
       ls.style.opacity = '1';
@@ -5412,12 +5473,10 @@ window.chooseLanding = function(dest) {
     }
 
     if (!window.appReady) {
-      // App still initializing (Maps API loading) — show loading screen,
-      // queue the destination for when initMap() completes
+      // Maps API still loading — queue destination, show spinner
       window.pendingDestination = dest;
       showLoadingOverlay(dest);
     } else {
-      // App ready — navigate immediately
       applyDestination(dest);
     }
   }, 300);
@@ -5454,22 +5513,23 @@ function startLandingStarfield() {
 // ── END LANDING SCREEN ─────────────────────────────────────────────────────
 
 function showLoginScreen() {
-  // Always hide dashboard and map when showing login
-  const dash = document.getElementById('dashboard');
-  if (dash) dash.style.display = 'none';
-  const portal = document.getElementById('backend-portal');
-  if (portal) portal.style.display = 'none';
+  // Hide everything else
+  ['dashboard','backend-portal','landing-screen'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
 
+  // Show login
   const ls = document.getElementById('login-screen');
-  ls.style.display = 'flex';
+  if (ls) ls.style.display = 'flex';
+
+  // Clear PIN field and error
   const f = document.getElementById('login-pin-field');
-  if (f) {
-    f.value = '';
-    // Small delay to ensure DOM is ready before focus
-    setTimeout(() => f.focus(), 100);
-  }
+  if (f) { f.value = ''; setTimeout(() => f.focus(), 120); }
   const errEl = document.getElementById('login-pin-error');
   if (errEl) errEl.textContent = '';
+
+  // Restart starfield
   startLoginStarfield();
 }
 
@@ -6007,56 +6067,62 @@ window.toggleActivityFeed = function() {
 
   <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 24px;animation:fadeSlideIn 0.5s ease">
 
-    <!-- Logo -->
-    <div style="margin-bottom:16px">
-      <div style="font-family:'Michroma',sans-serif;font-size:clamp(26px,5vw,46px);letter-spacing:6px;color:#fff;line-height:1">
-        <span style="color:#22c55e">KNOCK</span>&nbsp;<span style="color:#ffffff">TRACK</span>
+    <!-- KNOCK TRACK logo — exactly like screenshot -->
+    <div style="margin-bottom:12px">
+      <div style="font-family:'Michroma',sans-serif;font-size:clamp(32px,6vw,52px);letter-spacing:6px;line-height:1;font-weight:400">
+        <span style="color:#22c55e">KNOCK</span><span style="color:#ffffff"> TRACK</span>
       </div>
-      <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:4px;color:rgba(255,255,255,0.3);margin-top:10px;text-transform:uppercase">Official Partner: Green Nova</div>
+      <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:6px;color:rgba(255,255,255,0.55);margin-top:8px;text-transform:uppercase">Official Partner: Green Nova</div>
     </div>
 
-    <!-- Divider -->
-    <div style="width:48px;height:2px;background:linear-gradient(90deg,transparent,#22c55e,transparent);margin:24px 0 32px"></div>
+    <!-- Green divider line — like screenshot -->
+    <div style="width:56px;height:2px;background:#22c55e;margin:20px 0 28px;border-radius:2px"></div>
 
-    <!-- Prompt -->
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(13px,2vw,16px);letter-spacing:6px;color:rgba(255,255,255,0.75);margin-bottom:36px">WHERE WOULD YOU LIKE TO GO?</div>
+    <!-- WHERE WOULD YOU LIKE TO GO? — white, spaced like screenshot -->
+    <div style="font-family:'Outfit',sans-serif;font-size:clamp(11px,1.8vw,14px);font-weight:700;letter-spacing:6px;color:rgba(255,255,255,0.8);margin-bottom:32px;text-transform:uppercase">WHERE WOULD YOU LIKE TO GO?</div>
 
-    <!-- Two large buttons -->
+    <!-- Two large cards — exactly like screenshot -->
     <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;width:100%;max-width:580px">
 
-      <!-- HOME button -->
+      <!-- HOME card -->
       <button onclick="chooseLanding('home')"
-        style="flex:1;min-width:220px;max-width:260px;height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
-               background:rgba(15,19,24,0.9);border:1.5px solid rgba(255,255,255,0.07);border-radius:24px;
-               cursor:pointer;transition:all 0.25s ease;outline:none;"
-        onmouseover="this.style.borderColor='#22c55e';this.style.background='rgba(34,197,94,0.07)';this.style.transform='translateY(-6px)';this.style.boxShadow='0 20px 60px rgba(34,197,94,0.18)'"
-        onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.background='rgba(15,19,24,0.9)';this.style.transform='translateY(0)';this.style.boxShadow='none'">
-        <div style="font-size:36px;line-height:1">🏠</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:5px;color:#ffffff">HOME</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;color:rgba(255,255,255,0.6);text-transform:uppercase">Dashboard &amp; Stats</div>
+        style="flex:1;min-width:200px;max-width:250px;height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+               background:rgba(15,19,24,0.95);border:1.5px solid rgba(255,255,255,0.1);border-radius:18px;
+               cursor:pointer;transition:all 0.25s ease;outline:none;padding:0"
+        onmouseover="this.style.borderColor='#22c55e';this.style.background='rgba(34,197,94,0.07)';this.style.transform='translateY(-5px)';this.style.boxShadow='0 16px 48px rgba(34,197,94,0.15)'"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(15,19,24,0.95)';this.style.transform='translateY(0)';this.style.boxShadow='none'">
+        <div style="font-size:34px;line-height:1">🏠</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:5px;color:#ffffff">HOME</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.45);text-transform:uppercase">Dashboard &amp; Stats</div>
       </button>
 
-      <!-- KNOCK MAP button -->
+      <!-- KNOCK MAP card -->
       <button onclick="chooseLanding('map')"
-        style="flex:1;min-width:220px;max-width:260px;height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
-               background:rgba(15,19,24,0.9);border:1.5px solid rgba(255,255,255,0.07);border-radius:24px;
-               cursor:pointer;transition:all 0.25s ease;outline:none;"
-        onmouseover="this.style.borderColor='#22c55e';this.style.background='rgba(34,197,94,0.07)';this.style.transform='translateY(-6px)';this.style.boxShadow='0 20px 60px rgba(34,197,94,0.18)'"
-        onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.background='rgba(15,19,24,0.9)';this.style.transform='translateY(0)';this.style.boxShadow='none'">
-        <div style="font-size:36px;line-height:1">🗺️</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:5px;color:#ffffff">KNOCK MAP</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;color:rgba(255,255,255,0.6);text-transform:uppercase">Territory &amp; Pins</div>
+        style="flex:1;min-width:200px;max-width:250px;height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+               background:rgba(15,19,24,0.95);border:1.5px solid rgba(255,255,255,0.1);border-radius:18px;
+               cursor:pointer;transition:all 0.25s ease;outline:none;padding:0"
+        onmouseover="this.style.borderColor='#22c55e';this.style.background='rgba(34,197,94,0.07)';this.style.transform='translateY(-5px)';this.style.boxShadow='0 16px 48px rgba(34,197,94,0.15)'"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(15,19,24,0.95)';this.style.transform='translateY(0)';this.style.boxShadow='none'">
+        <div style="font-size:34px;line-height:1">🗺️</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:5px;color:#ffffff">KNOCK MAP</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.45);text-transform:uppercase">Territory &amp; Pins</div>
       </button>
 
     </div>
 
     <!-- Footer -->
-    <div style="margin-top:44px;font-family:'Outfit',sans-serif;font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:3px;text-transform:uppercase">
-      KnockTrack · Official Partner: Green Nova
+    <div style="margin-top:36px;display:flex;flex-direction:column;align-items:center;gap:10px">
+      <div style="font-family:'Outfit',sans-serif;font-size:9px;color:rgba(255,255,255,0.2);letter-spacing:4px;text-transform:uppercase">
+        KnockTrack · Official Partner: Green Nova
+      </div>
+      <!-- Sign out link -->
+      <button onclick="logout()" style="background:none;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:2px;text-transform:uppercase;padding:4px 8px;transition:color 0.15s" onmouseover="this.style.color='rgba(255,255,255,0.5)'" onmouseout="this.style.color='rgba(255,255,255,0.2)'">
+        ← Sign Out
+      </button>
     </div>
+
   </div>
 </div>
-
 
 <div id="login-screen" style="display:flex;position:fixed;inset:0;z-index:99999;background:#000;flex-direction:column;align-items:center;justify-content:center;overflow:hidden">
   <canvas id="login-starfield" style="position:absolute;inset:0;pointer-events:none;opacity:0.35"></canvas>
