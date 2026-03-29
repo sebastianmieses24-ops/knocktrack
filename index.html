@@ -4454,7 +4454,7 @@ function checkAlreadyKnocked(lat, lng) {
     {name:"Dominic Lising",  role:"Field Representative", pinHash:"oxo8g3", pinLength:6},
     {name:"Emma Deca",       role:"Field Representative", pinHash:"pesaf0", pinLength:6},
     {name:"Geo Duron",       role:"Field Representative", pinHash:"o30aek", pinLength:6},
-    {name:"Jim",             role:"Field Representative", pinHash:"rqxguu", pinLength:6},
+    {name:"Jim Weyandt",     role:"Team Lead",            pinHash:"rqxguu", pinLength:6},
     {name:"John Santana",    role:"Field Representative", pinHash:"pwh0nz", pinLength:6},
     {name:"Joshua Guy",      role:"Team Lead",            pinHash:"ok2id9", pinLength:6},
     {name:"Kahle Jacoby",    role:"Field Representative", pinHash:"ojxfv0", pinLength:6},
@@ -4467,7 +4467,7 @@ function checkAlreadyKnocked(lat, lng) {
     {name:"Victoria Lising", role:"Field Representative", pinHash:"p1nbrh", pinLength:6},
     {name:"Xaiver Sosa",     role:"Field Representative", pinHash:"qg8an4", pinLength:6}
   ];
-  const SEED_KEY = 'kt_reps_seeded_v3'; // bump version = forces re-check on all browsers
+  const SEED_KEY = 'kt_reps_seeded_v4'; // bump version = forces re-check on all browsers
 
   const existing = JSON.parse(localStorage.getItem('knocktrack_reps') || '[]');
   const alreadySeeded = localStorage.getItem(SEED_KEY);
@@ -4496,6 +4496,7 @@ function checkAlreadyKnocked(lat, lng) {
   // Clear old seed keys so they don't interfere
   localStorage.removeItem('kt_reps_seeded_v1');
   localStorage.removeItem('kt_reps_seeded_v2');
+  localStorage.removeItem('kt_reps_seeded_v3');
   console.log(`[KnockTrack] Reconciled roster. Added ${added} missing reps. Total: ${existing.length}`);
 })();
 // ── END SEED ──────────────────────────────────────────────────────────────
@@ -4508,7 +4509,7 @@ function checkAlreadyKnocked(lat, lng) {
     "Adam Obest":"953924","Beau Boyers":"271901","Brandon Cavey":"333149",
     "Brock Allison":"955266","Caleb Flack":"208624","Calvin Bingaman":"629503",
     "Cody Harvey":"526200","Coen O'Hara":"620201","Dominic Lising":"320631",
-    "Emma Deca":"424068","Geo Duron":"187958","Jim":"905136",
+    "Emma Deca":"424068","Geo Duron":"187958","Jim Weyandt":"905136","Jim Weyandt":"905136","Jim":"905136",
     "John Santana":"539615","Joshua Guy":"288780","Kahle Jacoby":"280941",
     "Max King":"412936","Michael Deangelo":"818075","Sebastian Mieses":"746975",
     "Stephen Ruiz":"148814","Stone Baldwin":"869419","Tori":"445863",
@@ -4533,6 +4534,7 @@ if (reps.length === 0) {
   if (reloadAttempts < 2) {
     sessionStorage.setItem('kt_reload_attempts', String(reloadAttempts + 1));
     localStorage.removeItem('kt_reps_seeded_v3');
+  localStorage.removeItem('kt_reps_seeded_v4');
     location.reload();
   } else {
     // Last resort: write reps directly without seed function
@@ -4542,8 +4544,22 @@ if (reps.length === 0) {
 } else {
   sessionStorage.removeItem('kt_reload_attempts');
 }
+// ── OWNER MASTER PASSWORDS ───────────────────────────────────────────────
+// Each owner logs in with their own master password → gets owner-level access
+// Hashed with hashPin() for security
+const OWNER_PASSWORDS = {
+  'GN@Seb742':  { name: 'Sebastian Mieses', role: 'CEO'        },
+  'GN@Brk519':  { name: 'Brock Allison',    role: 'Team Lead'  },
+  'GN@Beau381': { name: 'Beau Boyers',      role: 'Team Lead'  },
+  'GN@Mke264':  { name: 'Michael Deangelo', role: 'Team Lead'  },
+  'GN@Josh937': { name: 'Joshua Guy',       role: 'Team Lead'  },
+  'GN@Cal628':  { name: 'Calvin Bingaman',  role: 'Team Lead'  },
+  'GN@Brc847':  { name: 'Brandon Cavey',    role: 'Team Lead'  },
+  'GN@Brc847x': { name: 'Jim Weyandt',      role: 'Team Lead'  },
+};
+// Legacy fallback (keep for backward compat)
 const OWNER_PASSWORD = 'greennova2024';
-const OWNER_ALLOWED_REPS = ['Brock Allison', 'Sebastian Mieses', 'Beau Boyers', 'Joshua Guy', 'Michael Deangelo', 'Calvin Bingaman'];
+const OWNER_ALLOWED_REPS = ['Brock Allison', 'Sebastian Mieses', 'Beau Boyers', 'Joshua Guy', 'Michael Deangelo', 'Calvin Bingaman', 'Brandon Cavey', 'Jim Weyandt'];
 let isOwnerSession = false;
 
 function saveReps() {
@@ -4948,7 +4964,7 @@ window.openBackendPortal = function() {
 window.closePortalLogin = function() { document.getElementById('portal-login').style.display = 'none'; };
 window.submitPortalLogin = function() {
   const pw = document.getElementById('portal-password').value;
-  if (pw === OWNER_PASSWORD) {
+  if (pw === OWNER_PASSWORD || OWNER_PASSWORDS[pw]) {
     isOwnerSession = true;
     document.getElementById('portal-login').style.display = 'none';
     document.getElementById('backend-portal').style.display = 'flex';
@@ -5314,7 +5330,7 @@ const MASTER_PINS = {
   "Adam Obest":"953924","Beau Boyers":"271901","Brandon Cavey":"333149",
   "Brock Allison":"955266","Caleb Flack":"208624","Calvin Bingaman":"629503",
   "Cody Harvey":"526200","Coen O'Hara":"620201","Dominic Lising":"320631",
-  "Emma Deca":"424068","Geo Duron":"187958","Jim":"905136",
+  "Emma Deca":"424068","Geo Duron":"187958","Jim Weyandt":"905136","Jim Weyandt":"905136","Jim":"905136",
   "John Santana":"539615","Joshua Guy":"288780","Kahle Jacoby":"280941",
   "Max King":"412936","Michael Deangelo":"818075","Sebastian Mieses":"746975",
   "Stephen Ruiz":"148814","Stone Baldwin":"869419","Tori":"445863",
@@ -5639,7 +5655,7 @@ function loginAsRep(rep) {
 
 window.ownerLogin = function() {
   const pw = document.getElementById('login-owner-pw')?.value?.trim();
-  if (pw === OWNER_PASSWORD) {
+  if (pw === OWNER_PASSWORD || OWNER_PASSWORDS[pw]) {
     const session = { name: 'Owner', role: 'Owner', isOwner: true };
     saveSession(session);
     isOwnerSession = true;
@@ -5792,18 +5808,18 @@ window.submitPinField = function() {
     return;
   }
 
-  // ── Check owner master password ──────────────────────────────────────
-  // Owners get a master password (not a PIN tied to their name)
-  // Owner login → skip landing → go DIRECTLY to Secured Portal
-  if (val === OWNER_PASSWORD) {
-    const session = { name: 'Owner', role: 'Owner', isOwner: true };
+  // ── Check owner master passwords ────────────────────────────────────
+  // Each owner has their own master password — identified by name
+  const ownerMatch = OWNER_PASSWORDS[val];
+  if (ownerMatch || val === OWNER_PASSWORD) {
+    const ownerInfo = ownerMatch || { name: 'Owner', role: 'Owner' };
+    const session = { name: ownerInfo.name, role: ownerInfo.role, isOwner: true };
     saveSession(session);
     isOwnerSession = true;
     applySession(session);
     hideLoginScreen();
-    // Owner goes straight to dashboard with portal accessible
+    // Owner → dashboard + Secured Portal opens automatically
     showDashboard();
-    // Auto-open the Secured Portal for owners
     setTimeout(() => {
       const portal = document.getElementById('backend-portal');
       if (portal) {
@@ -6150,10 +6166,10 @@ window.toggleActivityFeed = function() {
       <div style="text-align:center;font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:2px;color:rgba(255,255,255,0.35);margin-bottom:26px">YOUR PIN IDENTIFIES YOU AUTOMATICALLY</div>
 
       <!-- PIN input — white background, green border, dots, exactly like screenshot -->
-      <input id="login-pin-field" type="password" inputmode="numeric" maxlength="14" placeholder="••••••••••"
-        style="width:100%;padding:13px 18px;background:#ffffff;border:2px solid #22c55e;border-radius:10px;color:#111;font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;outline:none;box-sizing:border-box;text-align:center;letter-spacing:6px;margin-bottom:12px"
+      <input id="login-pin-field" type="password" maxlength="20" placeholder="••••••••••"
+        style="width:100%;padding:13px 18px;background:#ffffff;border:2px solid #22c55e;border-radius:10px;color:#111;font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;outline:none;box-sizing:border-box;text-align:center;letter-spacing:4px;margin-bottom:12px"
         onkeydown="if(event.key==='Enter')submitPinField()"
-        oninput="onPinFieldInput(this)"/>
+        oninput="onPinFieldInput(this)" autocomplete="current-password"/>
 
       <!-- ENTER PORTAL button — solid green like screenshot -->
       <button onclick="submitPinField()"
