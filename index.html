@@ -5817,15 +5817,9 @@ window.submitPinField = function() {
     window.isOwnerSession = true;
     applySession(session);
     hideLoginScreen();
-    // Owner → dashboard + Secured Portal opens automatically
-    showDashboard();
-    setTimeout(() => {
-      const portal = document.getElementById('backend-portal');
-      if (portal) {
-        portal.style.display = 'flex';
-        switchPortalTab('reps');
-      }
-    }, 300);
+    // Owner → landing screen (HOME / KNOCK MAP choice) just like reps
+    // Secured Portal is accessible via the 🔐 PORTAL button on dashboard
+    showLandingScreen();
     return;
   }
 
@@ -6190,7 +6184,7 @@ window.toggleActivityFeed = function() {
     </div>
 
     <!-- KnockTrack attribution -->
-    <div style="text-align:center;margin-top:20px;font-family:'Outfit',sans-serif;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,0.12);text-transform:uppercase">
+    <div style="text-align:center;margin-top:22px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;letter-spacing:4px;color:#ffffff;text-transform:uppercase">
       Powered by KnockTrack
     </div>
   </div>
