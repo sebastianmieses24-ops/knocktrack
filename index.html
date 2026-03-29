@@ -3307,7 +3307,7 @@ function renderOverviewExtras() {
     hero.innerHTML = [
       {label:'Doors Knocked', value:m.totalDoors, sub:'total contacts', icon:'🚪', color:'var(--text)'},
       {label:'Enrolled', value:m.enrolled, sub:`${m.closeRate}% close rate`, icon:'⚡', color:'var(--green)'},
-      {label:'kWh Produced', value:fmtK(totalKwh), sub:'from enrollments', icon:'☀️', color:'#f0b429'},
+      {label:'Close Rate',   value:m.closeRate+'%',  sub:'enrolled / interactions', icon:'📈', color:'#a78bfa'},
     ].map(c=>`<div class="kpi-hero-card">
       <div class="kpi-hero-icon">${c.icon}</div>
       <div class="kpi-hero-label">${c.label}</div>
@@ -5463,7 +5463,11 @@ function getAllSessionPins() {
 }
 
 // Session state (sessionStorage = clears on browser close)
-window.currentSession = null; // { name, role, isOwner }
+// Only initialize to null if Block 3's immediateSessionCheck hasn't already
+// restored the session — avoids nulling a valid session on page load.
+if (window.currentSession === undefined) {
+  window.currentSession = null; // { name, role, isOwner }
+}
 
 function loadSession() {
   try {
@@ -5495,7 +5499,7 @@ function initAuth() {
   const session = loadSession();
   if (session) {
     // Returning user with saved session — skip login entirely
-    currentSession = session;
+    window.currentSession = session;
     hideLoginScreen();
     applySession(session);
     if (session.isOwner) {
@@ -5784,8 +5788,9 @@ window.ownerLogin = function() {
 };
 
 function applySession(session) {
-  currentSession = session;
-  window.isOwnerSession = session.isOwner === true;
+  window.currentSession = session;
+  // isOwnerSession is a read-only getter — setting it is a no-op by design.
+  // canAccessPortal() derives the value from window.currentSession at call time.
 
   // Update rep badge in topbar
   const badge = document.getElementById('current-rep-badge');
