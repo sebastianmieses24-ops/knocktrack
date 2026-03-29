@@ -4545,9 +4545,9 @@ if (reps.length === 0) {
   sessionStorage.removeItem('kt_reload_attempts');
 }
 // ── OWNER MASTER PASSWORDS ───────────────────────────────────────────────
-// Each owner logs in with their own master password → gets owner-level access
-// Hashed with hashPin() for security
-const OWNER_PASSWORDS = {
+// window. assignment makes these accessible across ALL script blocks
+// (const/let at top-level script scope are NOT window-global in browsers)
+window.OWNER_PASSWORDS = {
   'GN@Seb742':  { name: 'Sebastian Mieses', role: 'CEO'        },
   'GN@Brk519':  { name: 'Brock Allison',    role: 'Team Lead'  },
   'GN@Beau381': { name: 'Beau Boyers',      role: 'Team Lead'  },
@@ -4555,12 +4555,11 @@ const OWNER_PASSWORDS = {
   'GN@Josh937': { name: 'Joshua Guy',       role: 'Team Lead'  },
   'GN@Cal628':  { name: 'Calvin Bingaman',  role: 'Team Lead'  },
   'GN@Brc847':  { name: 'Brandon Cavey',    role: 'Team Lead'  },
-  'GN@Brc847x': { name: 'Jim Weyandt',      role: 'Team Lead'  },
+  'GN@Jim937':  { name: 'Jim Weyandt',      role: 'Team Lead'  },
 };
-// Legacy fallback (keep for backward compat)
-const OWNER_PASSWORD = 'greennova2024';
-const OWNER_ALLOWED_REPS = ['Brock Allison', 'Sebastian Mieses', 'Beau Boyers', 'Joshua Guy', 'Michael Deangelo', 'Calvin Bingaman', 'Brandon Cavey', 'Jim Weyandt'];
-let isOwnerSession = false;
+window.OWNER_PASSWORD  = 'greennova2024'; // legacy fallback
+window.OWNER_ALLOWED_REPS = ['Brock Allison','Sebastian Mieses','Beau Boyers','Joshua Guy','Michael Deangelo','Calvin Bingaman','Brandon Cavey','Jim Weyandt'];
+window.isOwnerSession = false;
 
 function saveReps() {
   localStorage.setItem('knocktrack_reps', JSON.stringify(reps));
@@ -4964,8 +4963,8 @@ window.openBackendPortal = function() {
 window.closePortalLogin = function() { document.getElementById('portal-login').style.display = 'none'; };
 window.submitPortalLogin = function() {
   const pw = document.getElementById('portal-password').value;
-  if (pw === OWNER_PASSWORD || OWNER_PASSWORDS[pw]) {
-    isOwnerSession = true;
+  if (pw === window.OWNER_PASSWORD || window.OWNER_PASSWORDS[pw]) {
+    window.isOwnerSession = true;
     document.getElementById('portal-login').style.display = 'none';
     document.getElementById('backend-portal').style.display = 'flex';
     switchPortalTab('reps');
@@ -5355,7 +5354,7 @@ function getAllSessionPins() {
 }
 
 // Session state (sessionStorage = clears on browser close)
-let currentSession = null; // { name, role, isOwner }
+window.currentSession = null; // { name, role, isOwner }
 
 function loadSession() {
   try {
@@ -5655,7 +5654,7 @@ function loginAsRep(rep) {
 
 window.ownerLogin = function() {
   const pw = document.getElementById('login-owner-pw')?.value?.trim();
-  if (pw === OWNER_PASSWORD || OWNER_PASSWORDS[pw]) {
+  if (pw === window.OWNER_PASSWORD || window.OWNER_PASSWORDS[pw]) {
     const session = { name: 'Owner', role: 'Owner', isOwner: true };
     saveSession(session);
     isOwnerSession = true;
@@ -5732,7 +5731,7 @@ window.showLogoutConfirm = function() {
 
 function logout() {
   clearSession();
-  isOwnerSession = false;
+  window.isOwnerSession = false;
   calCurrentRep = '';
   // Reset rep dropdown
   const sel = document.getElementById('dashboard-rep-select');
@@ -5810,12 +5809,12 @@ window.submitPinField = function() {
 
   // ── Check owner master passwords ────────────────────────────────────
   // Each owner has their own master password — identified by name
-  const ownerMatch = OWNER_PASSWORDS[val];
-  if (ownerMatch || val === OWNER_PASSWORD) {
+  const ownerMatch = window.OWNER_PASSWORDS[val];
+  if (ownerMatch || val === window.OWNER_PASSWORD) {
     const ownerInfo = ownerMatch || { name: 'Owner', role: 'Owner' };
     const session = { name: ownerInfo.name, role: ownerInfo.role, isOwner: true };
     saveSession(session);
-    isOwnerSession = true;
+    window.isOwnerSession = true;
     applySession(session);
     hideLoginScreen();
     // Owner → dashboard + Secured Portal opens automatically
