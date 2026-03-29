@@ -807,6 +807,14 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 
 /* CSV export only visible to owners */
 .owner-only-csv { display:none; }
+
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%      { transform: translateX(-8px); }
+  40%      { transform: translateX(8px); }
+  60%      { transform: translateX(-6px); }
+  80%      { transform: translateX(4px); }
+}
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -5288,24 +5296,25 @@ function clearSession() {
 
 // ── STARTUP ──────────────────────────────────────────────────────────────
 function initAuth() {
-  // Landing screen is already display:flex in HTML — start its starfield
-  startLandingStarfield();
+  // LOGIN SCREEN is the first screen (display:flex in HTML)
+  // Start its starfield immediately
+  startLoginStarfield();
 
   const session = loadSession();
   if (session) {
-    // Returning user with saved session — skip landing entirely
+    // Returning user with saved session — skip login entirely
     currentSession = session;
-    const ls = document.getElementById('landing-screen');
-    if (ls) ls.style.display = 'none';
+    hideLoginScreen();
     applySession(session);
-    if (window.landingDestination === 'map') {
-      const dash = document.getElementById('dashboard');
-      if (dash) dash.style.display = 'none';
-    } else {
+    if (session.isOwner) {
+      // Owner → go straight to dashboard (portal button available)
       showDashboard();
+    } else {
+      // Rep → show landing so they can choose Home or Map
+      showLandingScreen();
     }
   }
-  // No session = landing screen stays visible, user picks their destination
+  // No session = login screen stays visible (it already is, display:flex in HTML)
 }
 
 // ── LANDING SCREEN ────────────────────────────────────────────────────────
@@ -5564,7 +5573,8 @@ function loginAsRep(rep) {
   saveSession(session);
   applySession(session);
   hideLoginScreen();
-  showDashboard();
+  // Rep sees the landing screen to choose Home or Knock Map
+  showLandingScreen();
 }
 
 window.ownerLogin = function() {
@@ -5718,22 +5728,35 @@ window.onPinFieldInput = function(el) {
 window.submitPinField = function() {
   const val = document.getElementById('login-pin-field')?.value?.trim();
   if (!val) {
-    document.getElementById('login-pin-error').textContent = 'Enter your PIN or owner password.';
+    document.getElementById('login-pin-error').textContent = 'Enter your PIN or master password.';
     return;
   }
 
-  // ── Check owner password first ──
+  // ── Check owner master password ──────────────────────────────────────
+  // Owners get a master password (not a PIN tied to their name)
+  // Owner login → skip landing → go DIRECTLY to Secured Portal
   if (val === OWNER_PASSWORD) {
     const session = { name: 'Owner', role: 'Owner', isOwner: true };
     saveSession(session);
     isOwnerSession = true;
     applySession(session);
     hideLoginScreen();
+    // Owner goes straight to dashboard with portal accessible
     showDashboard();
+    // Auto-open the Secured Portal for owners
+    setTimeout(() => {
+      const portal = document.getElementById('backend-portal');
+      if (portal) {
+        portal.style.display = 'flex';
+        switchPortalTab('reps');
+      }
+    }, 300);
     return;
   }
 
-  // ── Check all active reps by PIN hash ──
+  // ── Check rep PINs ────────────────────────────────────────────────────
+  // Each rep has a 6-digit PIN assigned to their name
+  // Rep login → show landing screen (Home or Knock Map choice)
   const hash = hashPin(val);
   const matchedRep = reps.find(r => r.pinHash && r.pinHash === hash);
   if (matchedRep) {
@@ -5741,23 +5764,15 @@ window.submitPinField = function() {
     return;
   }
 
-  // ── Check if it's a 4-digit PIN for a rep with no PIN yet (first-time) ──
-  // Only if exactly 4 digits and one rep has no pinHash — too ambiguous for multiple
-  if (/^\d{4}$/.test(val)) {
-    const unsetReps = reps.filter(r => !r.pinHash);
-    // Can't auto-assign if multiple unset — prompt them to contact owner
-    if (unsetReps.length === 1) {
-      unsetReps[0].pinHash = hashPin(val);
-      saveReps();
-      loginAsRep(unsetReps[0]);
-      return;
-    }
-  }
-
-  // Wrong PIN
+  // ── Wrong PIN/password ────────────────────────────────────────────────
+  const errEl = document.getElementById('login-pin-error');
+  errEl.textContent = '❌ Incorrect PIN. Contact your team lead.';
   document.getElementById('login-pin-field').value = '';
-  document.getElementById('login-pin-error').textContent = '❌ Incorrect PIN. Contact your team lead.';
   document.getElementById('login-pin-field').focus();
+  // Shake animation
+  const input = document.getElementById('login-pin-field');
+  input.style.animation = 'none';
+  setTimeout(() => { input.style.animation = 'shake 0.3s ease'; }, 10);
 };
 
 // ── PIN SHEET PAGE ──────────────────────────────────────────────────────
@@ -5987,7 +6002,7 @@ window.toggleActivityFeed = function() {
 <!-- ══════════════════════════════════════════════════════════ -->
 <!-- LANDING SCREEN — first page, always shown on load         -->
 <!-- ══════════════════════════════════════════════════════════ -->
-<div id="landing-screen" style="display:flex;position:fixed;inset:0;z-index:99998;background:#070b10;flex-direction:column;align-items:center;justify-content:center;overflow:hidden">
+<div id="landing-screen" style="display:none;position:fixed;inset:0;z-index:99998;background:#070b10;flex-direction:column;align-items:center;justify-content:center;overflow:hidden">
   <canvas id="landing-starfield" style="position:absolute;inset:0;pointer-events:none;opacity:0.3"></canvas>
 
   <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 24px;animation:fadeSlideIn 0.5s ease">
@@ -6043,45 +6058,60 @@ window.toggleActivityFeed = function() {
 </div>
 
 
-<div id="login-screen" style="display:none;position:fixed;inset:0;z-index:99999;background:#000;flex-direction:column;align-items:center;justify-content:center;overflow:hidden">
+<div id="login-screen" style="display:flex;position:fixed;inset:0;z-index:99999;background:#000;flex-direction:column;align-items:center;justify-content:center;overflow:hidden">
   <canvas id="login-starfield" style="position:absolute;inset:0;pointer-events:none;opacity:0.35"></canvas>
 
-  <div style="position:relative;z-index:2;width:100%;max-width:480px;padding:0 24px;animation:fadeSlideIn 0.4s ease">
+  <div style="position:relative;z-index:2;width:100%;max-width:420px;padding:0 24px;animation:fadeSlideIn 0.4s ease">
 
-    <!-- KNOCK TRACK logo -->
-    <div style="text-align:center;margin-bottom:40px">
-      <div style="font-family:'Michroma',sans-serif;font-size:clamp(24px,6vw,36px);letter-spacing:5px;color:#fff;line-height:1">
-        <span style="color:#22c55e">KNOCK</span><span style="color:#fff"> TRACK</span>
+    <!-- GREEN NOVA logo — matches screenshot exactly -->
+    <div style="text-align:center;margin-bottom:36px">
+      <div style="font-family:'Michroma',sans-serif;font-size:clamp(28px,6vw,42px);letter-spacing:4px;line-height:1">
+        <span style="color:#22c55e;font-weight:400">GREEN</span><span style="color:#fff;font-weight:400">NOVA</span>
       </div>
-      <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:4px;color:rgba(255,255,255,0.3);margin-top:6px;text-transform:uppercase">Official Partner: Green Nova</div>
+      <div style="font-family:'Outfit',sans-serif;font-size:9px;font-weight:600;letter-spacing:6px;color:rgba(255,255,255,0.4);margin-top:6px;text-transform:uppercase">Community Advocates</div>
+      <!-- Underline accent matching screenshot -->
+      <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(34,197,94,0.6),transparent);margin-top:10px"></div>
     </div>
 
-    <!-- Login card — single clean box like screenshot -->
-    <div style="background:rgba(12,12,12,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:36px 32px;backdrop-filter:blur(20px)">
+    <!-- Login card -->
+    <div style="background:rgba(14,14,16,0.9);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:34px 30px;backdrop-filter:blur(24px);box-shadow:0 24px 64px rgba(0,0,0,0.6)">
 
       <!-- Lock icon -->
-      <div style="text-align:center;font-size:28px;margin-bottom:14px">🔒</div>
-      <div style="text-align:center;font-family:'Outfit',sans-serif;font-size:22px;font-weight:800;letter-spacing:3px;color:#fff;margin-bottom:6px">ENTER YOUR PIN</div>
-      <div style="text-align:center;font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;color:rgba(255,255,255,0.35);margin-bottom:28px">YOUR PIN IDENTIFIES YOU AUTOMATICALLY</div>
+      <div style="text-align:center;font-size:26px;margin-bottom:12px">🔒</div>
 
-      <!-- PIN input — shown as password dots like screenshot -->
-      <input id="login-pin-field" type="password" inputmode="numeric" maxlength="6" placeholder="••••••••••"
-        style="width:100%;padding:14px 18px;background:#fff;border:2px solid #22c55e;border-radius:10px;color:#000;font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;outline:none;box-sizing:border-box;text-align:center;letter-spacing:6px;margin-bottom:14px"
+      <!-- Title -->
+      <div style="text-align:center;font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;letter-spacing:3px;color:#fff;margin-bottom:6px">ENTER YOUR PIN</div>
+      <div style="text-align:center;font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:2px;color:rgba(255,255,255,0.35);margin-bottom:26px">YOUR PIN IDENTIFIES YOU AUTOMATICALLY</div>
+
+      <!-- PIN input — white background, green border, dots, exactly like screenshot -->
+      <input id="login-pin-field" type="password" inputmode="numeric" maxlength="14" placeholder="••••••••••"
+        style="width:100%;padding:13px 18px;background:#ffffff;border:2px solid #22c55e;border-radius:10px;color:#111;font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;outline:none;box-sizing:border-box;text-align:center;letter-spacing:6px;margin-bottom:12px"
         onkeydown="if(event.key==='Enter')submitPinField()"
         oninput="onPinFieldInput(this)"/>
 
-      <button onclick="submitPinField()" style="width:100%;padding:15px;background:#22c55e;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:15px;font-weight:800;letter-spacing:3px;color:#000;cursor:pointer;transition:all 0.15s;margin-bottom:20px" onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">ENTER PORTAL →</button>
+      <!-- ENTER PORTAL button — solid green like screenshot -->
+      <button onclick="submitPinField()"
+        style="width:100%;padding:14px;background:#22c55e;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;letter-spacing:3px;color:#000;cursor:pointer;transition:background 0.15s;margin-bottom:16px"
+        onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">
+        ENTER PORTAL →
+      </button>
 
-      <div id="login-pin-error" style="text-align:center;color:var(--danger);font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;min-height:18px;margin-bottom:16px"></div>
+      <!-- Error message -->
+      <div id="login-pin-error" style="text-align:center;color:#ef4444;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;min-height:16px;margin-bottom:12px"></div>
 
-      <!-- Footer hints -->
-      <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;text-align:center">
-        <div style="font-family:'Montserrat',sans-serif;font-size:12px;color:rgba(255,255,255,0.3);line-height:1.9">
+      <!-- Footer -->
+      <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:14px;text-align:center">
+        <div style="font-family:'Montserrat',sans-serif;font-size:11px;color:rgba(255,255,255,0.3);line-height:2">
           Don't have a PIN? Contact your team lead.<br>
           Your PIN was assigned when you joined the portal.<br>
           Owners: use your master password.
         </div>
       </div>
+    </div>
+
+    <!-- KnockTrack attribution -->
+    <div style="text-align:center;margin-top:20px;font-family:'Outfit',sans-serif;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,0.12);text-transform:uppercase">
+      Powered by KnockTrack
     </div>
   </div>
 </div>
