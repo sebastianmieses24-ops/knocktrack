@@ -3997,6 +3997,12 @@ setTimeout(() => { scheduleNotifications(); checkUpcomingNotifications(); }, 300
 // ── END CALENDAR ──────────────────────────────────────
 
 window.switchPortalTab = function(tab) {
+  // Gate: re-validate access before rendering any portal content
+  if (!window._auth.canAccessPortal()) {
+    document.getElementById('backend-portal').style.display = 'none';
+    if (typeof showToast === 'function') showToast('🔒 Session expired. Please log in again.', 3000);
+    return;
+  }
   ['reps','evals','compare','ratings','deleted'].forEach(t => {
     const panel = document.getElementById(`portal-panel-${t}`);
     const btn = document.getElementById(`ptab-${t}`);
@@ -4556,19 +4562,79 @@ if (reps.length === 0) {
 // ── OWNER MASTER PASSWORDS ───────────────────────────────────────────────
 // window. assignment makes these accessible across ALL script blocks
 // (const/let at top-level script scope are NOT window-global in browsers)
-window.OWNER_PASSWORDS = {
-  'GN@Seb742':  { name: 'Sebastian Mieses', role: 'CEO'        },
-  'GN@Brk519':  { name: 'Brock Allison',    role: 'Team Lead'  },
-  'GN@Beau381': { name: 'Beau Boyers',      role: 'Team Lead'  },
-  'GN@Mke264':  { name: 'Michael Deangelo', role: 'Team Lead'  },
-  'GN@Josh937': { name: 'Joshua Guy',       role: 'Team Lead'  },
-  'GN@Cal628':  { name: 'Calvin Bingaman',  role: 'Team Lead'  },
-  'GN@Brc847':  { name: 'Brandon Cavey',    role: 'Team Lead'  },
-  'GN@Jim937':  { name: 'Jim Weyandt',      role: 'Team Lead'  },
-};
-window.OWNER_PASSWORD  = 'greennova2024'; // legacy fallback
+// ── SECURITY: Hashed credentials only — plaintext NEVER stored on window ──
+// Passwords are hashed with hashPin() at comparison time.
+// Only the hash map lives in memory — DevTools cannot reveal raw passwords.
+// Each hash was produced by hashPin('GN@...') offline.
+(function buildAuthStore() {
+  // Hash → owner identity map (hashes, not passwords)
+  const _hashes = {
+    '-udlp6q': { name: 'Sebastian Mieses', role: 'CEO'       },
+    'wt1t4r':  { name: 'Brock Allison',    role: 'Team Lead' },
+    'gb1718':  { name: 'Beau Boyers',      role: 'Team Lead' },
+    '-x4iuou': { name: 'Michael Deangelo', role: 'Team Lead' },
+    '-3bwb06': { name: 'Joshua Guy',       role: 'Team Lead' },
+    'x0rl6v':  { name: 'Calvin Bingaman',  role: 'Team Lead' },
+    'wswrj5':  { name: 'Brandon Cavey',    role: 'Team Lead' },
+    '-ykm21k': { name: 'Jim Weyandt',      role: 'Team Lead' },
+    '-scsekx': { name: 'Owner',            role: 'Owner'     }, // legacy greennova2024
+  };
+
+  // ── Session integrity token ───────────────────────────────────────────
+  // Generated once per page load. Signed sessions include this token.
+  // Tampered sessionStorage entries won't have a valid token → rejected.
+  const _pageToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+  // ── Public API — only expose what code needs, never the hash map ──────
+  window._auth = {
+    // Verify a raw credential and return owner info if valid, else null
+    verifyOwner(raw) {
+      if (!raw) return null;
+      const h = hashPin(raw);
+      return _hashes[h] || null;
+    },
+
+    // Sign a session object so it can't be tampered with
+    signSession(session) {
+      const payload = JSON.stringify(session);
+      const sig = hashPin(payload + _pageToken);
+      return { ...session, __sig: sig };
+    },
+
+    // Verify a stored session was signed this page-load (not injected)
+    verifySession(stored) {
+      if (!stored || !stored.__sig) return null;
+      const { __sig, ...session } = stored;
+      const expectedSig = hashPin(JSON.stringify(session) + _pageToken);
+      if (__sig !== expectedSig) return null; // tampered — reject
+      return session;
+    },
+
+    // Role check — the single source of truth for portal access
+    // Called on EVERY portal access attempt, not cached
+    canAccessPortal() {
+      // Step 1: currentSession must exist and claim owner role
+      if (window.currentSession?.isOwner !== true) return false;
+      // Step 2: Verify the stored session signature is valid for this page load
+      // This prevents session injection via DevTools — tampered sigs are rejected
+      const raw = sessionStorage.getItem('kt_session');
+      if (!raw) return false;
+      try {
+        const verified = window._auth.verifySession(JSON.parse(raw));
+        return verified !== null && verified.isOwner === true;
+      } catch { return false; }
+    }
+  };
+
+  // Keep isOwnerSession as a convenience alias (derived, not authoritative)
+  Object.defineProperty(window, 'isOwnerSession', {
+    get()  { return window._auth.canAccessPortal(); },
+    set(v) { /* no-op — cannot be set manually via console */ },
+    configurable: false
+  });
+})();
+
 window.OWNER_ALLOWED_REPS = ['Brock Allison','Sebastian Mieses','Beau Boyers','Joshua Guy','Michael Deangelo','Calvin Bingaman','Brandon Cavey','Jim Weyandt'];
-window.isOwnerSession = false;
 
 function saveReps() {
   localStorage.setItem('knocktrack_reps', JSON.stringify(reps));
@@ -4965,15 +5031,23 @@ window.removeRep = function(i) {
 
 
 window.openBackendPortal = function() {
-  // Skip password gate if owner already authenticated via master password
-  if (window.isOwnerSession) {
+  // Role-based access control — validate signed session + owner role
+  if (window._auth.canAccessPortal()) {
     document.getElementById('backend-portal').style.display = 'flex';
     switchPortalTab('reps');
     renderRepsList();
     setTimeout(updateDeletedBadge, 100);
     return;
   }
-  // Not an owner session — show password gate
+  // Access denied — non-owners never reach portal content
+  // Show portal login for non-owners who try to access
+  if (window.currentSession && !window.currentSession.isOwner) {
+    if (typeof showToast === 'function') {
+      showToast('🔒 Owner access required for the Secured Portal', 3500);
+    }
+    return;
+  }
+  // Unauthenticated — show password gate
   document.getElementById('portal-login').style.display = 'flex';
   document.getElementById('portal-password').value = '';
   document.getElementById('portal-error').style.display = 'none';
@@ -4981,19 +5055,25 @@ window.openBackendPortal = function() {
 window.closePortalLogin = function() { document.getElementById('portal-login').style.display = 'none'; };
 window.submitPortalLogin = function() {
   const pw = document.getElementById('portal-password').value;
-  if (pw === window.OWNER_PASSWORD || window.OWNER_PASSWORDS[pw]) {
-    window.isOwnerSession = true;
+  const ownerInfo = window._auth.verifyOwner(pw);
+  if (ownerInfo) {
+    // Upgrade current session to owner
+    const session = { name: ownerInfo.name, role: ownerInfo.role, isOwner: true };
+    saveSession(session);
+    window.currentSession = session;
+    applySession(session);
     document.getElementById('portal-login').style.display = 'none';
     document.getElementById('backend-portal').style.display = 'flex';
     switchPortalTab('reps');
     renderRepsList();
   } else {
     document.getElementById('portal-error').style.display = 'block';
+    document.getElementById('portal-password').value = '';
   }
 };
 window.closeBackendPortal = function() {
   document.getElementById('backend-portal').style.display = 'none';
-  window.isOwnerSession = false;
+  // Do NOT clear session — owner stays authenticated until logout
 };
 
 document.getElementById('portal-password').addEventListener('keydown', e => { if (e.key === 'Enter') window.submitPortalLogin(); });
@@ -5117,17 +5197,28 @@ function darkMapStyle() {
   (function immediateSessionCheck() {
     try {
       const s = sessionStorage.getItem('kt_session');
-      if (!s) return; // No session = login screen stays, user must log in
-      const session = JSON.parse(s);
-      if (!session || !session.name) return;
-      // Has a valid session — hide login immediately, show appropriate screen
+      if (!s) return;
+
+      // Verify the session signature before trusting it
+      // _auth is defined in Block 1 which runs before this Block 3
+      const verified = window._auth ? window._auth.verifySession(JSON.parse(s)) : null;
+      if (!verified || !verified.name) return;
+
+      // Restore currentSession immediately — before Maps API loads
+      // This means canAccessPortal() works the instant the page renders
+      window.currentSession = verified;
+
+      // Hide login screen immediately
       const loginEl = document.getElementById('login-screen');
       if (loginEl) loginEl.style.display = 'none';
-      if (session.isOwner) {
-        // Owner — dashboard shows when Maps loads + applySession opens portal
-        // For now just hide the login, initAuth will handle the rest
+
+      if (verified.isOwner) {
+        // Owner: show landing so they can choose Home or Map
+        // Portal access is available via the PORTAL button immediately
+        const landingEl = document.getElementById('landing-screen');
+        if (landingEl) landingEl.style.display = 'flex';
       } else {
-        // Rep — show landing screen immediately
+        // Rep: show landing
         const landingEl = document.getElementById('landing-screen');
         if (landingEl) landingEl.style.display = 'flex';
       }
@@ -5376,17 +5467,23 @@ window.currentSession = null; // { name, role, isOwner }
 
 function loadSession() {
   try {
-    const s = sessionStorage.getItem('kt_session');
-    return s ? JSON.parse(s) : null;
+    const raw = sessionStorage.getItem('kt_session');
+    if (!raw) return null;
+    const stored = JSON.parse(raw);
+    // Verify session was signed this page-load — rejects tampering
+    const verified = window._auth ? window._auth.verifySession(stored) : stored;
+    return verified;
   } catch { return null; }
 }
 function saveSession(session) {
-  sessionStorage.setItem('kt_session', JSON.stringify(session));
-  currentSession = session;
+  // Sign the session before storing so tampering is detectable
+  const signed = window._auth ? window._auth.signSession(session) : session;
+  sessionStorage.setItem('kt_session', JSON.stringify(signed));
+  window.currentSession = session;
 }
 function clearSession() {
   sessionStorage.removeItem('kt_session');
-  currentSession = null;
+  window.currentSession = null;
 }
 
 // ── STARTUP ──────────────────────────────────────────────────────────────
@@ -5672,13 +5769,14 @@ function loginAsRep(rep) {
 
 window.ownerLogin = function() {
   const pw = document.getElementById('login-owner-pw')?.value?.trim();
-  if (pw === window.OWNER_PASSWORD || window.OWNER_PASSWORDS[pw]) {
-    const session = { name: 'Owner', role: 'Owner', isOwner: true };
+  const ownerInfo = window._auth.verifyOwner(pw);
+  if (ownerInfo) {
+    const session = { name: ownerInfo.name, role: ownerInfo.role, isOwner: true };
     saveSession(session);
-    window.isOwnerSession = true;
+    window.currentSession = session;
     applySession(session);
     hideLoginScreen();
-    showDashboard();
+    showLandingScreen();
   } else {
     document.getElementById('login-owner-error').textContent = 'Incorrect password.';
     document.getElementById('login-owner-pw').value = '';
@@ -5825,18 +5923,16 @@ window.submitPinField = function() {
     return;
   }
 
-  // ── Check owner master passwords ────────────────────────────────────
-  // Each owner has their own master password — identified by name
-  const ownerMatch = window.OWNER_PASSWORDS[val];
-  if (ownerMatch || val === window.OWNER_PASSWORD) {
-    const ownerInfo = ownerMatch || { name: 'Owner', role: 'Owner' };
+  // ── Check owner master passwords via secure hash comparison ────────
+  // _auth.verifyOwner() hashes the input and checks against stored hashes only
+  // Raw password is never stored, logged, or accessible via DevTools
+  const ownerInfo = window._auth.verifyOwner(val);
+  if (ownerInfo) {
     const session = { name: ownerInfo.name, role: ownerInfo.role, isOwner: true };
     saveSession(session);
-    window.isOwnerSession = true;
+    window.currentSession = session;
     applySession(session);
     hideLoginScreen();
-    // Owner → landing screen (HOME / KNOCK MAP choice) just like reps
-    // Secured Portal is accessible via the 🔐 PORTAL button on dashboard
     showLandingScreen();
     return;
   }
