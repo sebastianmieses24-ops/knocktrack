@@ -2551,126 +2551,200 @@ window.toggleAutoAddressPins = function() {
   }
 };
 
-// ── Fetch addresses for current viewport via Overpass API ─────────────
+// ── Scan visible streets and geocode every house number ──────────────────
+//
+// Strategy:
+// 1. Sample 12 points in a grid across the viewport
+// 2. Reverse-geocode each → extract unique (streetNumber, street, city, state) combos
+// 3. For each unique street, interpolate house numbers in the visible range
+// 4. Geocode each candidate → if it resolves to a real address, place a pin
+//
+// Uses Google Geocoding API (same source as the tile labels) — no extra key needed.
+
 async function fetchAddressesForViewport() {
   if (!autoPopEnabled) return;
-  if (autoPopActive) return;
-  if (!map) return;
+  if (autoPopActive)   return;
+  if (!map || !geocoder) return;
 
   const zoom = map.getZoom();
   if (zoom < AUTO_POP_MIN_ZOOM) {
-    if (typeof showToast === 'function') showToast(`Zoom in more to load address pins (zoom ${zoom}/17+)`, 2500);
+    if (typeof showToast === 'function')
+      showToast(`Zoom in to street level to load address pins (currently zoom ${zoom}, need 17+)`, 3000);
     return;
   }
 
   const bounds = map.getBounds();
   if (!bounds) return;
 
-  // Don't re-fetch if bounds haven't changed significantly
+  // Skip if viewport hasn't changed meaningfully
   if (lastFetchBounds) {
-    const overlap = bounds.intersects(lastFetchBounds);
-    const ne = bounds.getNorthEast(), sw = bounds.getSouthWest();
+    const ne  = bounds.getNorthEast(),     sw  = bounds.getSouthWest();
     const lne = lastFetchBounds.getNorthEast(), lsw = lastFetchBounds.getSouthWest();
-    const moved = Math.abs(ne.lat()-lne.lat()) > 0.001 || Math.abs(ne.lng()-lne.lng()) > 0.001;
-    if (overlap && !moved) return;
+    if (Math.abs(ne.lat()-lne.lat()) < 0.0005 && Math.abs(ne.lng()-lne.lng()) < 0.0005) return;
   }
 
-  autoPopActive = true;
-  lastFetchBounds = bounds;
+  autoPopActive    = true;
+  lastFetchBounds  = bounds;
 
-  const ne = bounds.getNorthEast();
-  const sw = bounds.getSouthWest();
-  const S = sw.lat().toFixed(6), W = sw.lng().toFixed(6);
-  const N = ne.lat().toFixed(6), E = ne.lng().toFixed(6);
+  if (typeof showToast === 'function') showToast('🔍 Scanning streets for addresses…', 2000);
 
-  if (typeof showToast === 'function') showToast('🔍 Loading addresses for this area…', 2500);
+  const ne = bounds.getNorthEast(), sw = bounds.getSouthWest();
+  const latSpan = ne.lat() - sw.lat();
+  const lngSpan = ne.lng() - sw.lng();
 
-  // Overpass query: get all nodes/ways with a house number in this bbox
-  const query = `[out:json][timeout:20];
-(
-  node["addr:housenumber"]["addr:street"](${S},${W},${N},${E});
-  way["addr:housenumber"]["addr:street"](${S},${W},${N},${E});
-);
-out center qt 500;`;
+  // ── STEP 1: Sample grid points across viewport to find street names ──
+  const GRID = 4; // 4x4 = 16 sample points
+  const streetMap = {}; // "streetName,city,state" → { numbers:[], city, state }
 
-  try {
-    const resp = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: query,
-      headers: { 'Content-Type': 'text/plain' },
+  const samplePoints = [];
+  for (let r = 0; r < GRID; r++) {
+    for (let c = 0; c < GRID; c++) {
+      samplePoints.push({
+        lat: sw.lat() + (latSpan * (r + 0.5) / GRID),
+        lng: sw.lng() + (lngSpan * (c + 0.5) / GRID),
+      });
+    }
+  }
+
+  // Reverse-geocode each sample point
+  for (const pt of samplePoints) {
+    await new Promise(resolve => {
+      geocoder.geocode({ location: pt }, (results, status) => {
+        if (status === 'OK' && results) {
+          for (const r of results) {
+            const numC   = r.address_components?.find(c => c.types.includes('street_number'));
+            const routeC = r.address_components?.find(c => c.types.includes('route'));
+            const cityC  = r.address_components?.find(c => c.types.includes('locality'));
+            const stateC = r.address_components?.find(c => c.types.includes('administrative_area_level_1'));
+
+            if (numC && routeC) {
+              const key   = `${routeC.long_name}||${cityC?.long_name||''}||${stateC?.short_name||''}`;
+              const num   = parseInt(numC.long_name);
+              if (!streetMap[key]) streetMap[key] = { street: routeC.long_name, city: cityC?.long_name||'', state: stateC?.short_name||'', numbers: [] };
+              if (!isNaN(num)) streetMap[key].numbers.push(num);
+            }
+          }
+        }
+        setTimeout(resolve, 60); // pace geocoding
+      });
     });
+  }
 
-    if (!resp.ok) throw new Error('Overpass API error: ' + resp.status);
-    const data = await resp.json();
+  const streets = Object.values(streetMap);
+  if (streets.length === 0) {
+    if (typeof showToast === 'function') showToast('No streets identified in this area', 2000);
+    autoPopActive = false;
+    return;
+  }
 
-    if (!data.elements || data.elements.length === 0) {
-      if (typeof showToast === 'function') showToast('No address data found for this area in OpenStreetMap', 3000);
-      autoPopActive = false;
-      return;
+  // ── STEP 2: For each street, interpolate the full address range ──
+  let totalAdded = 0;
+  const myName = window.currentSession?.name || '';
+
+  for (const s of streets) {
+    if (s.numbers.length === 0) continue;
+
+    const minNum = Math.min(...s.numbers);
+    const maxNum = Math.max(...s.numbers);
+
+    // Expand range slightly beyond what we sampled
+    const rangeMin = Math.max(1,  minNum - 4);
+    const rangeMax = maxNum + 4;
+
+    // Determine parity (even/odd street side) or try both
+    const allEven = s.numbers.every(n => n % 2 === 0);
+    const allOdd  = s.numbers.every(n => n % 2 !== 0);
+    const step    = 2; // US addresses increment by 2 per house
+
+    const candidates = [];
+    const startNum = allOdd ? (rangeMin % 2 === 0 ? rangeMin + 1 : rangeMin)
+                  : allEven ? (rangeMin % 2 !== 0 ? rangeMin + 1 : rangeMin)
+                  : rangeMin;
+
+    // Build both sides (even and odd) unless we know which side we're on
+    for (let n = startNum; n <= rangeMax; n += step) candidates.push(n);
+    if (!allEven && !allOdd) {
+      // Add the other parity too
+      const otherStart = startNum % 2 === 0 ? startNum + 1 : startNum - 1;
+      for (let n = Math.max(1, otherStart); n <= rangeMax; n += step) candidates.push(n);
     }
 
-    let added = 0;
-    const myName = window.currentSession?.name || '';
-
-    for (const el of data.elements) {
-      const osmId = 'osm_' + el.type + '_' + el.id;
+    // ── STEP 3: Geocode each candidate address ──
+    for (const num of candidates) {
+      const fullAddress = `${num} ${s.street}, ${s.city}, ${s.state}`;
+      const pinKey      = `geo_${num}_${s.street.replace(/\s+/g,'_')}_${s.city}`.toLowerCase();
 
       // Skip if already placed
-      if (addressPins[osmId]) continue;
+      if (addressPins[pinKey]) continue;
 
-      const lat = el.lat || el.center?.lat;
-      const lng = el.lon || el.center?.lon;
-      if (!lat || !lng) continue;
+      // Skip if already knocked
+      addressPins[pinKey] = 'pending'; // reserve slot
 
-      const houseNum = el.tags['addr:housenumber'];
-      const street   = el.tags['addr:street'];
-      const city     = el.tags['addr:city'] || '';
-      const state    = el.tags['addr:state'] || '';
-      const address  = `${houseNum} ${street}${city ? ', ' + city : ''}${state ? ', ' + state : ''}`;
+      await new Promise(resolve => {
+        geocoder.geocode({ address: fullAddress }, (results, status) => {
+          if (status === 'OK' && results[0]) {
+            const loc   = results[0].geometry.location;
+            const lat   = loc.lat();
+            const lng   = loc.lng();
+            const addr  = results[0].formatted_address;
 
-      // Skip if this location already has a knocked pin
-      const alreadyKnocked = knocks.some(k =>
-        Math.abs(k.lat - lat) < 0.00008 && Math.abs(k.lng - lng) < 0.00008
-      );
-      if (alreadyKnocked) { addressPins[osmId] = 'existing'; continue; }
+            // Verify it's within our map bounds (geocoder may return distant results)
+            if (!bounds.contains({ lat, lng })) {
+              addressPins[pinKey] = null; // release slot
+              return setTimeout(resolve, 50);
+            }
 
-      // Create unvisited pin (status: 'unvisited' — grey, not yet knocked)
-      const knock = {
-        id: osmId,
-        lat, lng,
-        address,
-        status: 'unvisited',
-        rep: '',
-        notes: '',
-        time: new Date().toISOString(),
-        autoPopulated: true,   // flag so we know it came from OSM
-      };
+            // Skip if already knocked at this location
+            const already = knocks.some(k =>
+              Math.abs(k.lat - lat) < 0.00006 && Math.abs(k.lng - lng) < 0.00006
+            );
+            if (already) {
+              addressPins[pinKey] = 'existing';
+              return setTimeout(resolve, 50);
+            }
 
-      knocks.push(knock);
-      addMarker(knock);
-      addressPins[osmId] = osmId;
-      added++;
+            // Place unvisited pin
+            const knock = {
+              id: pinKey,
+              lat, lng, address: addr,
+              status: 'unvisited',
+              rep: '', notes: '',
+              time: new Date().toISOString(),
+              autoPopulated: true,
+            };
 
-      // Stagger rendering slightly to avoid browser freeze
-      if (added % 20 === 0) await new Promise(r => setTimeout(r, 10));
+            knocks.push(knock);
+            addMarker(knock);
+            totalAdded++;
+          } else {
+            addressPins[pinKey] = null; // geocode failed = not a real address
+          }
+          setTimeout(resolve, 55); // pace: ~18 req/s, well under 50/s limit
+        });
+      });
+
+      // Update stats every 10 pins so user sees progress
+      if (totalAdded % 10 === 0 && totalAdded > 0) {
+        updateStats();
+        renderList();
+      }
     }
+  }
 
-    updateStats();
-    if (added > 0 && typeof showToast === 'function') {
-      showToast(`✅ Loaded ${added} address pins for this area`, 3500);
-    }
+  updateStats();
+  renderList();
 
-  } catch(err) {
-    console.error('[KnockTrack] Overpass fetch error:', err);
-    if (typeof showToast === 'function') showToast('Could not load addresses — check connection', 3000);
+  if (totalAdded > 0) {
+    if (typeof showToast === 'function') showToast(`✅ ${totalAdded} address pins loaded`, 4000);
+  } else {
+    if (typeof showToast === 'function') showToast('All visible addresses already loaded', 2500);
   }
 
   autoPopActive = false;
 }
 
-// ── Hook: re-fetch when user stops panning/zooming ─────────────────────
-function initAddressPinAutoFetch() {
-  let debounceTimer = null;
+// ── Re-fetch when user finishes panning/zooming ────────────────────────
+function initAddressPinAutoFetch() {  let debounceTimer = null;
   map.addListener('idle', () => {
     if (!autoPopEnabled) return;
     clearTimeout(debounceTimer);
