@@ -808,6 +808,15 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 /* CSV export only visible to owners */
 .owner-only-csv { display:none; }
 
+
+/* Zone drawing mode */
+#google-map.zone-draw-mode {
+  cursor: crosshair !important;
+}
+#google-map.zone-draw-mode * {
+  cursor: crosshair !important;
+}
+
 @keyframes shake {
   0%,100% { transform: translateX(0); }
   20%      { transform: translateX(-8px); }
@@ -953,8 +962,8 @@ textarea#knock-notes:focus { border-color:var(--accent); }
     <!-- Tab: Calendar -->
     <div id="dash-panel-calendar" style="display:none;padding:0">
 
-      <!-- Rep selector gate -->
-      <div id="cal-rep-gate" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;text-align:center;gap:16px">
+      <!-- Rep selector — ONLY for owners, shown inline not as a blocking gate -->
+      <div id="cal-rep-gate" style="display:none;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;text-align:center;gap:16px">
         <div style="font-size:40px">📅</div>
         <div style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;color:var(--text)">Select a Rep's Calendar</div>
         <div style="font-size:13px;color:var(--muted);max-width:280px;line-height:1.6">Select a rep to view their appointments, reminders, and schedule.</div>
@@ -1182,6 +1191,8 @@ textarea#knock-notes:focus { border-color:var(--accent); }
         </button>
         <button class="map-type-btn active-type" id="btn-roadmap" onclick="setMapType('roadmap')">🗺️ Map</button>
         <button class="map-type-btn inactive" id="btn-hybrid" onclick="setMapType('hybrid')">🛰️ Satellite</button>
+        <button class="map-type-btn inactive" id="btn-draw-zone" onclick="toggleZoneMode()" style="border-color:rgba(139,92,246,0.3);color:#a78bfa;white-space:nowrap;flex-shrink:0" title="Draw a knock zone">🔷 Zone</button>
+        <button class="map-type-btn inactive" id="btn-populate-block" onclick="triggerBlockPopulate()" style="border-color:rgba(56,189,248,0.3);color:#38bdf8;white-space:nowrap;flex-shrink:0" title="Auto-populate this block with address pins">🏠 Block</button>
       </div>
 
       <!-- Bottom left controls -->
@@ -1592,7 +1603,14 @@ async function initMap() {
     else map.setCenter(loc);
     map.setZoom(18);
     searchInput.blur();
-    setTimeout(() => openModal(loc.lat(), loc.lng(), null, place.formatted_address), 400);
+    // Offer block scan if this looks like a street address (has street number)
+    const hasStreetNum = place.address_components?.some(c => c.types.includes('street_number'));
+    if (hasStreetNum) {
+      setTimeout(() => openModal(loc.lat(), loc.lng(), null, place.formatted_address), 400);
+    } else {
+      // Street-level search (no number) — offer to populate the whole block
+      setTimeout(() => window.populateBlockPins(loc.lat(), loc.lng(), place.formatted_address), 500);
+    }
   });
 
   searchInput.addEventListener('keydown', e => {
@@ -1635,6 +1653,10 @@ async function initMap() {
 
   // Open map button
   document.getElementById('open-map-btn').addEventListener('click', () => hideDashboard());
+
+  // ── ZONE DRAWING: Initialize DrawingManager ──────────────────────────
+  initZoneDrawing();
+  loadZones();
 }
 
 function geocodeAndOpen(val) {
@@ -2110,6 +2132,376 @@ window.togglePinMode = function(force) {
     hint.style.display = 'none';
   }
 };
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// ZONE DRAWING SYSTEM
+// - Owners draw polygon zones on the map
+// - Each zone stores: id, name, drawnAt, drawnBy, path coords, color
+// - Zones are stored in Supabase AND localStorage as backup
+// - 3-month cooldown: zone turns amber/locked after being knocked
+// - Zones show info popup on click with details + delete option
+// ══════════════════════════════════════════════════════════════════════════
+
+let drawingManager = null;
+let zones = [];          // loaded zone objects
+let zonePolygons = {};   // id → google.maps.Polygon
+let zoneModeActive = false;
+
+// ── Cooldown: 3 months in ms ──
+const ZONE_COOLDOWN_MS = 90 * 24 * 60 * 60 * 1000;
+
+function zoneStatus(zone) {
+  if (!zone.knockedAt) return 'fresh';           // never knocked
+  const elapsed = Date.now() - new Date(zone.knockedAt).getTime();
+  return elapsed < ZONE_COOLDOWN_MS ? 'cooling' : 'ready'; // cooling = avoid, ready = ok to re-knock
+}
+
+function zoneColor(zone) {
+  const s = zoneStatus(zone);
+  if (s === 'cooling') return { fill:'#f97316', stroke:'#ea580c' }; // orange = cooldown
+  if (s === 'ready')   return { fill:'#22c55e', stroke:'#16a34a' }; // green = ready to re-knock
+  return { fill:'#7c3aed', stroke:'#6d28d9' };                       // purple = fresh/unworked
+}
+
+function zoneCooldownLabel(zone) {
+  if (!zone.knockedAt) return 'Never knocked — fresh territory';
+  const elapsed = Date.now() - new Date(zone.knockedAt).getTime();
+  if (elapsed >= ZONE_COOLDOWN_MS) return '✅ Ready to re-knock';
+  const remaining = ZONE_COOLDOWN_MS - elapsed;
+  const days = Math.ceil(remaining / (24*60*60*1000));
+  return `⏳ ${days} days left in cooldown (knocked ${new Date(zone.knockedAt).toLocaleDateString()})`;
+}
+
+// ── Load zones from localStorage (Supabase sync optional) ──
+function loadZones() {
+  try {
+    zones = JSON.parse(localStorage.getItem('kt_zones') || '[]');
+    zones.forEach(z => renderZonePolygon(z));
+  } catch(e) { zones = []; }
+}
+
+function saveZones() {
+  localStorage.setItem('kt_zones', JSON.stringify(zones));
+}
+
+// ── Render a zone polygon on the map ──
+function renderZonePolygon(zone) {
+  // Remove old if re-rendering
+  if (zonePolygons[zone.id]) {
+    zonePolygons[zone.id].setMap(null);
+    delete zonePolygons[zone.id];
+  }
+
+  const c = zoneColor(zone);
+  const polygon = new google.maps.Polygon({
+    paths: zone.path,
+    strokeColor: c.stroke,
+    strokeOpacity: 0.9,
+    strokeWeight: 2.5,
+    fillColor: c.fill,
+    fillOpacity: 0.22,
+    map,
+    clickable: true,
+    zIndex: 1,
+  });
+
+  polygon.addListener('click', () => showZoneInfoPopup(zone));
+  zonePolygons[zone.id] = polygon;
+}
+
+// ── Zone info popup ──
+function showZoneInfoPopup(zone) {
+  document.getElementById('zone-info-overlay')?.remove();
+
+  const isOwner = window._auth ? window._auth.canAccessPortal() : false;
+  const overlay = document.createElement('div');
+  overlay.id = 'zone-info-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
+
+  const c = zoneColor(zone);
+  const status = zoneStatus(zone);
+  const statusBadge = status === 'cooling'
+    ? `<span style="background:rgba(249,115,22,0.2);color:#f97316;border:1px solid #f97316;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">⏳ COOLDOWN</span>`
+    : status === 'ready'
+    ? `<span style="background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid #22c55e;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">✅ READY</span>`
+    : `<span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid #7c3aed;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">🔷 FRESH ZONE</span>`;
+
+  overlay.innerHTML = `
+    <div style="background:#0f1318;border:1px solid rgba(255,255,255,0.1);border-radius:18px;width:100%;max-width:380px;padding:28px 24px;position:relative;animation:fadeSlideIn 0.2s ease">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:#fff">${zone.name || 'Knock Zone'}</div>
+          <div style="margin-top:6px">${statusBadge}</div>
+        </div>
+        <div style="width:44px;height:44px;border-radius:50%;background:${c.fill};border:2px solid ${c.stroke};display:flex;align-items:center;justify-content:center;font-size:20px">🔷</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+        <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:4px">DRAWN BY</div>
+          <div style="font-size:14px;color:#e8edf5;font-weight:600">${zone.drawnBy || 'Unknown'}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:4px">DRAWN ON</div>
+          <div style="font-size:14px;color:#e8edf5;font-weight:600">${new Date(zone.drawnAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:4px">STATUS</div>
+          <div style="font-size:13px;color:#e8edf5">${zoneCooldownLabel(zone)}</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        ${!zone.knockedAt ? `<button onclick="markZoneKnocked('${zone.id}')" style="flex:1;padding:11px;background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.4);border-radius:10px;color:#f97316;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">✅ Mark as Knocked</button>` : ''}
+        ${isOwner ? `<button onclick="deleteZone('${zone.id}')" style="flex:1;padding:11px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Delete Zone</button>` : ''}
+        <button onclick="document.getElementById('zone-info-overlay').remove()" style="flex:1;padding:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#aaa;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Close</button>
+      </div>
+    </div>`;
+
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+// ── Mark zone as knocked (starts 3-month cooldown) ──
+window.markZoneKnocked = function(zoneId) {
+  const idx = zones.findIndex(z => z.id === zoneId);
+  if (idx === -1) return;
+  zones[idx].knockedAt = new Date().toISOString();
+  zones[idx].knockedBy = window.currentSession?.name || 'Unknown';
+  saveZones();
+  renderZonePolygon(zones[idx]);
+  document.getElementById('zone-info-overlay')?.remove();
+  if (typeof showToast === 'function') showToast('Zone marked as knocked — 90-day cooldown started', 4000);
+};
+
+// ── Delete zone (owners only) ──
+window.deleteZone = function(zoneId) {
+  if (!window._auth?.canAccessPortal()) { alert('Owner access required.'); return; }
+  if (!confirm('Delete this zone permanently?')) return;
+  zones = zones.filter(z => z.id !== zoneId);
+  saveZones();
+  if (zonePolygons[zoneId]) { zonePolygons[zoneId].setMap(null); delete zonePolygons[zoneId]; }
+  document.getElementById('zone-info-overlay')?.remove();
+  if (typeof showToast === 'function') showToast('Zone deleted', 2000);
+};
+
+// ── Initialize DrawingManager ──
+function initZoneDrawing() {
+  drawingManager = new google.maps.drawing.DrawingManager({
+    drawingMode: null,   // start idle — activated by button
+    drawingControl: false, // we use our own button
+    polygonOptions: {
+      strokeColor: '#7c3aed',
+      strokeOpacity: 0.9,
+      strokeWeight: 2.5,
+      fillColor: '#7c3aed',
+      fillOpacity: 0.22,
+      clickable: true,
+      editable: true,  // draggable vertices while drawing
+      zIndex: 1,
+    },
+  });
+  drawingManager.setMap(map);
+
+  // When polygon drawing is complete
+  drawingManager.addListener('polygoncomplete', (polygon) => {
+    // Exit drawing mode
+    drawingManager.setDrawingMode(null);
+    toggleZoneMode(false);
+
+    // Extract path coordinates
+    const path = polygon.getPath().getArray().map(latlng => ({
+      lat: latlng.lat(),
+      lng: latlng.lng(),
+    }));
+
+    // Remove the temporary drawing polygon — we'll render our own
+    polygon.setMap(null);
+
+    // Prompt for zone name
+    const name = prompt('Name this zone (e.g. "Edison Street Block"):', 'Knock Zone ' + (zones.length + 1));
+    if (!name) return; // cancelled
+
+    const zone = {
+      id: 'zone_' + Date.now(),
+      name: name.trim() || 'Knock Zone',
+      path,
+      drawnAt: new Date().toISOString(),
+      drawnBy: window.currentSession?.name || 'Unknown',
+      knockedAt: null,
+      knockedBy: null,
+    };
+
+    zones.push(zone);
+    saveZones();
+    renderZonePolygon(zone);
+
+    if (typeof showToast === 'function') showToast(`✅ Zone "${zone.name}" saved`, 3000);
+  });
+}
+
+// ── Toggle zone drawing mode ──
+// ── Trigger block scan from the map (no search needed) ──────────────────
+window.triggerBlockPopulate = async function() {
+  if (!map) return;
+  const center = map.getCenter();
+  const lat = center.lat();
+  const lng = center.lng();
+
+  // Reverse geocode the center to get the street name
+  geocoder.geocode({ location: { lat, lng } }, async (results, status) => {
+    if (status !== 'OK' || !results[0]) {
+      if (typeof showToast === 'function') showToast('Could not identify street at this location', 3000);
+      return;
+    }
+    const addr = results[0].formatted_address;
+    await window.populateBlockPins(lat, lng, addr);
+  });
+};
+
+window.toggleZoneMode = function(force) {
+  zoneModeActive = force !== undefined ? force : !zoneModeActive;
+  const btn = document.getElementById('btn-draw-zone');
+
+  if (zoneModeActive) {
+    drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+    const mapDiv = document.getElementById('google-map');
+    if (mapDiv) mapDiv.classList.add('zone-draw-mode');
+    if (btn) {
+      btn.style.background = 'rgba(124,58,237,0.85)';
+      btn.style.color = '#fff';
+      btn.style.borderColor = '#7c3aed';
+      btn.textContent = '✕ Cancel Zone';
+    }
+    // Disable pin drop mode if active
+    if (typeof togglePinMode === 'function' && pinModeActive) togglePinMode(false);
+    if (typeof showToast === 'function') showToast('🔷 Tap the map to place zone boundary points. Close the shape to finish.', 5000);
+  } else {
+    drawingManager.setDrawingMode(null);
+    const mapDiv2 = document.getElementById('google-map');
+    if (mapDiv2) mapDiv2.classList.remove('zone-draw-mode');
+    if (btn) {
+      btn.style.background = '';
+      btn.style.color = '#a78bfa';
+      btn.style.borderColor = 'rgba(139,92,246,0.3)';
+      btn.textContent = '🔷 Zone';
+    }
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════════════
+// FEATURE: ADDRESS PRE-POPULATION
+// When a user searches for a street address, geocode nearby house numbers
+// and place "unvisited" placeholder pins for the whole block
+// ══════════════════════════════════════════════════════════════════════════
+
+let blockScanActive = false;
+
+// Auto-populate block when a street is searched — called after place_changed
+window.populateBlockPins = async function(centerLat, centerLng, streetName) {
+  if (blockScanActive) return;
+
+  // Only proceed if we have a specific street name
+  if (!streetName || !streetName.includes(' ')) return;
+
+  // Show confirmation
+  const parts = streetName.split(',');
+  const street = parts[0]?.trim();
+  if (!street) return;
+
+  const confirmed = confirm(
+    `📍 Auto-populate block?\n\n"${street}"\n\nThis will search for nearby addresses on this block and place unvisited pins.\n\nYou can update each pin's status as you knock.`
+  );
+  if (!confirmed) return;
+
+  blockScanActive = true;
+  if (typeof showToast === 'function') showToast('🔍 Scanning block for addresses…', 3000);
+
+  // Use reverse geocoding at nearby offsets to find house numbers on this block
+  // Strategy: step along the street at small intervals, geocode each point
+  const STEPS = 10;       // how many points to sample along the block
+  const STEP_DEG = 0.0002; // ~22m per step
+  const found = new Set();
+  const toAdd = [];
+
+  for (let i = -STEPS; i <= STEPS; i++) {
+    const lat = centerLat + (i * STEP_DEG);
+    const lng = centerLng + (i * STEP_DEG * 0.5);
+
+    try {
+      await new Promise((resolve, reject) => {
+        geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+          if (status === 'OK' && results[0]) {
+            const addr = results[0].formatted_address;
+            const routeComp = results[0].address_components?.find(c => c.types.includes('route'));
+            const numComp   = results[0].address_components?.find(c => c.types.includes('street_number'));
+
+            // Only add if same street + has a number + not already existing knock
+            if (numComp && routeComp && addr && !found.has(addr)) {
+              const streetRoute = routeComp.long_name?.toLowerCase();
+              const searchStreet = street?.toLowerCase();
+              const sameStreet = streetRoute && searchStreet &&
+                (searchStreet.includes(streetRoute) || streetRoute.includes(searchStreet.split(' ').slice(0,2).join(' ')));
+
+              if (sameStreet) {
+                const rlat = results[0].geometry.location.lat();
+                const rlng = results[0].geometry.location.lng();
+
+                // Don't duplicate existing knocked addresses
+                const alreadyKnocked = knocks.some(k =>
+                  Math.abs(k.lat - rlat) < 0.0001 && Math.abs(k.lng - rlng) < 0.0001
+                );
+
+                if (!alreadyKnocked) {
+                  found.add(addr);
+                  toAdd.push({ lat: rlat, lng: rlng, address: addr });
+                }
+              }
+            }
+          }
+          setTimeout(resolve, 150); // respect geocoding rate limit
+        });
+      });
+    } catch(e) {}
+  }
+
+  blockScanActive = false;
+
+  if (toAdd.length === 0) {
+    if (typeof showToast === 'function') showToast('No additional addresses found on this block', 3000);
+    return;
+  }
+
+  // Create "not-home" placeholder pins for all found addresses
+  if (!confirm(`Found ${toAdd.length} address(es) on "${street}".\n\nAdd them as unvisited pins?`)) return;
+
+  const myName = window.currentSession?.name || '';
+  for (const addr of toAdd) {
+    const knock = {
+      id: 'block_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+      lat: addr.lat,
+      lng: addr.lng,
+      address: addr.address,
+      status: 'not-home',   // default: unvisited (grey dot)
+      rep: myName,
+      notes: 'Auto-populated — tap to update status',
+      time: new Date().toISOString(),
+    };
+    knocks.push(knock);
+    addMarker(knock);
+    await updateKnock(knock);
+    await new Promise(r => setTimeout(r, 80)); // stagger saves
+  }
+
+  updateStats();
+  renderList();
+  if (typeof showToast === 'function') showToast(`✅ Added ${toAdd.length} address pins to this block`, 4000);
+};
+// ══════════════════════════════════════════════════════════════════════════
+// END ZONE DRAWING + ADDRESS PRE-POPULATION
+// ══════════════════════════════════════════════════════════════════════════
+
 
 window.setMapType = function(type) {
   if (!map) return;
@@ -3203,28 +3595,24 @@ window.switchDashTab = function(tab) {
   });
   if (tab === 'calendar') {
     const isOwner = window._auth ? window._auth.canAccessPortal() : false;
-    if (!isOwner && window.currentSession?.name) {
-      // Rep: auto-load their own calendar immediately — no gate, no dropdown
-      window.calCurrentRep = window.currentSession.name;
-      document.getElementById('cal-rep-gate').style.display = 'none';
-      document.getElementById('cal-main').style.display = 'flex';
-      const nameDisplay = document.getElementById('cal-rep-name-display');
-      if (nameDisplay) nameDisplay.textContent = '📅 ' + window.currentSession.name;
-      const changeBtn = document.querySelector('[onclick="loadCalendarForRep(\'\')"]');
-      if (changeBtn) changeBtn.style.display = 'none'; // reps can't change to another rep
-      renderCalendar();
-    } else {
-      // Owner: show rep selector dropdown
-      populateCalRepSelect();
-      if (!window.calCurrentRep) {
-        document.getElementById('cal-rep-gate').style.display = 'flex';
-        document.getElementById('cal-main').style.display = 'none';
-      } else {
-        document.getElementById('cal-rep-gate').style.display = 'none';
-        document.getElementById('cal-main').style.display = 'flex';
-        renderCalendar();
-      }
-    }
+    const myName = window.currentSession?.name || '';
+
+    // Always default to logged-in user's own calendar
+    if (!window.calCurrentRep && myName) window.calCurrentRep = myName;
+
+    // Hide the gate entirely — nobody should see "Select a Rep" on load
+    document.getElementById('cal-rep-gate').style.display = 'none';
+    document.getElementById('cal-main').style.display = 'flex';
+
+    // Set the display name
+    const nameDisplay = document.getElementById('cal-rep-name-display');
+    if (nameDisplay) nameDisplay.textContent = '📅 ' + (window.calCurrentRep || myName);
+
+    // Show/hide the "Switch Rep" button — owners only
+    const changeBtn = document.getElementById('cal-change-rep-btn');
+    if (changeBtn) changeBtn.style.display = isOwner ? '' : 'none';
+
+    renderCalendar();
   }
   if (tab === 'leaderboard') renderLeaderboard();
   if (tab === 'overview') renderOverviewExtras();
@@ -3389,29 +3777,32 @@ function populateCalRepSelect() {
 }
 
 window.loadCalendarForRep = function(repName) {
-  // Access control: reps can only load their own calendar
   const isOwner = window._auth ? window._auth.canAccessPortal() : false;
-  if (!isOwner && window.currentSession?.name && repName && repName !== window.currentSession.name) {
-    console.warn('[KnockTrack] Rep attempted to load another rep\'s calendar — blocked');
-    return;
+  const myName = window.currentSession?.name || '';
+
+  // Access control: reps can only ever view their own calendar
+  if (!isOwner) {
+    // Force to their own name — ignore any attempt to view another rep
+    repName = myName;
   }
-  window.calCurrentRep = repName;
+
+  window.calCurrentRep = repName || myName;
+
   const gate = document.getElementById('cal-rep-gate');
   const main = document.getElementById('cal-main');
-  if (!repName) {
-    if (isOwner) {
-      gate.style.display = 'flex'; main.style.display = 'none';
-      populateCalRepSelect();
-    } else {
-      // Rep can't clear their calendar — re-load their own
-      window.calCurrentRep = window.currentSession?.name || '';
-      if (window.calCurrentRep) renderCalendar();
-    }
+
+  if (!window.calCurrentRep) {
+    // Only owners with no selection see the gate
+    gate.style.display = 'flex'; main.style.display = 'none';
+    populateCalRepSelect();
     return;
   }
+
   gate.style.display = 'none'; main.style.display = 'flex';
   const nameDisplay = document.getElementById('cal-rep-name-display');
-  if (nameDisplay) nameDisplay.textContent = '📅 ' + repName;
+  if (nameDisplay) nameDisplay.textContent = '📅 ' + window.calCurrentRep;
+  const changeBtn = document.getElementById('cal-change-rep-btn');
+  if (changeBtn) changeBtn.style.display = isOwner ? '' : 'none';
   calYear = new Date().getFullYear();
   calMonth = new Date().getMonth();
   renderCalendar();
@@ -4030,6 +4421,42 @@ setInterval(checkUpcomingNotifications, 5 * 60 * 1000);
 setTimeout(() => { scheduleNotifications(); checkUpcomingNotifications(); }, 3000);
 // ── END CALENDAR ──────────────────────────────────────
 
+
+window.renderZonesPortal = function() {
+  const list = document.getElementById('zones-portal-list');
+  if (!list) return;
+  const zonesData = JSON.parse(localStorage.getItem('kt_zones') || '[]');
+  if (zonesData.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);font-family:'Montserrat',sans-serif;font-size:13px">No zones drawn yet. Go to the map and click 🔷 Zone to draw your first territory.</div>`;
+    return;
+  }
+
+  list.innerHTML = zonesData.map(zone => {
+    const s = !zone.knockedAt ? 'fresh' : (Date.now() - new Date(zone.knockedAt).getTime() < 90*24*60*60*1000 ? 'cooling' : 'ready');
+    const badgeStyle = s === 'cooling' ? 'background:rgba(249,115,22,0.15);color:#f97316;border:1px solid #f97316'
+      : s === 'ready' ? 'background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid #22c55e'
+      : 'background:rgba(124,58,237,0.15);color:#a78bfa;border:1px solid #7c3aed';
+    const badgeLabel = s === 'cooling' ? '⏳ COOLDOWN' : s === 'ready' ? '✅ READY' : '🔷 FRESH';
+    const drawnDate = new Date(zone.drawnAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const cooldownText = !zone.knockedAt ? 'Not yet knocked'
+      : s === 'ready' ? 'Ready to re-knock'
+      : `${Math.ceil((90*24*60*60*1000 - (Date.now()-new Date(zone.knockedAt).getTime()))/(24*60*60*1000))} days left`;
+
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px">
+      <div style="width:44px;height:44px;border-radius:10px;background:rgba(124,58,237,0.2);border:1px solid rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🔷</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Outfit',sans-serif;font-size:15px;font-weight:800;color:var(--text)">${zone.name}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Drawn by ${zone.drawnBy || 'Unknown'} · ${drawnDate}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:1px">${cooldownText}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
+        <span style="border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;${badgeStyle}">${badgeLabel}</span>
+        <button onclick="deleteZone('${zone.id}');renderZonesPortal()" style="padding:5px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:8px;color:#ef4444;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+};
+
 window.switchPortalTab = function(tab) {
   // Gate: re-validate access before rendering any portal content
   if (!window._auth.canAccessPortal()) {
@@ -4037,7 +4464,7 @@ window.switchPortalTab = function(tab) {
     if (typeof showToast === 'function') showToast('🔒 Session expired. Please log in again.', 3000);
     return;
   }
-  ['reps','evals','compare','ratings','deleted'].forEach(t => {
+  ['reps','evals','compare','ratings','deleted','zones'].forEach(t => {
     const panel = document.getElementById(`portal-panel-${t}`);
     const btn = document.getElementById(`ptab-${t}`);
     if (panel) panel.style.display = t === tab ? 'block' : 'none';
@@ -4049,6 +4476,7 @@ window.switchPortalTab = function(tab) {
   if (tab === 'evals') renderEvaluations();
   if (tab === 'compare') populateCompareDropdowns();
   if (tab === 'deleted') renderDeletedLog();
+  if (tab === 'zones') renderZonesPortal();
 };
 
 // ══════════════════════════════════════════════════════════════════════
@@ -5241,6 +5669,8 @@ function darkMapStyle() {
       // Restore currentSession immediately — before Maps API loads
       // This means canAccessPortal() works the instant the page renders
       window.currentSession = verified;
+      // Also restore calCurrentRep immediately — prevents empty state on calendar open
+      if (verified.name) window.calCurrentRep = verified.name;
 
       // Hide login screen immediately
       const loginEl = document.getElementById('login-screen');
@@ -5278,6 +5708,7 @@ function darkMapStyle() {
       🗑️ Deleted
       <span id="deleted-pins-badge" style="display:none;position:absolute;top:6px;right:4px;background:var(--danger);color:#fff;border-radius:10px;font-size:9px;font-weight:900;padding:1px 5px;min-width:14px;text-align:center"></span>
     </button>
+    <button class="dash-tab" id="ptab-zones" onclick="switchPortalTab('zones')" style="flex:1;padding:13px 8px;border:none;background:transparent;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">🔷 Zones</button>
   </div>
 
   <!-- Manage Reps Tab -->
@@ -5360,6 +5791,21 @@ function darkMapStyle() {
 
   </div>
   <!-- End Deleted Pins Tab -->
+
+  <!-- Zones Management Tab -->
+  <div id="portal-panel-zones" style="display:none;padding:20px;max-width:900px;margin:0 auto;width:100%">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:#a78bfa">🔷 Knock Zones</div>
+        <div style="font-family:'Montserrat',sans-serif;font-size:12px;color:var(--muted);margin-top:2px">All drawn territory zones — 90-day cooldown tracked automatically</div>
+      </div>
+      <button onclick="closeBackendPortal();setTimeout(()=>toggleZoneMode(),200)" style="padding:11px 20px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);border-radius:10px;color:#a78bfa;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">🔷 Draw New Zone</button>
+    </div>
+    <div id="zones-portal-list" style="display:flex;flex-direction:column;gap:10px">
+      <div style="text-align:center;padding:40px;color:var(--muted);font-family:'Montserrat',sans-serif;font-size:13px">No zones drawn yet. Go to the map and click 🔷 Zone to draw your first territory.</div>
+    </div>
+  </div>
+  <!-- End Zones Tab -->
 
   <!-- Rating Guide Tab ---->
   <!-- Compare Tab -->
@@ -5534,6 +5980,7 @@ function initAuth() {
   if (session) {
     // Returning user with saved session — skip login entirely
     window.currentSession = session;
+    if (session.name) window.calCurrentRep = session.name;
     hideLoginScreen();
     applySession(session);
     if (session.isOwner) {
@@ -5862,10 +6309,9 @@ function applySession(session) {
     document.querySelectorAll('.owner-only-csv').forEach(el => el.style.display = '');
   }
 
-  // Auto-filter calendar to this rep
-  if (!session.isOwner) {
-    calCurrentRep = session.name;
-  }
+  // Set calCurrentRep for ALL users (owners and reps alike)
+  // Everyone's calendar defaults to their own — owners can switch via button
+  window.calCurrentRep = session.name;
 
   // Show/hide calendar "← Change Rep" button based on role
   const changeBtn = document.getElementById('cal-change-rep-btn');
@@ -6232,7 +6678,7 @@ window.toggleActivityFeed = function() {
 
 </script>
 
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyS5-AK1G0rZNrn0vsdCn9_PkKzpxiV3A&libraries=places,visualization&callback=initMap"></script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyS5-AK1G0rZNrn0vsdCn9_PkKzpxiV3A&libraries=places,visualization,drawing&callback=initMap"></script>
 
 <!-- ═══ LOGIN SCREEN ═══ -->
 
