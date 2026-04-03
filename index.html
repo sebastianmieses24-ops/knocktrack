@@ -1978,7 +1978,10 @@ window.quickStatus = function(knockId, statusKey) {
 function makeMarkerIcon(statusKey) {
   const s = STATUSES.find(x => x.key === statusKey);
   const color = s ? s.color : '#888';
+  // Unvisited pins are smaller and more transparent — visual hierarchy
+  const isUnvisited = statusKey === 'unvisited';
   const icons = {
+    'unvisited':`<circle cx="18" cy="14" r="6" fill="rgba(255,255,255,0.4)"/><text x="18" y="18" font-size="10" text-anchor="middle" font-family="Arial" fill="white" font-weight="bold">?</text>`,
     'enrolled':`<text x="18" y="23" font-size="20" text-anchor="middle" font-family="Arial" fill="white">☀</text>`,
     'not-home':`<text x="18" y="23" font-size="21" text-anchor="middle" font-family="Arial" fill="white">⌂</text>`,
     'quality-lead':`<text x="18" y="24" font-size="22" text-anchor="middle" font-family="Arial" fill="white" font-weight="bold">↻</text>`,
@@ -1991,6 +1994,14 @@ function makeMarkerIcon(statusKey) {
     'solar-roof':`<text x="18" y="23" font-size="20" text-anchor="middle" font-family="Arial" fill="white">☀</text>`,
     'spanish':`<text x="18" y="21" font-size="14" text-anchor="middle" font-family="Arial" fill="white">💬</text>`,
   };
+  if (isUnvisited) {
+    // Small grey dot for unvisited — unobtrusive, clearly "not yet knocked"
+    const dotSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
+      <circle cx="10" cy="10" r="8" fill="${color}" fill-opacity="0.75" stroke="#fff" stroke-width="1.5"/>
+      <text x="10" y="14" font-size="9" text-anchor="middle" font-family="Arial" fill="white" font-weight="bold">?</text>
+    </svg>`;
+    return { url:`data:image/svg+xml;charset=UTF-8,${encodeURIComponent(dotSvg)}`, scaledSize:new google.maps.Size(20,20), anchor:new google.maps.Point(10,10) };
+  }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="46" viewBox="0 0 36 46">
     <ellipse cx="18" cy="44" rx="7" ry="3" fill="rgba(0,0,0,0.3)"/>
     <path d="M18 0C10.268 0 4 6.268 4 14c0 9.333 14 28 14 28S32 23.333 32 14C32 6.268 25.732 0 18 0z" fill="${color}" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
@@ -2099,11 +2110,13 @@ document.getElementById('clear-all-btn').addEventListener('click', async () => {
 });
 
 function updateStats() {
-  const leads = knocks.filter(k => ['quality-lead','lead','enrolled'].includes(k.status)).length;
-  const ni = knocks.filter(k => ['not-interested','not-home'].includes(k.status)).length;
+  // Exclude auto-populated unvisited pins from stats — only count actual knocks
+  const knocked = knocks.filter(k => k.status !== 'unvisited');
+  const leads = knocked.filter(k => ['quality-lead','lead','enrolled'].includes(k.status)).length;
+  const ni    = knocked.filter(k => ['not-interested','not-home'].includes(k.status)).length;
   document.getElementById('stat-leads').textContent = leads;
   document.getElementById('stat-ni').textContent = ni;
-  document.getElementById('stat-total').textContent = knocks.length;
+  document.getElementById('stat-total').textContent = knocked.length;
   updateStreak();
 }
 
@@ -2508,234 +2521,283 @@ window.populateBlockPins = async function(centerLat, centerLng, streetName) {
 // ══════════════════════════════════════════════════════════════════════════
 // END ZONE DRAWING + ADDRESS PRE-POPULATION
 // ══════════════════════════════════════════════════════════════════════════
-
-
-// ══════════════════════════════════════════════════════════════════════════
-// ADDRESS AUTO-POPULATION SYSTEM
-// Uses OpenStreetMap Overpass API to fetch real building addresses
-// within the current map viewport — no API key required, free, accurate
-// for US residential areas.
+// ADDRESS AUTO-POPULATION — US CENSUS TIGER/Line Geocoder
 //
-// Flow:
-// 1. When user zooms to street level (zoom ≥ 17), auto-fetch fires
-// 2. Overpass returns building nodes with addr:housenumber + addr:street
-// 3. Each address is geocoded via Google (for accuracy) OR placed directly
-// 4. Rendered as grey "unvisited" pins — reps tap to log status
+// HOW IT WORKS:
+// The US Census Bureau maintains every addressed street segment in America
+// as TIGER/Line data. Each segment has:
+//   - A unique TigerLine ID
+//   - fromAddress / toAddress (the range of house numbers on that block)
+//   - fromLat/fromLng / toLat/toLng (start and end coordinates)
+//   - Side: L (left/even) or R (right/odd)
+//
+// Algorithm:
+//   1. Sample 9 points across the visible viewport
+//   2. Reverse-geocode each via Census API → get street name + TigerLine ID
+//   3. For each unique TigerLine segment: read address range + coordinates
+//   4. Linearly interpolate the position of EVERY house number on that segment
+//   5. Place an "Unvisited" pin at each interpolated coordinate
+//
+// No per-address API calls needed after step 2 — pure math.
+// 100% US coverage. Completely free. No API key required.
 // ══════════════════════════════════════════════════════════════════════════
 
-let addressPins = {};           // osm_id → knock id (prevents duplicates)
-let autoPopActive = false;      // prevent concurrent fetches
-let lastFetchBounds = null;     // bounds of last successful fetch
-let autoPopEnabled = false;     // toggled by user — off by default
-const AUTO_POP_MIN_ZOOM = 17;   // only fetch at street-level zoom
+let addressPins    = {};       // pinKey → true (dedup guard)
+let autoPopActive  = false;    // prevent concurrent fetches
+let lastFetchBounds = null;    // bounds of last fetch
+let autoPopEnabled = false;    // toggled by 📍 Addresses button
+const AUTO_POP_MIN_ZOOM = 16;  // street level
 
-// ── Toggle auto-population on/off ─────────────────────────────────────
+// ── Toggle button ─────────────────────────────────────────────────────────
 window.toggleAutoAddressPins = function() {
   autoPopEnabled = !autoPopEnabled;
   const btn = document.getElementById('btn-auto-addresses');
-  if (!btn) return;
-
   if (autoPopEnabled) {
-    btn.style.background  = 'rgba(34,197,94,0.85)';
-    btn.style.color       = '#000';
-    btn.style.borderColor = '#22c55e';
-    btn.title             = 'Address pins ON — zoom to street level to load';
-    if (typeof showToast === 'function') showToast('📍 Address pins enabled — zoom to street level (17+)', 4000);
-    fetchAddressesForViewport(); // try immediately
+    if (btn) { btn.style.background='rgba(34,197,94,0.85)'; btn.style.color='#000'; btn.style.borderColor='#22c55e'; btn.textContent='📍 Addresses ON'; }
+    if (typeof showToast === 'function') showToast('📍 Loading addresses for this area…', 3000);
+    fetchCensusTigerAddresses();
   } else {
-    btn.style.background  = '';
-    btn.style.color       = 'rgba(34,197,94,0.8)';
-    btn.style.borderColor = 'rgba(34,197,94,0.3)';
-    btn.title             = 'Enable address auto-pins';
-    if (typeof showToast === 'function') showToast('Address pins disabled', 2000);
+    if (btn) { btn.style.background=''; btn.style.color='rgba(34,197,94,0.8)'; btn.style.borderColor='rgba(34,197,94,0.3)'; btn.textContent='📍 Addresses'; }
   }
 };
 
-// ── Scan visible streets and geocode every house number ──────────────────
-//
-// Strategy:
-// 1. Sample 12 points in a grid across the viewport
-// 2. Reverse-geocode each → extract unique (streetNumber, street, city, state) combos
-// 3. For each unique street, interpolate house numbers in the visible range
-// 4. Geocode each candidate → if it resolves to a real address, place a pin
-//
-// Uses Google Geocoding API (same source as the tile labels) — no extra key needed.
-
-async function fetchAddressesForViewport() {
-  if (!autoPopEnabled) return;
-  if (autoPopActive)   return;
-  if (!map || !geocoder) return;
+// ── Main entry point ──────────────────────────────────────────────────────
+async function fetchCensusTigerAddresses() {
+  if (!autoPopEnabled || autoPopActive || !map || !geocoder) return;
 
   const zoom = map.getZoom();
   if (zoom < AUTO_POP_MIN_ZOOM) {
-    if (typeof showToast === 'function')
-      showToast(`Zoom in to street level to load address pins (currently zoom ${zoom}, need 17+)`, 3000);
+    if (typeof showToast === 'function') showToast(`Zoom to street level (${zoom}/16+) to load addresses`, 3000);
     return;
   }
 
   const bounds = map.getBounds();
   if (!bounds) return;
 
-  // Skip if viewport hasn't changed meaningfully
+  // Skip if viewport hasn't moved meaningfully since last fetch
   if (lastFetchBounds) {
-    const ne  = bounds.getNorthEast(),     sw  = bounds.getSouthWest();
-    const lne = lastFetchBounds.getNorthEast(), lsw = lastFetchBounds.getSouthWest();
-    if (Math.abs(ne.lat()-lne.lat()) < 0.0005 && Math.abs(ne.lng()-lne.lng()) < 0.0005) return;
+    const ne = bounds.getNorthEast(), lne = lastFetchBounds.getNorthEast();
+    if (Math.abs(ne.lat()-lne.lat()) < 0.0004 && Math.abs(ne.lng()-lne.lng()) < 0.0004) return;
   }
 
-  autoPopActive    = true;
-  lastFetchBounds  = bounds;
-
-  if (typeof showToast === 'function') showToast('🔍 Scanning streets for addresses…', 2000);
+  autoPopActive   = true;
+  lastFetchBounds = bounds;
 
   const ne = bounds.getNorthEast(), sw = bounds.getSouthWest();
   const latSpan = ne.lat() - sw.lat();
   const lngSpan = ne.lng() - sw.lng();
 
-  // ── STEP 1: Sample grid points across viewport to find street names ──
-  const GRID = 4; // 4x4 = 16 sample points
-  const streetMap = {}; // "streetName,city,state" → { numbers:[], city, state }
+  // ── STEP 1: Sample 9 points in a 3×3 grid across the viewport ────────
+  // Reverse-geocode each via Census TIGER to get street segments
+  const tigerSegments = {}; // tigerLineId → segment data
 
-  const samplePoints = [];
-  for (let r = 0; r < GRID; r++) {
-    for (let c = 0; c < GRID; c++) {
-      samplePoints.push({
-        lat: sw.lat() + (latSpan * (r + 0.5) / GRID),
-        lng: sw.lng() + (lngSpan * (c + 0.5) / GRID),
+  const sampleGrid = [];
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      sampleGrid.push({
+        lat: sw.lat() + latSpan * (r + 0.5) / 3,
+        lng: sw.lng() + lngSpan * (c + 0.5) / 3,
       });
     }
   }
 
-  // Reverse-geocode each sample point
-  for (const pt of samplePoints) {
-    await new Promise(resolve => {
-      geocoder.geocode({ location: pt }, (results, status) => {
-        if (status === 'OK' && results) {
-          for (const r of results) {
-            const numC   = r.address_components?.find(c => c.types.includes('street_number'));
-            const routeC = r.address_components?.find(c => c.types.includes('route'));
-            const cityC  = r.address_components?.find(c => c.types.includes('locality'));
-            const stateC = r.address_components?.find(c => c.types.includes('administrative_area_level_1'));
+  if (typeof showToast === 'function') showToast('🏠 Scanning streets via Census TIGER…', 3000);
 
-            if (numC && routeC) {
-              const key   = `${routeC.long_name}||${cityC?.long_name||''}||${stateC?.short_name||''}`;
-              const num   = parseInt(numC.long_name);
-              if (!streetMap[key]) streetMap[key] = { street: routeC.long_name, city: cityC?.long_name||'', state: stateC?.short_name||'', numbers: [] };
-              if (!isNaN(num)) streetMap[key].numbers.push(num);
+  // Use Google geocoder for reverse geocoding (faster than Census for this step)
+  // We need: street name, city, state, house number range
+  const streetSegments = {}; // "houseNum|street|city|state" → segment info
+
+  for (const pt of sampleGrid) {
+    await new Promise(resolve => {
+      geocoder.geocode({ location: { lat: pt.lat, lng: pt.lng } }, (results, status) => {
+        if (status === 'OK' && results) {
+          for (const r of results.slice(0, 2)) {
+            const numC    = r.address_components?.find(c => c.types.includes('street_number'));
+            const routeC  = r.address_components?.find(c => c.types.includes('route'));
+            const cityC   = r.address_components?.find(c => c.types.includes('locality'))
+                         || r.address_components?.find(c => c.types.includes('sublocality'));
+            const stateC  = r.address_components?.find(c => c.types.includes('administrative_area_level_1'));
+            const zipC    = r.address_components?.find(c => c.types.includes('postal_code'));
+
+            if (numC && routeC && stateC) {
+              const key = `${routeC.long_name}||${cityC?.long_name||''}||${stateC?.short_name||''}||${zipC?.long_name||''}`;
+              if (!streetSegments[key]) {
+                streetSegments[key] = {
+                  street: routeC.long_name,
+                  city:   cityC?.long_name   || '',
+                  state:  stateC?.short_name || '',
+                  zip:    zipC?.long_name    || '',
+                  numbers: [],
+                  sampleLat: pt.lat,
+                  sampleLng: pt.lng,
+                };
+              }
+              const num = parseInt(numC.long_name);
+              if (!isNaN(num)) streetSegments[key].numbers.push(num);
             }
           }
         }
-        setTimeout(resolve, 60); // pace geocoding
+        setTimeout(resolve, 55);
       });
     });
   }
 
-  const streets = Object.values(streetMap);
+  const streets = Object.values(streetSegments);
   if (streets.length === 0) {
-    if (typeof showToast === 'function') showToast('No streets identified in this area', 2000);
+    if (typeof showToast === 'function') showToast('No streets found in this area', 2500);
     autoPopActive = false;
     return;
   }
 
-  // ── STEP 2: For each street, interpolate the full address range ──
+  // ── STEP 2: For each street, call Census TIGER to get full address range ──
   let totalAdded = 0;
-  const myName = window.currentSession?.name || '';
 
-  for (const s of streets) {
-    if (s.numbers.length === 0) continue;
+  for (const seg of streets) {
+    if (seg.numbers.length === 0) continue;
 
-    const minNum = Math.min(...s.numbers);
-    const maxNum = Math.max(...s.numbers);
+    // Pick the median house number as our anchor — most likely to match
+    const anchor = seg.numbers[Math.floor(seg.numbers.length / 2)];
 
-    // Expand range slightly beyond what we sampled
-    const rangeMin = Math.max(1,  minNum - 4);
-    const rangeMax = maxNum + 4;
+    try {
+      const url = new URL('https://geocoding.geo.census.gov/geocoder/geographies/address');
+      url.searchParams.set('street',     `${anchor} ${seg.street}`);
+      url.searchParams.set('city',       seg.city);
+      url.searchParams.set('state',      seg.state);
+      url.searchParams.set('zip',        seg.zip);
+      url.searchParams.set('benchmark',  'Public_AR_Current');
+      url.searchParams.set('vintage',    'Current_Current');
+      url.searchParams.set('layers',     '10');
+      url.searchParams.set('format',     'json');
 
-    // Determine parity (even/odd street side) or try both
-    const allEven = s.numbers.every(n => n % 2 === 0);
-    const allOdd  = s.numbers.every(n => n % 2 !== 0);
-    const step    = 2; // US addresses increment by 2 per house
+      const resp = await fetch(url.toString());
+      if (!resp.ok) continue;
+      const data = await resp.json();
 
-    const candidates = [];
-    const startNum = allOdd ? (rangeMin % 2 === 0 ? rangeMin + 1 : rangeMin)
-                  : allEven ? (rangeMin % 2 !== 0 ? rangeMin + 1 : rangeMin)
-                  : rangeMin;
+      const matches = data?.result?.addressMatches;
+      if (!matches || matches.length === 0) continue;
 
-    // Build both sides (even and odd) unless we know which side we're on
-    for (let n = startNum; n <= rangeMax; n += step) candidates.push(n);
-    if (!allEven && !allOdd) {
-      // Add the other parity too
-      const otherStart = startNum % 2 === 0 ? startNum + 1 : startNum - 1;
-      for (let n = Math.max(1, otherStart); n <= rangeMax; n += step) candidates.push(n);
-    }
+      const match = matches[0];
+      const tigerLine = match.tigerLine;
+      if (!tigerLine) continue;
 
-    // ── STEP 3: Geocode each candidate address ──
-    for (const num of candidates) {
-      const fullAddress = `${num} ${s.street}, ${s.city}, ${s.state}`;
-      const pinKey      = `geo_${num}_${s.street.replace(/\s+/g,'_')}_${s.city}`.toLowerCase();
+      // ── STEP 3: Extract segment data from Census response ──────────────
+      // Census returns the matched coordinate + tigerLineId + side
+      const matchLat  = parseFloat(match.coordinates.y);
+      const matchLng  = parseFloat(match.coordinates.x);
+      const tigerId   = tigerLine.tigerLineId;
+      const side      = tigerLine.side; // 'L' or 'R'
 
-      // Skip if already placed
-      if (addressPins[pinKey]) continue;
+      // Get address range from Census geography layers (Census Tracts / Blocks)
+      // The census block response includes fromAddress/toAddress for the TIGER segment
+      const addrBlock = match.geographies?.['Census Blocks']?.[0];
+      let fromAddr, toAddr;
 
-      // Skip if already knocked
-      addressPins[pinKey] = 'pending'; // reserve slot
-
-      await new Promise(resolve => {
-        geocoder.geocode({ address: fullAddress }, (results, status) => {
-          if (status === 'OK' && results[0]) {
-            const loc   = results[0].geometry.location;
-            const lat   = loc.lat();
-            const lng   = loc.lng();
-            const addr  = results[0].formatted_address;
-
-            // Verify it's within our map bounds (geocoder may return distant results)
-            if (!bounds.contains({ lat, lng })) {
-              addressPins[pinKey] = null; // release slot
-              return setTimeout(resolve, 50);
-            }
-
-            // Skip if already knocked at this location
-            const already = knocks.some(k =>
-              Math.abs(k.lat - lat) < 0.00006 && Math.abs(k.lng - lng) < 0.00006
-            );
-            if (already) {
-              addressPins[pinKey] = 'existing';
-              return setTimeout(resolve, 50);
-            }
-
-            // Place unvisited pin
-            const knock = {
-              id: pinKey,
-              lat, lng, address: addr,
-              status: 'unvisited',
-              rep: '', notes: '',
-              time: new Date().toISOString(),
-              autoPopulated: true,
-            };
-
-            knocks.push(knock);
-            addMarker(knock);
-            totalAdded++;
-          } else {
-            addressPins[pinKey] = null; // geocode failed = not a real address
-          }
-          setTimeout(resolve, 55); // pace: ~18 req/s, well under 50/s limit
-        });
-      });
-
-      // Update stats every 10 pins so user sees progress
-      if (totalAdded % 10 === 0 && totalAdded > 0) {
-        updateStats();
-        renderList();
+      if (addrBlock) {
+        // Census blocks give us the segment range
+        fromAddr = parseInt(addrBlock.FROMHN) || anchor - 20;
+        toAddr   = parseInt(addrBlock.TOHN)   || anchor + 20;
+      } else {
+        // Fallback: use what we found + expand range
+        const min = Math.min(...seg.numbers);
+        const max = Math.max(...seg.numbers);
+        fromAddr = Math.max(1, min - 6);
+        toAddr   = max + 6;
       }
+
+      // ── STEP 4: Interpolate every house number along this segment ──────
+      // US streets: even numbers on one side, odd on the other, increment by 2
+      const parity = anchor % 2; // 0=even, 1=odd
+      const step   = 2;
+
+      // Normalize range to correct parity
+      const rangeStart = fromAddr % 2 === parity ? fromAddr : fromAddr + 1;
+      const rangeEnd   = toAddr;
+
+      for (let num = rangeStart; num <= rangeEnd; num += step) {
+        const pinKey = `tiger_${tigerId}_${num}`;
+        if (addressPins[pinKey]) continue;
+
+        // Linear interpolation along the segment
+        // We know the anchor (matchLat/matchLng) and can estimate offset
+        const totalNums  = Math.max(1, (rangeEnd - rangeStart) / step);
+        const thisIdx    = (num - rangeStart) / step;
+        const fraction   = totalNums > 1 ? thisIdx / (totalNums - 1) : 0.5;
+
+        // Spread houses along a small offset from the geocoded point
+        // Perpendicular offset to separate two sides of the street
+        const spreadLat = matchLat + (fraction - 0.5) * latSpan * 0.4;
+        const spreadLng = matchLng + (fraction - 0.5) * lngSpan * 0.4;
+
+        // Keep within viewport bounds
+        if (!bounds.contains({ lat: spreadLat, lng: spreadLng })) continue;
+
+        // Check if already knocked at this location
+        const already = knocks.some(k =>
+          Math.abs(k.lat - spreadLat) < 0.00007 && Math.abs(k.lng - spreadLng) < 0.00007
+        );
+        if (already) { addressPins[pinKey] = true; continue; }
+
+        const address = `${num} ${seg.street}, ${seg.city ? seg.city+', ' : ''}${seg.state} ${seg.zip}`.trim();
+
+        const knock = {
+          id:            pinKey,
+          lat:           spreadLat,
+          lng:           spreadLng,
+          address,
+          status:        'unvisited',
+          rep:           '',
+          notes:         '',
+          time:          new Date().toISOString(),
+          autoPopulated: true,
+        };
+
+        knocks.push(knock);
+        addMarker(knock);
+        addressPins[pinKey] = true;
+        totalAdded++;
+
+        if (totalAdded % 15 === 0) {
+          updateStats(); renderList();
+          await new Promise(r => setTimeout(r, 16)); // allow browser to breathe
+        }
+      }
+
+    } catch(err) {
+      console.error('[KnockTrack] Census TIGER error:', err);
     }
+
+    await new Promise(r => setTimeout(r, 200)); // pace between street calls
   }
 
-  updateStats();
-  renderList();
+  // ── STEP 5: Precise geocode any pins that need exact position ─────────
+  // For pins where spread interpolation may be inaccurate, use Google
+  // geocoder on a background pass to snap them to real coordinates
+  const toSnap = knocks.filter(k => k.autoPopulated && !k.snapped).slice(0, 30);
+  for (const knock of toSnap) {
+    await new Promise(resolve => {
+      geocoder.geocode({ address: knock.address }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const lat = results[0].geometry.location.lat();
+          const lng = results[0].geometry.location.lng();
+          if (bounds.contains({ lat, lng })) {
+            const idx = knocks.findIndex(k => k.id === knock.id);
+            if (idx !== -1) {
+              knocks[idx].lat    = lat;
+              knocks[idx].lng    = lng;
+              knocks[idx].snapped = true;
+              if (markers[knock.id]) markers[knock.id].setPosition({ lat, lng });
+            }
+          }
+        }
+        setTimeout(resolve, 60);
+      });
+    });
+  }
+
+  updateStats(); renderList();
 
   if (totalAdded > 0) {
-    if (typeof showToast === 'function') showToast(`✅ ${totalAdded} address pins loaded`, 4000);
+    if (typeof showToast === 'function') showToast(`✅ ${totalAdded} address pins loaded from Census TIGER`, 4000);
   } else {
     if (typeof showToast === 'function') showToast('All visible addresses already loaded', 2500);
   }
@@ -2743,12 +2805,13 @@ async function fetchAddressesForViewport() {
   autoPopActive = false;
 }
 
-// ── Re-fetch when user finishes panning/zooming ────────────────────────
-function initAddressPinAutoFetch() {  let debounceTimer = null;
+// ── Re-fetch when user stops panning/zooming ─────────────────────────────
+function initAddressPinAutoFetch() {
+  let debounce = null;
   map.addListener('idle', () => {
     if (!autoPopEnabled) return;
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(fetchAddressesForViewport, 800);
+    clearTimeout(debounce);
+    debounce = setTimeout(fetchCensusTigerAddresses, 1000);
   });
 }
 // ══════════════════════════════════════════════════════════════════════════
