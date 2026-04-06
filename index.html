@@ -2541,7 +2541,7 @@ let addressPins   = {};     // pinKey → true (dedup guard)
 let autoPopActive = false;  // prevent concurrent fetches
 let lastFetchBounds = null; // last fetched bounds
 let autoPopEnabled  = false;
-const AUTO_POP_MIN_ZOOM = 16;
+const AUTO_POP_MIN_ZOOM = 15;
 
 // ── Toggle button ─────────────────────────────────────────────────────────
 window.toggleAutoAddressPins = function() {
@@ -2582,8 +2582,8 @@ async function fetchBuildingPins() {
   // Skip if viewport hasn't moved enough since last fetch
   if (lastFetchBounds) {
     const ne = bounds.getNorthEast(), lne = lastFetchBounds.getNorthEast();
-    if (Math.abs(ne.lat()-lne.lat()) < 0.0003 &&
-        Math.abs(ne.lng()-lne.lng()) < 0.0003) return;
+    if (Math.abs(ne.lat()-lne.lat()) < 0.001 &&
+        Math.abs(ne.lng()-lne.lng()) < 0.001) return;
   }
 
   autoPopActive   = true;
@@ -2593,18 +2593,16 @@ async function fetchBuildingPins() {
   const S = sw.lat().toFixed(6), W = sw.lng().toFixed(6);
   const N = ne.lat().toFixed(6), E = ne.lng().toFixed(6);
 
-  if (typeof showToast === 'function') showToast('🏠 Loading all buildings…', 2500);
+  if (typeof showToast === 'function') showToast('🏠 Loading buildings…', 2000);
 
-  // ── STEP 1: Fetch ALL building footprints from Overpass ──────────────
-  // This single query returns every mapped building in the viewport
-  // with its centroid coordinates and any available address tags
+  // ── STEP 1: One Overpass request → ALL buildings in viewport ──────────
   const query = `[out:json][timeout:30];
 (
   way["building"](${S},${W},${N},${E});
   node["building"](${S},${W},${N},${E});
   relation["building"](${S},${W},${N},${E});
 );
-out center qt 1000;`;
+out center qt 2000;`;
 
   let elements = [];
   try {
@@ -2613,38 +2611,43 @@ out center qt 1000;`;
       headers: { 'Content-Type': 'text/plain' },
       body   : query,
     });
-    if (!resp.ok) throw new Error(`Overpass HTTP ${resp.status}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     elements = data.elements || [];
   } catch (err) {
     console.error('[KnockTrack] Overpass error:', err);
     if (typeof showToast === 'function')
-      showToast('Could not reach building database — check connection', 3000);
+      showToast('Could not load buildings — check internet connection', 3000);
     autoPopActive = false;
     return;
   }
 
   if (elements.length === 0) {
     if (typeof showToast === 'function')
-      showToast('No building data for this area yet', 3000);
+      showToast('No building data for this area', 3000);
     autoPopActive = false;
     return;
   }
 
-  // ── STEP 2: Process each building ──────────────────────────────────────
-  let placed  = 0;        // new pins added this fetch
-  let toGeocode = [];     // buildings that need reverse geocoding
+  // ── STEP 2: Place ALL pins IMMEDIATELY — no waiting for geocoding ──────
+  // KEY INSIGHT: Place every building pin right now using whatever address
+  // data we have. If OSM has tags → use them. If not → use coordinates
+  // as a temporary placeholder. Then geocode in background to update labels.
+  // This is why the previous version felt slow — it waited for geocoding
+  // before showing any pin. Now: instant pins, labels updated silently.
+
+  let placed       = 0;
+  const needsLabel = []; // buildings that need reverse geocoding for address
 
   for (const el of elements) {
-    // Get centroid — Overpass returns 'center' for ways/relations, lat/lon for nodes
     const lat = el.lat ?? el.center?.lat;
     const lon = el.lon ?? el.center?.lon;
     if (!lat || !lon) continue;
 
     const pinKey = `osm_${el.type}_${el.id}`;
-    if (addressPins[pinKey]) continue; // already placed this building
+    if (addressPins[pinKey]) continue;
 
-    // Check if this location already has a real knocked pin
+    // Skip if a real knocked pin already exists nearby
     const alreadyKnocked = knocks.some(k =>
       !k.autoPopulated &&
       Math.abs(k.lat - lat) < 0.0001 &&
@@ -2652,95 +2655,74 @@ out center qt 1000;`;
     );
     if (alreadyKnocked) { addressPins[pinKey] = true; continue; }
 
-    const tags = el.tags || {};
+    const tags      = el.tags  || {};
+    const houseNum  = tags['addr:housenumber'];
+    const street    = tags['addr:street'];
+    const city      = tags['addr:city']   || tags['addr:suburb'] || '';
+    const state     = tags['addr:state']  || '';
+    const postcode  = tags['addr:postcode'] || '';
+    const buildName = tags['name']        || '';
 
-    // ── Build address from OSM tags if available ──
-    let address = '';
-    const houseNum = tags['addr:housenumber'];
-    const street   = tags['addr:street'];
-    const city     = tags['addr:city'] || tags['addr:suburb'] || '';
-    const state    = tags['addr:state'] || '';
-    const postcode = tags['addr:postcode'] || '';
-
+    let address;
     if (houseNum && street) {
-      // Full address from OSM tags — no geocoding needed
-      address = [
-        `${houseNum} ${street}`,
-        city,
-        state ? `${state} ${postcode}` : postcode,
-      ].filter(Boolean).join(', ');
+      // Best case: OSM has a full address → use it directly
+      address = [`${houseNum} ${street}`, city, state ? `${state} ${postcode}` : postcode]
+        .filter(Boolean).join(', ');
+    } else if (buildName) {
+      // Named building (school, church, etc.) → use name as placeholder
+      address = buildName;
+      needsLabel.push({ pinKey, lat, lon });
     } else {
-      // No address tags — queue for reverse geocoding
-      toGeocode.push({ pinKey, lat, lon, name: tags.name || '' });
-      continue; // place after geocoding
+      // No tags at all → temporary placeholder, geocode in background
+      address = `📍 Loading address…`;
+      needsLabel.push({ pinKey, lat, lon });
     }
 
-    // Place pin with OSM address immediately
     placeBuildingPin(pinKey, lat, lon, address);
     placed++;
-  }
 
-  // ── STEP 3: Reverse geocode buildings without address tags ────────────
-  // Batch these with a 110ms gap (≤9/s — comfortably under Google's limit)
-  // Show progress toast every 20 buildings
-  const total = toGeocode.length;
-  let geocoded = 0;
-
-  for (const bld of toGeocode) {
-    if (!autoPopEnabled) break; // user disabled — stop
-
-    await new Promise(resolve => {
-      geocoder.geocode(
-        { location: { lat: bld.lat, lng: bld.lon } },
-        (results, status) => {
-          if (status === 'OK' && results && results[0]) {
-            const r    = results[0];
-            const addr = r.formatted_address;
-
-            // Only accept ROOFTOP or RANGE_INTERPOLATED results for houses
-            const locType = r.geometry.location_type;
-            if (locType === 'ROOFTOP' || locType === 'RANGE_INTERPOLATED') {
-              placeBuildingPin(bld.pinKey, bld.lat, bld.lon, addr);
-              placed++;
-            } else {
-              // GEOMETRIC_CENTER or APPROXIMATE = not a real house address
-              // Still place it with a generic label
-              const label = bld.name
-                ? `${bld.name} (${bld.lat.toFixed(5)}, ${bld.lon.toFixed(5)})`
-                : addr;
-              placeBuildingPin(bld.pinKey, bld.lat, bld.lon, label);
-              placed++;
-            }
-          } else if (status !== 'ZERO_RESULTS') {
-            // Rate limited or error — place with coordinates as fallback
-            const fallback = bld.name || `Building (${bld.lat.toFixed(4)}, ${bld.lon.toFixed(4)})`;
-            placeBuildingPin(bld.pinKey, bld.lat, bld.lon, fallback);
-            placed++;
-          }
-          // ZERO_RESULTS = no address at this point — skip (non-residential building)
-          geocoded++;
-          resolve();
-        }
-      );
-    });
-
-    await new Promise(r => setTimeout(r, 110)); // rate limiter: ~9 req/s
-
-    // Progress updates
-    if (geocoded % 20 === 0 && typeof showToast === 'function') {
-      showToast(`📍 ${placed} pins placed… (${geocoded}/${total})`, 1500);
+    // Yield to browser every 50 pins to keep UI responsive
+    if (placed % 50 === 0) {
+      updateStats(); renderList();
+      await new Promise(r => setTimeout(r, 0));
     }
   }
 
+  // All pins placed — show count immediately
   updateStats();
   renderList();
+  if (typeof showToast === 'function')
+    showToast(`✅ ${placed} pins placed — updating addresses…`, 3000);
 
-  const msg = placed > 0
-    ? `✅ ${placed} building pins loaded for this area`
-    : 'All buildings in this area already have pins';
-  if (typeof showToast === 'function') showToast(msg, 4000);
+  autoPopActive = false; // release lock so user can pan while we geocode
 
-  autoPopActive = false;
+  // ── STEP 3: Background geocoding — update addresses silently ──────────
+  // Runs AFTER the function returns so it never blocks the UI.
+  // Geocodes at 8/s (125ms gap) — well under Google's 10/s browser limit.
+  // Updates the knock's address field and the marker tooltip in place.
+  (async () => {
+    for (const bld of needsLabel) {
+      if (!autoPopEnabled) break;
+      if (!addressPins[bld.pinKey]) continue; // was deleted
+
+      await new Promise(resolve => {
+        geocoder.geocode({ location: { lat: bld.lat, lng: bld.lon } }, (results, status) => {
+          if (status === 'OK' && results && results[0]) {
+            const addr = results[0].formatted_address;
+            // Update the knock record in memory
+            const idx = knocks.findIndex(k => k.id === bld.pinKey);
+            if (idx !== -1 && knocks[idx].address === '📍 Loading address…') {
+              knocks[idx].address = addr;
+              // Update marker tooltip
+              if (markers[bld.pinKey]) markers[bld.pinKey].setTitle(addr);
+            }
+          }
+          resolve();
+        });
+      });
+      await new Promise(r => setTimeout(r, 125)); // 8 req/s
+    }
+  })(); // fire-and-forget
 }
 
 // ── Place a single building pin on the map ────────────────────────────────
