@@ -2831,8 +2831,50 @@ window.triggerBlockPopulate = async function() {
 };
 
 window.toggleZoneMode = function(force) {
-  zoneModeActive = force !== undefined ? force : !zoneModeActive;
   const btn = document.getElementById('btn-draw-zone');
+
+  // ── REP path: show their assigned zone ───────────────────────────────
+  if (!isLeader()) {
+    const session = window.currentSession;
+    if (!session?.name) return;
+
+    const myZones = zones.filter(z => z.assignedRep === session.name);
+    if (myZones.length === 0) {
+      if (typeof showToast === 'function')
+        showToast('No zone assigned to you yet — ask your team lead', 4000);
+      return;
+    }
+
+    // Pan + zoom map to fit the rep's zone
+    if (typeof map !== 'undefined' && map) {
+      const bounds = new google.maps.LatLngBounds();
+      myZones.forEach(z => z.path.forEach(pt => bounds.extend(pt)));
+      map.fitBounds(bounds, { top:80, bottom:80, left:40, right:40 });
+    }
+
+    // Flash/pulse the polygon briefly so rep can see it clearly
+    myZones.forEach(z => {
+      const poly = zonePolygons[z.id];
+      if (!poly) return;
+      const c = zoneColor(z);
+      poly.setOptions({ fillOpacity: 0.6, strokeWeight: 5 });
+      setTimeout(() => poly.setOptions({ fillOpacity: 0.28, strokeWeight: 3 }), 800);
+      setTimeout(() => poly.setOptions({ fillOpacity: 0.6, strokeWeight: 5 }), 1400);
+      setTimeout(() => poly.setOptions({ fillOpacity: 0.28, strokeWeight: 3 }), 2000);
+    });
+
+    if (typeof showToast === 'function')
+      showToast(`📍 Your zone: ${myZones.map(z => z.name).join(', ')}`, 4000);
+    return;
+  }
+
+  // ── LEADER path: draw a new zone ─────────────────────────────────────
+  if (!drawingManager) {
+    if (typeof showToast === 'function') showToast('Map not ready yet — try again', 2000);
+    return;
+  }
+
+  zoneModeActive = force !== undefined ? force : !zoneModeActive;
 
   if (zoneModeActive) {
     drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
@@ -2842,11 +2884,11 @@ window.toggleZoneMode = function(force) {
       btn.style.background = 'rgba(124,58,237,0.85)';
       btn.style.color = '#fff';
       btn.style.borderColor = '#7c3aed';
-      btn.textContent = '✕ Cancel Zone';
+      btn.textContent = '✕ Cancel';
     }
-    // Disable pin drop mode if active
     if (typeof togglePinMode === 'function' && pinModeActive) togglePinMode(false);
-    if (typeof showToast === 'function') showToast('🔷 Tap the map to place zone boundary points. Close the shape to finish.', 5000);
+    if (typeof showToast === 'function')
+      showToast('🔷 Click the map to draw your zone boundary. Click the first point to close.', 5000);
   } else {
     drawingManager.setDrawingMode(null);
     const mapDiv2 = document.getElementById('google-map');
@@ -6922,8 +6964,20 @@ function applySession(session) {
   // Everyone's calendar defaults to their own — owners can switch via button
   window.calCurrentRep = session.name;
 
+  // Update zone button label based on role
+  const zoneBtn = document.getElementById('btn-draw-zone');
+  if (zoneBtn) {
+    if (isLeader()) {
+      zoneBtn.textContent = '🔷 Zone';
+      zoneBtn.title = 'Draw a knock zone';
+    } else {
+      zoneBtn.textContent = '🗺 My Zone';
+      zoneBtn.title = 'View your assigned zone';
+    }
+  }
+
   // Highlight this rep's assigned zones on the map
-  if (!session.isOwner && typeof highlightRepZones === 'function') {
+  if (typeof highlightRepZones === 'function') {
     setTimeout(() => highlightRepZones(session.name), 1200);
   }
 
