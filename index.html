@@ -899,12 +899,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
         <button id="dtab-overview" onclick="switchDashTab('overview')" class="dash-pill-tab dash-pill-active">
           <span class="dtab-icon">📊</span><span class="dtab-label">Overview</span>
         </button>
-        <button id="dtab-leaderboard" onclick="switchDashTab('leaderboard')" class="dash-pill-tab">
-          <span class="dtab-icon">🏆</span><span class="dtab-label">Rankings</span>
-        </button>
-<button id="dtab-reps" onclick="switchDashTab('reps')" class="dash-pill-tab">
-          <span class="dtab-icon">👥</span><span class="dtab-label">Reps</span>
-        </button>
+
         <button id="dtab-calendar" onclick="switchDashTab('calendar')" class="dash-pill-tab">
           <span class="dtab-icon">📅</span><span class="dtab-label">Calendar</span>
         </button>
@@ -3872,7 +3867,7 @@ function stopLocationTracking() {
 let currentDashTab = 'overview';
 window.switchDashTab = function(tab) {
   currentDashTab = tab;
-  ['overview','leaderboard','reps','calendar'].forEach(t => {
+  ['overview','calendar'].forEach(t => {
     const panel = document.getElementById(`dash-panel-${t}`);
     const btn = document.getElementById(`dtab-${t}`);
     if (panel) {
@@ -3902,7 +3897,6 @@ window.switchDashTab = function(tab) {
 
     renderCalendar();
   }
-  if (tab === 'leaderboard') renderLeaderboard();
   if (tab === 'overview') renderOverviewExtras();
 };
 
@@ -5197,7 +5191,7 @@ window.setRepRating = function(name, stars) {
   const idx = reps.findIndex(r => r.name === name);
   if (idx !== -1) { reps[idx].rating = stars; saveReps(); renderEvaluations(); }
   else {
-    reps.push({ name, role:'Field Rep', rating:stars, added:new Date().toISOString() });
+    reps.push({ name, role: role || 'Field Representative', rating:stars, added:new Date().toISOString() });
     saveReps(); renderEvaluations();
   }
 };
@@ -5518,7 +5512,7 @@ function renderRepsList() {
         <input id="edit-rep-name-${globalIdx}" value="${r.name}" placeholder="Full Name" style="flex:1;min-width:130px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:13px;outline:none"/>
         <select id="edit-rep-role-${globalIdx}" style="flex:1;min-width:160px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:13px;outline:none;cursor:pointer">
           <option value="">— Role —</option>
-          ${['Field Representative','Team Lead','Senior Mentor','Vice President','CEO'].map(role=>`<option value="${role}" ${r.role===role?'selected':''}>${role}</option>`).join('')}
+          ${['Field Representative','Team Lead','Senior Mentor','Co-Owner','Vice President','CEO'].map(role=>`<option value="${role}" ${r.role===role?'selected':''}>${role}</option>`).join('')}
         </select>
         <button onclick="saveRepEdit(${globalIdx})" style="padding:8px 16px;background:var(--green);border:none;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:800;color:#000;cursor:pointer">Save</button>
         <button onclick="document.getElementById('rep-edit-${globalIdx}').style.display='none'" style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer">✕</button>
@@ -5545,6 +5539,54 @@ window._pinRegen = function(safeId) {
 window.toggleEditRep = function(i, isArchived) {
   const el = document.getElementById('rep-edit-'+i);
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+};
+
+// ── Save rep name + role edits ────────────────────────────────────────────
+window.saveRepEdit = function(i) {
+  const nameEl = document.getElementById('edit-rep-name-' + i);
+  const roleEl = document.getElementById('edit-rep-role-' + i);
+  if (!nameEl || !roleEl) { console.warn('[KnockTrack] saveRepEdit: elements not found for index', i); return; }
+
+  const newName = nameEl.value.trim();
+  const newRole = roleEl.value.trim();
+
+  if (!newName) {
+    if (typeof showToast === 'function') showToast('Name cannot be empty', 2000);
+    return;
+  }
+  if (!newRole) {
+    if (typeof showToast === 'function') showToast('Please select a role', 2000);
+    return;
+  }
+
+  // Determine if this is an active or archived rep by index
+  // globalIdx is the combined index passed from renderRepsList
+  const allActive   = reps;
+  const allArchived = archivedReps;
+
+  if (i < allActive.length) {
+    const oldName = allActive[i].name;
+    allActive[i].name = newName;
+    allActive[i].role = newRole;
+    // Update knocks that reference old name
+    if (oldName !== newName) {
+      knocks.forEach(k => { if (k.rep === oldName) k.rep = newName; });
+    }
+  } else {
+    const aIdx = i - allActive.length;
+    if (aIdx >= 0 && aIdx < allArchived.length) {
+      allArchived[aIdx].name = newName;
+      allArchived[aIdx].role = newRole;
+    }
+  }
+
+  saveReps();
+
+  // Hide the edit form
+  const editEl = document.getElementById('rep-edit-' + i);
+  if (editEl) editEl.style.display = 'none';
+
+  if (typeof showToast === 'function') showToast(`✅ ${newName} · ${newRole} saved`, 2500);
 };
 
 window.togglePinVisibility = function(repName) {
@@ -5770,7 +5812,7 @@ window.addRep = function() {
   });
   saveReps();
   nameEl.value = '';
-  if (document.getElementById('new-rep-role')) document.getElementById('new-rep-role').value = '';
+  if (document.getElementById('new-rep-role')) document.getElementById('new-rep-role').value = 'Field Representative';
   if (document.getElementById('new-rep-start')) document.getElementById('new-rep-start').value = '';
   renderRepsList();
   populateRepDropdown();
@@ -6023,6 +6065,14 @@ function darkMapStyle() {
     <input id="new-rep-name" type="text" placeholder="🔍 Search or add rep name…"
       oninput="renderRepsList()"
       style="flex:1;min-width:200px;padding:11px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:14px;outline:none;box-sizing:border-box"/>
+    <select id="new-rep-role" style="padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:13px;outline:none;cursor:pointer">
+      <option value="Field Representative">Field Representative</option>
+      <option value="Team Lead">Team Lead</option>
+      <option value="Senior Mentor">Senior Mentor</option>
+      <option value="Co-Owner">Co-Owner</option>
+      <option value="Vice President">Vice President</option>
+      <option value="CEO">CEO</option>
+    </select>
     <button onclick="addRep()" style="padding:11px 22px;background:#a855f7;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;color:#fff;cursor:pointer;white-space:nowrap;transition:all 0.15s" onmouseover="this.style.background='#9333ea'" onmouseout="this.style.background='#a855f7'">+ ADD REP</button>
     <button onclick="showPinSheetPage()" style="padding:11px 22px;background:var(--green);border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;color:#000;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:all 0.15s" onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='var(--green)'">
       <span style="font-size:16px">📋</span> PIN SHEET
