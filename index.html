@@ -2186,10 +2186,9 @@ function zoneStatus(zone) {
 }
 
 function zoneColor(zone) {
-  const s = zoneStatus(zone);
-  if (s === 'cooling') return { fill:'#f97316', stroke:'#ea580c' }; // orange = cooldown
-  if (s === 'ready')   return { fill:'#22c55e', stroke:'#16a34a' }; // green = ready to re-knock
-  return { fill:'#7c3aed', stroke:'#6d28d9' };                       // purple = fresh/unworked
+  // Assigned zones: blue so reps can easily spot their turf
+  if (zone.assignedRep) return { fill:'#3b82f6', stroke:'#2563eb' }; // blue = assigned
+  return { fill:'#7c3aed', stroke:'#6d28d9' };                        // purple = unassigned
 }
 
 function zoneCooldownLabel(zone) {
@@ -2215,75 +2214,133 @@ function saveZones() {
 
 // ── Render a zone polygon on the map ──
 function renderZonePolygon(zone) {
-  // Remove old if re-rendering
+  // Remove old polygon and label if re-rendering
   if (zonePolygons[zone.id]) {
     zonePolygons[zone.id].setMap(null);
     delete zonePolygons[zone.id];
   }
+  const labelKey = zone.id + '_label';
+  if (zonePolygons[labelKey]) {
+    zonePolygons[labelKey].setMap(null);
+    delete zonePolygons[labelKey];
+  }
+
+  // Only show zones that belong to current rep (or all zones for owners)
+  const session = window.currentSession;
+  const isOwner = window._auth ? window._auth.canAccessPortal() : false;
+  if (session && !isOwner && zone.assignedRep && zone.assignedRep !== session.name) {
+    // Hide other reps' assigned zones from this rep's view
+    return;
+  }
 
   const c = zoneColor(zone);
+
+  // Assigned zones get a slightly more opaque fill so they stand out
+  const fillOpacity = zone.assignedRep ? 0.28 : 0.18;
+  const strokeWeight = zone.assignedRep ? 3 : 2;
+
   const polygon = new google.maps.Polygon({
     paths: zone.path,
     strokeColor: c.stroke,
-    strokeOpacity: 0.9,
-    strokeWeight: 2.5,
+    strokeOpacity: 0.95,
+    strokeWeight,
     fillColor: c.fill,
-    fillOpacity: 0.22,
+    fillOpacity,
     map,
     clickable: true,
-    zIndex: 1,
+    zIndex: zone.assignedRep ? 3 : 1,
   });
 
   polygon.addListener('click', () => showZoneInfoPopup(zone));
   zonePolygons[zone.id] = polygon;
+
+  // Add rep name label at zone centroid
+  if (zone.assignedRep || zone.name) {
+    const centroid = getPolygonCentroid(zone.path);
+    const label = zone.assignedRep
+      ? `${zone.name}\n👤 ${zone.assignedRep}`
+      : zone.name;
+    const infoLabel = new google.maps.InfoWindow({
+      content: `<div style="background:#0f1318;border:1px solid ${c.stroke};border-radius:8px;padding:6px 10px;font-family:'Outfit',sans-serif;min-width:100px;text-align:center">
+        <div style="font-size:12px;font-weight:800;color:#fff">${zone.name}</div>
+        ${zone.assignedRep ? `<div style="font-size:11px;color:#60a5fa;margin-top:2px">👤 ${zone.assignedRep}</div>` : ''}
+      </div>`,
+      position: centroid,
+      disableAutoPan: true,
+    });
+    // Use a custom marker instead for better performance
+    const labelMarker = new google.maps.Marker({
+      position: centroid,
+      map,
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }, // invisible anchor
+      label: {
+        text: zone.assignedRep ? `${zone.name} · ${zone.assignedRep}` : zone.name,
+        color: '#ffffff',
+        fontSize: '11px',
+        fontWeight: '700',
+        fontFamily: 'Outfit, sans-serif',
+      },
+      zIndex: 4,
+      clickable: false,
+    });
+    zonePolygons[labelKey] = labelMarker;
+  }
+}
+
+// ── Get polygon centroid (average of all vertices) ────────────────────────
+function getPolygonCentroid(path) {
+  const n = path.length;
+  if (n === 0) return { lat: 0, lng: 0 };
+  const sum = path.reduce((acc, pt) => ({ lat: acc.lat + pt.lat, lng: acc.lng + pt.lng }), { lat: 0, lng: 0 });
+  return { lat: sum.lat / n, lng: sum.lng / n };
 }
 
 // ── Zone info popup ──
 function showZoneInfoPopup(zone) {
   document.getElementById('zone-info-overlay')?.remove();
-
   const isOwner = window._auth ? window._auth.canAccessPortal() : false;
+
   const overlay = document.createElement('div');
   overlay.id = 'zone-info-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
 
-  const c = zoneColor(zone);
-  const status = zoneStatus(zone);
-  const statusBadge = status === 'cooling'
-    ? `<span style="background:rgba(249,115,22,0.2);color:#f97316;border:1px solid #f97316;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">⏳ COOLDOWN</span>`
-    : status === 'ready'
-    ? `<span style="background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid #22c55e;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">✅ READY</span>`
-    : `<span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid #7c3aed;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">🔷 FRESH ZONE</span>`;
+  const c        = zoneColor(zone);
+  const assigned = zone.assignedRep
+    ? `<span style="background:rgba(59,130,246,0.2);color:#60a5fa;border:1px solid #3b82f6;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">👤 ${zone.assignedRep}</span>`
+    : `<span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid #7c3aed;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">🔷 Unassigned</span>`;
+
+  const assignedInfo = zone.assignedRep
+    ? `<div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:12px 14px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:4px">ASSIGNED TO</div>
+        <div style="font-size:15px;color:#60a5fa;font-weight:700">${zone.assignedRep}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">Since ${new Date(zone.assignedAt||zone.drawnAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+      </div>`
+    : `<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px;text-align:center;color:var(--muted);font-size:13px">No rep assigned yet</div>`;
 
   overlay.innerHTML = `
-    <div style="background:#0f1318;border:1px solid rgba(255,255,255,0.1);border-radius:18px;width:100%;max-width:380px;padding:28px 24px;position:relative;animation:fadeSlideIn 0.2s ease">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div style="background:#0f1318;border:1px solid rgba(255,255,255,0.1);border-radius:18px;width:100%;max-width:400px;padding:28px 24px;position:relative;animation:fadeSlideIn 0.2s ease">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
         <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:#fff">${zone.name || 'Knock Zone'}</div>
-          <div style="margin-top:6px">${statusBadge}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:#fff">${zone.name||'Knock Zone'}</div>
+          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${assigned}</div>
         </div>
-        <div style="width:44px;height:44px;border-radius:50%;background:${c.fill};border:2px solid ${c.stroke};display:flex;align-items:center;justify-content:center;font-size:20px">🔷</div>
+        <div style="width:44px;height:44px;border-radius:50%;background:${c.fill};border:2px solid ${c.stroke};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🔷</div>
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">
+        ${assignedInfo}
         <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px">
           <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:4px">DRAWN BY</div>
-          <div style="font-size:14px;color:#e8edf5;font-weight:600">${zone.drawnBy || 'Unknown'}</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:4px">DRAWN ON</div>
-          <div style="font-size:14px;color:#e8edf5;font-weight:600">${new Date(zone.drawnAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:4px">STATUS</div>
-          <div style="font-size:13px;color:#e8edf5">${zoneCooldownLabel(zone)}</div>
+          <div style="font-size:13px;color:#e8edf5;font-weight:600">${zone.drawnBy||'Unknown'} · ${new Date(zone.drawnAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
         </div>
       </div>
 
-      <div style="display:flex;gap:8px">
-        ${!zone.knockedAt ? `<button onclick="markZoneKnocked('${zone.id}')" style="flex:1;padding:11px;background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.4);border-radius:10px;color:#f97316;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">✅ Mark as Knocked</button>` : ''}
-        ${isOwner ? `<button onclick="deleteZone('${zone.id}')" style="flex:1;padding:11px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Delete Zone</button>` : ''}
-        <button onclick="document.getElementById('zone-info-overlay').remove()" style="flex:1;padding:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#aaa;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Close</button>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${isOwner ? `<button onclick="showAssignZoneModal('${zone.id}')" style="width:100%;padding:12px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);border-radius:10px;color:#60a5fa;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">👤 ${zone.assignedRep ? 'Reassign Rep' : 'Assign Rep'}</button>` : ''}
+        <div style="display:flex;gap:8px">
+          ${isOwner ? `<button onclick="deleteZone('${zone.id}')" style="flex:1;padding:11px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Delete</button>` : ''}
+          <button onclick="document.getElementById('zone-info-overlay').remove()" style="flex:1;padding:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#aaa;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Close</button>
+        </div>
       </div>
     </div>`;
 
@@ -2313,6 +2370,135 @@ window.deleteZone = function(zoneId) {
   document.getElementById('zone-info-overlay')?.remove();
   if (typeof showToast === 'function') showToast('Zone deleted', 2000);
 };
+// ══════════════════════════════════════════════════════════════════════════
+// ZONE ASSIGNMENT SYSTEM
+// Owners/team leads assign a zone to a rep. No expiry — team decides when
+// to reassign. Rep sees their zone highlighted when they open the map.
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── Show the assign-rep modal ─────────────────────────────────────────────
+window.showAssignZoneModal = function(zoneId) {
+  document.getElementById('zone-assign-overlay')?.remove();
+  document.getElementById('zone-info-overlay')?.remove();
+
+  const zone = zones.find(z => z.id === zoneId);
+  if (!zone) return;
+
+  const allReps = [...(window.reps || [])].map(r => r.name).filter(Boolean);
+  const repOptions = allReps.map(name =>
+    `<option value="${name}" ${zone.assignedRep === name ? 'selected' : ''}>${name}</option>`
+  ).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'zone-assign-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9100;display:flex;align-items:center;justify-content:center;padding:20px';
+
+  overlay.innerHTML = `
+    <div style="background:#0f1318;border:1px solid rgba(255,255,255,0.12);border-radius:18px;width:100%;max-width:380px;padding:28px 24px;animation:fadeSlideIn 0.2s ease">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:#fff;margin-bottom:6px">Assign Zone</div>
+      <div style="font-family:'Outfit',sans-serif;font-size:13px;color:var(--muted);margin-bottom:20px">Select a rep to work <strong style="color:#e8edf5">${zone.name}</strong></div>
+
+      <select id="zone-assign-rep-select"
+        style="width:100%;padding:13px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Outfit',sans-serif;font-size:15px;font-weight:600;outline:none;margin-bottom:8px;cursor:pointer">
+        <option value="">— Select a Rep —</option>
+        ${repOptions}
+      </select>
+
+      ${zone.assignedRep ? `
+        <button onclick="unassignZone('${zoneId}')"
+          style="width:100%;padding:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:var(--muted);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:8px">
+          Remove current assignment (${zone.assignedRep})
+        </button>` : ''}
+
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button onclick="confirmZoneAssignment('${zoneId}')"
+          style="flex:1;padding:13px;background:#3b82f6;border:none;border-radius:10px;color:#fff;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer">
+          ✓ Assign
+        </button>
+        <button onclick="document.getElementById('zone-assign-overlay').remove()"
+          style="flex:1;padding:13px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#aaa;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer">
+          Cancel
+        </button>
+      </div>
+    </div>`;
+
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+};
+
+// ── Confirm and save assignment ───────────────────────────────────────────
+window.confirmZoneAssignment = function(zoneId) {
+  const sel  = document.getElementById('zone-assign-rep-select');
+  const rep  = sel?.value?.trim();
+  if (!rep) {
+    if (typeof showToast === 'function') showToast('Select a rep first', 2000);
+    return;
+  }
+  assignZoneToRep(zoneId, rep);
+  document.getElementById('zone-assign-overlay')?.remove();
+};
+
+// ── Core assignment logic ─────────────────────────────────────────────────
+window.assignZoneToRep = function(zoneId, repName) {
+  const idx = zones.findIndex(z => z.id === zoneId);
+  if (idx === -1) return;
+
+  zones[idx].assignedRep = repName;
+  zones[idx].assignedAt  = new Date().toISOString();
+  zones[idx].assignedBy  = window.currentSession?.name || 'Unknown';
+
+  saveZones();
+  renderZonePolygon(zones[idx]); // re-render with blue color
+
+  if (typeof showToast === 'function')
+    showToast(`✅ "${zones[idx].name}" assigned to ${repName}`, 3500);
+
+  // Refresh portal zones panel if open
+  if (document.getElementById('portal-panel-zones')?.style.display !== 'none') {
+    renderZonesPortal();
+  }
+};
+
+// ── Remove assignment ─────────────────────────────────────────────────────
+window.unassignZone = function(zoneId) {
+  const idx = zones.findIndex(z => z.id === zoneId);
+  if (idx === -1) return;
+  const zoneName = zones[idx].name;
+  zones[idx].assignedRep = null;
+  zones[idx].assignedAt  = null;
+  zones[idx].assignedBy  = null;
+  saveZones();
+  renderZonePolygon(zones[idx]);
+  document.getElementById('zone-assign-overlay')?.remove();
+  if (typeof showToast === 'function') showToast(`Zone "${zoneName}" unassigned`, 2500);
+  if (document.getElementById('portal-panel-zones')?.style.display !== 'none') renderZonesPortal();
+};
+
+// ── When a rep logs in: highlight their assigned zones ────────────────────
+function highlightRepZones(repName) {
+  if (!repName || !zones.length) return;
+
+  const myZones = zones.filter(z => z.assignedRep === repName);
+  if (myZones.length === 0) return;
+
+  // Show toast so rep knows they have turf
+  if (typeof showToast === 'function')
+    showToast(`📍 You have ${myZones.length} assigned zone${myZones.length > 1 ? 's' : ''} — shown in blue on the map`, 5000);
+
+  // Re-render all zones — assigned ones render blue, others grey
+  zones.forEach(z => renderZonePolygon(z));
+
+  // Pan map to fit all assigned zones
+  if (typeof map !== 'undefined' && map && myZones.length > 0) {
+    const bounds = new google.maps.LatLngBounds();
+    myZones.forEach(z => z.path.forEach(pt => bounds.extend(pt)));
+    setTimeout(() => map.fitBounds(bounds, { top:60, bottom:60, left:40, right:40 }), 800);
+  }
+}
+// ══════════════════════════════════════════════════════════════════════════
+// END ZONE ASSIGNMENT SYSTEM
+// ══════════════════════════════════════════════════════════════════════════
+
 
 // ── Initialize DrawingManager ──
 function initZoneDrawing() {
@@ -2357,6 +2543,8 @@ function initZoneDrawing() {
       path,
       drawnAt: new Date().toISOString(),
       drawnBy: window.currentSession?.name || 'Unknown',
+      assignedRep: null,   // set by assignZoneToRep()
+      assignedAt: null,
       knockedAt: null,
       knockedBy: null,
     };
@@ -2366,6 +2554,9 @@ function initZoneDrawing() {
     renderZonePolygon(zone);
 
     if (typeof showToast === 'function') showToast(`✅ Zone "${zone.name}" saved`, 3000);
+
+    // Immediately prompt to assign a rep
+    showAssignZoneModal(zone.id);
   });
 }
 
@@ -4529,26 +4720,33 @@ window.renderZonesPortal = function() {
   }
 
   list.innerHTML = zonesData.map(zone => {
-    const s = !zone.knockedAt ? 'fresh' : (Date.now() - new Date(zone.knockedAt).getTime() < 90*24*60*60*1000 ? 'cooling' : 'ready');
-    const badgeStyle = s === 'cooling' ? 'background:rgba(249,115,22,0.15);color:#f97316;border:1px solid #f97316'
-      : s === 'ready' ? 'background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid #22c55e'
-      : 'background:rgba(124,58,237,0.15);color:#a78bfa;border:1px solid #7c3aed';
-    const badgeLabel = s === 'cooling' ? '⏳ COOLDOWN' : s === 'ready' ? '✅ READY' : '🔷 FRESH';
     const drawnDate = new Date(zone.drawnAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-    const cooldownText = !zone.knockedAt ? 'Not yet knocked'
-      : s === 'ready' ? 'Ready to re-knock'
-      : `${Math.ceil((90*24*60*60*1000 - (Date.now()-new Date(zone.knockedAt).getTime()))/(24*60*60*1000))} days left`;
+    const assignedBadge = zone.assignedRep
+      ? `<span style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid #3b82f6;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700">👤 ${zone.assignedRep}</span>`
+      : `<span style="background:rgba(124,58,237,0.12);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700">Unassigned</span>`;
+    const assignedSince = zone.assignedAt
+      ? `Assigned ${new Date(zone.assignedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`
+      : '';
+    const iconBg = zone.assignedRep
+      ? 'background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.4)'
+      : 'background:rgba(124,58,237,0.2);border:1px solid rgba(124,58,237,0.4)';
 
     return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px">
-      <div style="width:44px;height:44px;border-radius:10px;background:rgba(124,58,237,0.2);border:1px solid rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🔷</div>
+      <div style="width:44px;height:44px;border-radius:10px;${iconBg};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${zone.assignedRep ? '👤' : '🔷'}</div>
       <div style="flex:1;min-width:0">
         <div style="font-family:'Outfit',sans-serif;font-size:15px;font-weight:800;color:var(--text)">${zone.name}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">Drawn by ${zone.drawnBy || 'Unknown'} · ${drawnDate}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:1px">${cooldownText}</div>
+        <div style="margin-top:5px">${assignedBadge}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Drawn by ${zone.drawnBy||'Unknown'} · ${drawnDate}${assignedSince ? ' · '+assignedSince : ''}</div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
-        <span style="border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;${badgeStyle}">${badgeLabel}</span>
-        <button onclick="deleteZone('${zone.id}');renderZonesPortal()" style="padding:5px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:8px;color:#ef4444;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer">Delete</button>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+        <button onclick="showAssignZoneModal('${zone.id}')"
+          style="padding:7px 14px;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.35);border-radius:8px;color:#60a5fa;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">
+          ${zone.assignedRep ? '🔄 Reassign' : '👤 Assign Rep'}
+        </button>
+        <button onclick="deleteZone('${zone.id}');renderZonesPortal()"
+          style="padding:5px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:8px;color:#ef4444;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer">
+          Delete
+        </button>
       </div>
     </div>`;
   }).join('');
@@ -6409,6 +6607,11 @@ function applySession(session) {
   // Set calCurrentRep for ALL users (owners and reps alike)
   // Everyone's calendar defaults to their own — owners can switch via button
   window.calCurrentRep = session.name;
+
+  // Highlight this rep's assigned zones on the map
+  if (!session.isOwner && typeof highlightRepZones === 'function') {
+    setTimeout(() => highlightRepZones(session.name), 1200);
+  }
 
   // Show/hide calendar "← Change Rep" button based on role
   const changeBtn = document.getElementById('cal-change-rep-btn');
