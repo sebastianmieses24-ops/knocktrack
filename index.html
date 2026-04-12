@@ -1660,13 +1660,16 @@ async function initMap() {
   // Open map button
   document.getElementById('open-map-btn').addEventListener('click', () => {
     hideDashboard();
-    // Re-fetch when user switches to map view
+    // Refresh zones from Supabase every time rep opens map
+    // This ensures they always see their current assignment
+    loadZones();
     setTimeout(() => { if (autoPopEnabled) fetchAddressLayer(); }, 800);
   });
 
   // ── ZONE DRAWING: Initialize DrawingManager ──────────────────────────
   initZoneDrawing();
-  loadZones();
+  loadZones();           // Load zones from Supabase on map open
+  startZonePolling();    // Poll every 15s so assignments sync in real-time
 }
 
 function geocodeAndOpen(val) {
@@ -2180,10 +2183,45 @@ function zoneStatus(zone) {
   return elapsed < ZONE_COOLDOWN_MS ? 'cooling' : 'ready'; // cooling = avoid, ready = ok to re-knock
 }
 
+
+// ── Role check: can this session assign zones? ────────────────────────────
+// Owners (master password) always qualify.
+// Reps with leadership roles also qualify when logged in via PIN.
+const LEADER_ROLES = new Set(['CEO','Co-Owner','Vice President','Team Lead','Senior Mentor']);
+
+function isLeader() {
+  if (window._auth && window._auth.canAccessPortal()) return true; // master password owner
+  const role = window.currentSession?.role || '';
+  return LEADER_ROLES.has(role);
+}
+// 12 visually distinct colors — each rep gets a consistent color
+const ZONE_COLORS = [
+  { fill:'#3b82f6', stroke:'#2563eb' }, // blue
+  { fill:'#22c55e', stroke:'#16a34a' }, // green
+  { fill:'#f97316', stroke:'#ea580c' }, // orange
+  { fill:'#a855f7', stroke:'#9333ea' }, // purple
+  { fill:'#ec4899', stroke:'#db2777' }, // pink
+  { fill:'#14b8a6', stroke:'#0d9488' }, // teal
+  { fill:'#f59e0b', stroke:'#d97706' }, // amber
+  { fill:'#ef4444', stroke:'#dc2626' }, // red
+  { fill:'#06b6d4', stroke:'#0891b2' }, // cyan
+  { fill:'#84cc16', stroke:'#65a30d' }, // lime
+  { fill:'#8b5cf6', stroke:'#7c3aed' }, // violet
+  { fill:'#f43f5e', stroke:'#e11d48' }, // rose
+];
+
+function repColorIndex(repName) {
+  if (!repName) return -1;
+  let h = 0;
+  for (let i = 0; i < repName.length; i++) h = (h * 31 + repName.charCodeAt(i)) >>> 0;
+  return h % ZONE_COLORS.length;
+}
+
 function zoneColor(zone) {
-  // Assigned zones: blue so reps can easily spot their turf
-  if (zone.assignedRep) return { fill:'#3b82f6', stroke:'#2563eb' }; // blue = assigned
-  return { fill:'#7c3aed', stroke:'#6d28d9' };                        // purple = unassigned
+  if (zone.assignedRep) {
+    return ZONE_COLORS[repColorIndex(zone.assignedRep)];
+  }
+  return { fill:'#7c3aed', stroke:'#6d28d9' }; // purple = unassigned
 }
 
 function zoneCooldownLabel(zone) {
@@ -2196,15 +2234,141 @@ function zoneCooldownLabel(zone) {
 }
 
 // ── Load zones from localStorage (Supabase sync optional) ──
-function loadZones() {
+// ── Zone persistence: Supabase primary, localStorage cache ───────────────
+
+async function loadZones() {
   try {
-    zones = JSON.parse(localStorage.getItem('kt_zones') || '[]');
-    zones.forEach(z => renderZonePolygon(z));
-  } catch(e) { zones = []; }
+    // 1. Show cached zones instantly (localStorage) so map isn't empty
+    const cached = JSON.parse(localStorage.getItem('kt_zones') || '[]');
+    if (cached.length > 0) {
+      zones = cached;
+      zones.forEach(z => renderZonePolygon(z));
+    }
+
+    // 2. Fetch fresh data from Supabase (cross-device source of truth)
+    const rows = await sbFetch('zones?order=drawn_at.desc&limit=500');
+    if (rows && rows.length >= 0) {
+      zones = rows.map(r => ({
+        id:          r.id,
+        name:        r.name,
+        path:        typeof r.path === 'string' ? JSON.parse(r.path) : r.path,
+        drawnAt:     r.drawn_at,
+        drawnBy:     r.drawn_by,
+        assignedRep: r.assigned_rep  || null,
+        assignedAt:  r.assigned_at   || null,
+        assignedBy:  r.assigned_by   || null,
+      }));
+
+      // Update localStorage cache
+      localStorage.setItem('kt_zones', JSON.stringify(zones));
+
+      // Re-render with fresh data
+      Object.keys(zonePolygons).forEach(k => {
+        if (zonePolygons[k]) { zonePolygons[k].setMap(null); }
+      });
+      zonePolygons = {};
+      zones.forEach(z => renderZonePolygon(z));
+
+      // If a rep is logged in, highlight their zones
+      const session = window.currentSession;
+      if (session && !window._auth?.canAccessPortal()) {
+        highlightRepZones(session.name);
+      }
+    }
+  } catch(e) {
+    console.warn('[KnockTrack] loadZones fallback to localStorage:', e);
+    try {
+      zones = JSON.parse(localStorage.getItem('kt_zones') || '[]');
+      zones.forEach(z => renderZonePolygon(z));
+    } catch(e2) { zones = []; }
+  }
 }
 
-function saveZones() {
+async function saveZones() {
+  // localStorage cache — instant
   localStorage.setItem('kt_zones', JSON.stringify(zones));
+}
+
+// Save a single zone to Supabase
+async function saveZoneToSupabase(zone) {
+  try {
+    const row = {
+      id:           zone.id,
+      name:         zone.name,
+      path:         JSON.stringify(zone.path),
+      drawn_at:     zone.drawnAt,
+      drawn_by:     zone.drawnBy,
+      assigned_rep: zone.assignedRep || null,
+      assigned_at:  zone.assignedAt  || null,
+      assigned_by:  zone.assignedBy  || null,
+    };
+    // Upsert — insert or update if id exists
+    await sbFetch('zones', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify(row),
+    });
+  } catch(e) {
+    console.warn('[KnockTrack] saveZoneToSupabase error:', e);
+  }
+}
+
+// Delete a zone from Supabase
+async function deleteZoneFromSupabase(zoneId) {
+  try {
+    await sbFetch('zones?id=eq.' + zoneId, {
+      method: 'DELETE',
+      prefer: 'return=minimal',
+    });
+  } catch(e) {
+    console.warn('[KnockTrack] deleteZoneFromSupabase error:', e);
+  }
+}
+
+// Poll for zone updates every 15 seconds
+// This is how reps see reassigned zones in real-time without refresh
+function startZonePolling() {
+  setInterval(async () => {
+    try {
+      const rows = await sbFetch('zones?order=drawn_at.desc&limit=500');
+      if (!rows) return;
+      const fresh = rows.map(r => ({
+        id:          r.id,
+        name:        r.name,
+        path:        typeof r.path === 'string' ? JSON.parse(r.path) : r.path,
+        drawnAt:     r.drawn_at,
+        drawnBy:     r.drawn_by,
+        assignedRep: r.assigned_rep || null,
+        assignedAt:  r.assigned_at  || null,
+        assignedBy:  r.assigned_by  || null,
+      }));
+
+      // Check if anything changed
+      const oldJson = JSON.stringify(zones.map(z => ({ id:z.id, rep:z.assignedRep })));
+      const newJson = JSON.stringify(fresh.map(z => ({ id:z.id, rep:z.assignedRep })));
+      if (oldJson === newJson) return; // nothing changed
+
+      zones = fresh;
+      localStorage.setItem('kt_zones', JSON.stringify(zones));
+
+      // Re-render all zone polygons
+      Object.keys(zonePolygons).forEach(k => {
+        if (zonePolygons[k]) zonePolygons[k].setMap(null);
+      });
+      zonePolygons = {};
+      zones.forEach(z => renderZonePolygon(z));
+
+      // Re-apply rep highlight if rep is logged in
+      const session = window.currentSession;
+      if (session && !window._auth?.canAccessPortal()) {
+        const myZones = zones.filter(z => z.assignedRep === session.name);
+        if (myZones.length > 0) {
+          showToast('🔄 Your zone assignment was updated', 4000);
+          highlightRepZones(session.name);
+        }
+      }
+    } catch(e) { /* silent — network blip */ }
+  }, 15000); // every 15 seconds
 }
 
 // ── Render a zone polygon on the map ──
@@ -2220,12 +2384,12 @@ function renderZonePolygon(zone) {
     delete zonePolygons[labelKey];
   }
 
-  // Only show zones that belong to current rep (or all zones for owners)
+  // Visibility rules:
+  // Leaders (CEO, Team Lead, Co-Owner etc.) → see ALL zones
+  // Field reps → only see their own assigned zone
   const session = window.currentSession;
-  const isOwner = window._auth ? window._auth.canAccessPortal() : false;
-  if (session && !isOwner && zone.assignedRep && zone.assignedRep !== session.name) {
-    // Hide other reps' assigned zones from this rep's view
-    return;
+  if (session && !isLeader() && zone.assignedRep && zone.assignedRep !== session.name) {
+    return; // hide other reps' zones
   }
 
   const c = zoneColor(zone);
@@ -2248,6 +2412,17 @@ function renderZonePolygon(zone) {
 
   polygon.addListener('click', () => showZoneInfoPopup(zone));
   zonePolygons[zone.id] = polygon;
+
+  // Overlap warning: if this zone overlaps another assigned zone, show red border
+  if (isLeader() && zone.assignedRep) {
+    const overlaps = zones.some(z =>
+      z.id !== zone.id && z.assignedRep && z.assignedRep !== zone.assignedRep &&
+      polygonsOverlap(zone.path, z.path)
+    );
+    if (overlaps) {
+      polygon.setOptions({ strokeColor: '#ef4444', strokeWeight: 4, strokeOpacity: 1 });
+    }
+  }
 
   // Add rep name label at zone centroid
   if (zone.assignedRep || zone.name) {
@@ -2293,13 +2468,20 @@ function getPolygonCentroid(path) {
 // ── Zone info popup ──
 function showZoneInfoPopup(zone) {
   document.getElementById('zone-info-overlay')?.remove();
-  const isOwner = window._auth ? window._auth.canAccessPortal() : false;
-
   const overlay = document.createElement('div');
   overlay.id = 'zone-info-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
 
-  const c        = zoneColor(zone);
+  // Check for overlaps with other assigned zones
+  const hasOverlap = isLeader() && zone.assignedRep && zones.some(z =>
+    z.id !== zone.id && z.assignedRep && z.assignedRep !== zone.assignedRep &&
+    polygonsOverlap(zone.path, z.path)
+  );
+  const overlapBadge = hasOverlap
+    ? `<span style="background:rgba(239,68,68,0.2);color:#ef4444;border:1px solid #ef4444;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">⚠️ OVERLAP</span>`
+    : '';
+
+  const c = zoneColor(zone);
   const assigned = zone.assignedRep
     ? `<span style="background:rgba(59,130,246,0.2);color:#60a5fa;border:1px solid #3b82f6;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">👤 ${zone.assignedRep}</span>`
     : `<span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid #7c3aed;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">🔷 Unassigned</span>`;
@@ -2317,7 +2499,7 @@ function showZoneInfoPopup(zone) {
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
         <div>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:#fff">${zone.name||'Knock Zone'}</div>
-          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${assigned}</div>
+          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${assigned}${overlapBadge}</div>
         </div>
         <div style="width:44px;height:44px;border-radius:50%;background:${c.fill};border:2px solid ${c.stroke};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🔷</div>
       </div>
@@ -2331,9 +2513,9 @@ function showZoneInfoPopup(zone) {
       </div>
 
       <div style="display:flex;flex-direction:column;gap:8px">
-        ${isOwner ? `<button onclick="showAssignZoneModal('${zone.id}')" style="width:100%;padding:12px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);border-radius:10px;color:#60a5fa;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">👤 ${zone.assignedRep ? 'Reassign Rep' : 'Assign Rep'}</button>` : ''}
+        ${isLeader() ? `<button onclick="showAssignZoneModal('${zone.id}')" style="width:100%;padding:12px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);border-radius:10px;color:#60a5fa;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">👤 ${zone.assignedRep ? 'Reassign Rep' : 'Assign Rep'}</button>` : ''}
         <div style="display:flex;gap:8px">
-          ${isOwner ? `<button onclick="deleteZone('${zone.id}')" style="flex:1;padding:11px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Delete</button>` : ''}
+          ${isLeader() ? `<button onclick="deleteZone('${zone.id}')" style="flex:1;padding:11px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Delete</button>` : ''}
           <button onclick="document.getElementById('zone-info-overlay').remove()" style="flex:1;padding:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#aaa;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Close</button>
         </div>
       </div>
@@ -2357,11 +2539,14 @@ window.markZoneKnocked = function(zoneId) {
 
 // ── Delete zone (owners only) ──
 window.deleteZone = function(zoneId) {
-  if (!window._auth?.canAccessPortal()) { alert('Owner access required.'); return; }
+  if (!isLeader()) { if(typeof showToast==='function') showToast('Leadership access required', 2500); return; }
   if (!confirm('Delete this zone permanently?')) return;
   zones = zones.filter(z => z.id !== zoneId);
   saveZones();
+  deleteZoneFromSupabase(zoneId);       // Supabase sync
   if (zonePolygons[zoneId]) { zonePolygons[zoneId].setMap(null); delete zonePolygons[zoneId]; }
+  const labelKey = zoneId + '_label';
+  if (zonePolygons[labelKey]) { zonePolygons[labelKey].setMap(null); delete zonePolygons[labelKey]; }
   document.getElementById('zone-info-overlay')?.remove();
   if (typeof showToast === 'function') showToast('Zone deleted', 2000);
 };
@@ -2423,15 +2608,78 @@ window.showAssignZoneModal = function(zoneId) {
 
 // ── Confirm and save assignment ───────────────────────────────────────────
 window.confirmZoneAssignment = function(zoneId) {
-  const sel  = document.getElementById('zone-assign-rep-select');
-  const rep  = sel?.value?.trim();
+  const sel = document.getElementById('zone-assign-rep-select');
+  const rep = sel?.value?.trim();
   if (!rep) {
     if (typeof showToast === 'function') showToast('Select a rep first', 2000);
     return;
   }
+
+  // ── Rule 1: 1 zone per rep ────────────────────────────────────────────
+  const existingZone = zones.find(z => z.assignedRep === rep && z.id !== zoneId);
+  if (existingZone) {
+    const overwrite = confirm(
+      `${rep} is already assigned to "${existingZone.name}".\n\n` +
+      `Reassigning will remove their current zone.\n\nContinue?`
+    );
+    if (!overwrite) return;
+    // Clear the existing zone assignment first
+    const eIdx = zones.findIndex(z => z.id === existingZone.id);
+    if (eIdx !== -1) {
+      zones[eIdx].assignedRep = null;
+      zones[eIdx].assignedAt  = null;
+      zones[eIdx].assignedBy  = null;
+      saveZones();
+      saveZoneToSupabase(zones[eIdx]);
+      renderZonePolygon(zones[eIdx]);
+    }
+  }
+
+  // ── Rule 2: Overlap detection ─────────────────────────────────────────
+  const targetZone = zones.find(z => z.id === zoneId);
+  if (targetZone) {
+    const overlapping = zones.filter(z =>
+      z.id !== zoneId &&
+      z.assignedRep &&
+      z.assignedRep !== rep &&
+      polygonsOverlap(targetZone.path, z.path)
+    );
+    if (overlapping.length > 0) {
+      const names = overlapping.map(z => `"${z.name}" (${z.assignedRep})`).join(', ');
+      const proceed = confirm(
+        `⚠️ Overlap Detected!\n\n` +
+        `This zone overlaps with: ${names}\n\n` +
+        `Overlapping zones can cause confusion for reps.\n\nAssign anyway?`
+      );
+      if (!proceed) return;
+    }
+  }
+
   assignZoneToRep(zoneId, rep);
   document.getElementById('zone-assign-overlay')?.remove();
 };
+
+// ── Polygon overlap detection ─────────────────────────────────────────────
+// Uses point-in-polygon test: if any vertex of A is inside B, they overlap
+function pointInPolygon(point, path) {
+  let inside = false;
+  const x = point.lng, y = point.lat;
+  for (let i = 0, j = path.length - 1; i < path.length; j = i++) {
+    const xi = path[i].lng, yi = path[i].lat;
+    const xj = path[j].lng, yj = path[j].lat;
+    const intersect = ((yi > y) !== (yj > y)) &&
+      (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function polygonsOverlap(pathA, pathB) {
+  // Check if any vertex of A is inside B, or any vertex of B is inside A
+  for (const pt of pathA) { if (pointInPolygon(pt, pathB)) return true; }
+  for (const pt of pathB) { if (pointInPolygon(pt, pathA)) return true; }
+  return false;
+}
 
 // ── Core assignment logic ─────────────────────────────────────────────────
 window.assignZoneToRep = function(zoneId, repName) {
@@ -2442,8 +2690,9 @@ window.assignZoneToRep = function(zoneId, repName) {
   zones[idx].assignedAt  = new Date().toISOString();
   zones[idx].assignedBy  = window.currentSession?.name || 'Unknown';
 
-  saveZones();
-  renderZonePolygon(zones[idx]); // re-render with blue color
+  saveZones();                          // localStorage cache
+  saveZoneToSupabase(zones[idx]);       // Supabase sync → rep sees it in real-time
+  renderZonePolygon(zones[idx]);
 
   if (typeof showToast === 'function')
     showToast(`✅ "${zones[idx].name}" assigned to ${repName}`, 3500);
@@ -2463,6 +2712,7 @@ window.unassignZone = function(zoneId) {
   zones[idx].assignedAt  = null;
   zones[idx].assignedBy  = null;
   saveZones();
+  saveZoneToSupabase(zones[idx]);       // Supabase sync
   renderZonePolygon(zones[idx]);
   document.getElementById('zone-assign-overlay')?.remove();
   if (typeof showToast === 'function') showToast(`Zone "${zoneName}" unassigned`, 2500);
@@ -2471,23 +2721,28 @@ window.unassignZone = function(zoneId) {
 
 // ── When a rep logs in: highlight their assigned zones ────────────────────
 function highlightRepZones(repName) {
-  if (!repName || !zones.length) return;
+  if (!repName) return;
 
   const myZones = zones.filter(z => z.assignedRep === repName);
-  if (myZones.length === 0) return;
 
-  // Show toast so rep knows they have turf
-  if (typeof showToast === 'function')
-    showToast(`📍 You have ${myZones.length} assigned zone${myZones.length > 1 ? 's' : ''} — shown in blue on the map`, 5000);
-
-  // Re-render all zones — assigned ones render blue, others grey
+  // Always re-render — renderZonePolygon already hides other reps' zones
   zones.forEach(z => renderZonePolygon(z));
 
-  // Pan map to fit all assigned zones
-  if (typeof map !== 'undefined' && map && myZones.length > 0) {
+  if (myZones.length === 0) return; // no zone assigned — nothing more to do
+
+  // Toast notification
+  if (typeof showToast === 'function') {
+    const names = myZones.map(z => z.name).join(', ');
+    showToast(`📍 Your turf: ${names}`, 6000);
+  }
+
+  // Pan and zoom map to fit all assigned zones
+  if (typeof map !== 'undefined' && map) {
     const bounds = new google.maps.LatLngBounds();
     myZones.forEach(z => z.path.forEach(pt => bounds.extend(pt)));
-    setTimeout(() => map.fitBounds(bounds, { top:60, bottom:60, left:40, right:40 }), 800);
+    setTimeout(() => {
+      map.fitBounds(bounds, { top: 80, bottom: 80, left: 40, right: 40 });
+    }, 600);
   }
 }
 // ══════════════════════════════════════════════════════════════════════════
@@ -2545,7 +2800,8 @@ function initZoneDrawing() {
     };
 
     zones.push(zone);
-    saveZones();
+    saveZones();                          // localStorage cache
+    saveZoneToSupabase(zone);             // Supabase sync
     renderZonePolygon(zone);
 
     if (typeof showToast === 'function') showToast(`✅ Zone "${zone.name}" saved`, 3000);
@@ -4715,8 +4971,16 @@ window.renderZonesPortal = function() {
 
   list.innerHTML = zonesData.map(zone => {
     const drawnDate = new Date(zone.drawnAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const overlapZones = zone.assignedRep ? zones.filter(z =>
+      z.id !== zone.id && z.assignedRep && z.assignedRep !== zone.assignedRep &&
+      typeof polygonsOverlap === 'function' && polygonsOverlap(zone.path, z.path)
+    ) : [];
+    const overlapWarn = overlapZones.length > 0
+      ? `<span style="background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid #ef4444;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700">⚠️ Overlaps ${overlapZones.map(z=>z.assignedRep).join(', ')}</span>`
+      : '';
+    const zc = zone.assignedRep ? ZONE_COLORS[repColorIndex(zone.assignedRep)] : {fill:'#7c3aed'};
     const assignedBadge = zone.assignedRep
-      ? `<span style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid #3b82f6;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700">👤 ${zone.assignedRep}</span>`
+      ? `<span style="background:${zc.fill}22;color:${zc.fill};border:1px solid ${zc.fill};border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700">👤 ${zone.assignedRep}</span>`
       : `<span style="background:rgba(124,58,237,0.12);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700">Unassigned</span>`;
     const assignedSince = zone.assignedAt
       ? `Assigned ${new Date(zone.assignedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`
@@ -4729,7 +4993,7 @@ window.renderZonesPortal = function() {
       <div style="width:44px;height:44px;border-radius:10px;${iconBg};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${zone.assignedRep ? '👤' : '🔷'}</div>
       <div style="flex:1;min-width:0">
         <div style="font-family:'Outfit',sans-serif;font-size:15px;font-weight:800;color:var(--text)">${zone.name}</div>
-        <div style="margin-top:5px">${assignedBadge}</div>
+        <div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap">${assignedBadge}${overlapWarn}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:4px">Drawn by ${zone.drawnBy||'Unknown'} · ${drawnDate}${assignedSince ? ' · '+assignedSince : ''}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
@@ -6142,7 +6406,7 @@ function darkMapStyle() {
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
       <div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:#a78bfa">🔷 Knock Zones</div>
-        <div style="font-family:'Montserrat',sans-serif;font-size:12px;color:var(--muted);margin-top:2px">All drawn territory zones — 90-day cooldown tracked automatically</div>
+        <div style="font-family:'Montserrat',sans-serif;font-size:12px;color:var(--muted);margin-top:2px">Each rep gets 1 zone · Overlapping zones shown with ⚠️ warning</div>
       </div>
       <button onclick="closeBackendPortal();setTimeout(()=>toggleZoneMode(),200)" style="padding:11px 20px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);border-radius:10px;color:#a78bfa;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">🔷 Draw New Zone</button>
     </div>
