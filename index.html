@@ -2564,7 +2564,7 @@ window.showAssignZoneModal = function(zoneId) {
   const zone = zones.find(z => z.id === zoneId);
   if (!zone) return;
 
-  const allReps = [...(window.reps || [])].map(r => r.name).filter(Boolean);
+  const allReps = [...reps, ...archivedReps].map(r => r.name).filter(Boolean);
   const repOptions = allReps.map(name =>
     `<option value="${name}" ${zone.assignedRep === name ? 'selected' : ''}>${name}</option>`
   ).join('');
@@ -3012,6 +3012,160 @@ window.populateBlockPins = async function(centerLat, centerLng, streetName) {
 };
 // ══════════════════════════════════════════════════════════════════════════
 // END ZONE DRAWING + ADDRESS PRE-POPULATION
+// ══════════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════
+// ADDRESS AUTO-POPULATION — OpenStreetMap Building Footprints
+// One Overpass request → ALL buildings in viewport → grey dot on each
+// Pins placed instantly, addresses resolved in background via Google
+// ══════════════════════════════════════════════════════════════════════════
+
+let addressPins     = {};
+let autoPopActive   = false;
+let lastFetchBounds = null;
+let autoPopEnabled  = false;
+let addrMarkers     = [];
+let clusterer       = null;
+const AUTO_POP_MIN_ZOOM = 16;
+
+window.toggleAutoAddressPins = function() {
+  autoPopEnabled = !autoPopEnabled;
+  const btn = document.getElementById('btn-auto-addresses');
+  if (autoPopEnabled) {
+    if (btn) { btn.style.background='rgba(34,197,94,0.85)'; btn.style.color='#000'; btn.style.borderColor='#22c55e'; btn.textContent='📍 Addresses ON'; }
+    ensureClusterer();
+    fetchAddressLayer();
+  } else {
+    if (btn) { btn.style.background=''; btn.style.color='rgba(34,197,94,0.8)'; btn.style.borderColor='rgba(34,197,94,0.3)'; btn.textContent='📍 Addresses'; }
+  }
+};
+
+function ensureClusterer() {
+  if (clusterer || typeof MarkerClusterer === 'undefined') return;
+  clusterer = new MarkerClusterer(map, [], { maxZoom:15, gridSize:40, minimumClusterSize:3,
+    imagePath:'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m' });
+}
+
+async function fetchAddressLayer() {
+  if (!autoPopEnabled || autoPopActive || !map) return;
+  const zoom = map.getZoom();
+  if (zoom < AUTO_POP_MIN_ZOOM) return;
+
+  const bounds = map.getBounds();
+  if (!bounds) return;
+  if (lastFetchBounds) {
+    const ne = bounds.getNorthEast(), lne = lastFetchBounds.getNorthEast();
+    if (Math.abs(ne.lat()-lne.lat()) < 0.0003 && Math.abs(ne.lng()-lne.lng()) < 0.0003) return;
+  }
+
+  autoPopActive   = true;
+  lastFetchBounds = bounds;
+
+  const sw = bounds.getSouthWest(), ne = bounds.getNorthEast();
+  const S = sw.lat().toFixed(6), W = sw.lng().toFixed(6);
+  const N = ne.lat().toFixed(6), E = ne.lng().toFixed(6);
+
+  const query = `[out:json][timeout:30];(way["building"](${S},${W},${N},${E});node["building"](${S},${W},${N},${E});relation["building"](${S},${W},${N},${E}););out center qt 2000;`;
+
+  let elements = [];
+  try {
+    const resp = await fetch('https://overpass-api.de/api/interpreter', {
+      method:'POST', headers:{'Content-Type':'text/plain'}, body:query });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    elements = data.elements || [];
+  } catch(err) {
+    console.error('[KnockTrack] Overpass error:', err);
+    autoPopActive = false;
+    return;
+  }
+
+  let placed = 0;
+  const needsLabel = [];
+
+  for (const el of elements) {
+    const lat = el.lat ?? el.center?.lat;
+    const lon = el.lon ?? el.center?.lon;
+    if (!lat || !lon) continue;
+
+    const pinKey = `osm_${el.type}_${el.id}`;
+    if (addressPins[pinKey]) continue;
+
+    const already = knocks.some(k => !k.autoPopulated && Math.abs(k.lat-lat)<0.0001 && Math.abs(k.lng-lon)<0.0001);
+    if (already) { addressPins[pinKey]=true; continue; }
+
+    const tags = el.tags || {};
+    const houseNum = tags['addr:housenumber'], street = tags['addr:street'];
+    const city = tags['addr:city']||tags['addr:suburb']||'', state = tags['addr:state']||'', postcode = tags['addr:postcode']||'';
+
+    let address;
+    if (houseNum && street) {
+      address = [`${houseNum} ${street}`, city, state ? `${state} ${postcode}` : postcode].filter(Boolean).join(', ');
+    } else {
+      address = '📍 Loading address…';
+      needsLabel.push({ pinKey, lat, lon, name: tags.name||'' });
+    }
+
+    placeBuildingPin(pinKey, lat, lon, address);
+    placed++;
+
+    if (placed % 50 === 0) {
+      updateStats(); renderList();
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  updateStats(); renderList();
+  if (placed > 0 && typeof showToast === 'function') showToast(`✅ ${placed} address pins loaded`, 3000);
+  autoPopActive = false;
+
+  // Background geocode unnamed buildings
+  (async () => {
+    for (const bld of needsLabel) {
+      if (!autoPopEnabled || !addressPins[bld.pinKey]) break;
+      await new Promise(resolve => {
+        geocoder.geocode({ location:{ lat:bld.lat, lng:bld.lon } }, (results, status) => {
+          if (status==='OK' && results?.[0]) {
+            const addr = results[0].formatted_address;
+            const idx = knocks.findIndex(k => k.id===bld.pinKey);
+            if (idx!==-1 && knocks[idx].address==='📍 Loading address…') {
+              knocks[idx].address = addr;
+              if (markers[bld.pinKey]) markers[bld.pinKey].setTitle(addr);
+            }
+          }
+          resolve();
+        });
+      });
+      await new Promise(r => setTimeout(r, 120));
+    }
+  })();
+}
+
+function placeBuildingPin(pinKey, lat, lon, address) {
+  if (addressPins[pinKey]) return;
+  addressPins[pinKey] = true;
+  if (knocks.some(k => !k.autoPopulated && Math.abs(k.lat-lat)<0.00008 && Math.abs(k.lng-lon)<0.00008)) return;
+
+  const knock = {
+    id:pinKey, lat, lng:lon,
+    address: address || `Building at ${lat.toFixed(5)}, ${lon.toFixed(5)}`,
+    status:'unvisited', rep:'', notes:'',
+    time:new Date().toISOString(), autoPopulated:true,
+  };
+  knocks.push(knock);
+  addMarker(knock);
+}
+
+function initAddressPinAutoFetch() {
+  let debounce = null;
+  map.addListener('idle', () => {
+    if (!autoPopEnabled) return;
+    clearTimeout(debounce);
+    debounce = setTimeout(fetchAddressLayer, 800);
+  });
+}
+// ══════════════════════════════════════════════════════════════════════════
+// END ADDRESS AUTO-POPULATION SYSTEM
 // ══════════════════════════════════════════════════════════════════════════
 
 window.setMapType = function(type) {
