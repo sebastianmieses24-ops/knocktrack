@@ -2161,6 +2161,13 @@ window.togglePinMode = function(force) {
     if (map) map.setOptions({ draggableCursor:'crosshair' });
     hint.textContent = '📍 Tap anywhere on the map to drop a pin';
     hint.style.display = 'block';
+    // Make all zone polygons non-clickable so clicks pass to map
+    // The polygon's own click handler will still work via bubbling check
+    Object.entries(zonePolygons).forEach(([key, poly]) => {
+      if (poly && poly.setOptions && !key.endsWith('_label')) {
+        poly.setOptions({ clickable: false });
+      }
+    });
   } else {
     btn.style.background = 'rgba(26,29,39,0.85)';
     btn.style.color = '#aaa';
@@ -2168,6 +2175,12 @@ window.togglePinMode = function(force) {
     btn.innerHTML = '📍 Drop Pin';
     if (map) map.setOptions({ draggableCursor:null });
     hint.style.display = 'none';
+    // Restore polygon clickability
+    Object.entries(zonePolygons).forEach(([key, poly]) => {
+      if (poly && poly.setOptions && !key.endsWith('_label')) {
+        poly.setOptions({ clickable: true });
+      }
+    });
   }
 };
 
@@ -2428,9 +2441,11 @@ function renderZonePolygon(zone) {
 
   // Ghost zones (expired cooldown) — thin dashed outline, no fill
   const isGhost = c.ghost === true;
-  const fillOpacity  = isGhost ? 0 : (zone.assignedRep ? 0.28 : 0.18);
-  const strokeWeight = isGhost ? 1.5 : (zone.assignedRep ? 3 : 2);
-  const strokeOpacity = isGhost ? 0.45 : 0.95;
+  // Fresh zones (never knocked) get stronger fill so they're clearly visible
+  const isFresh      = !zone.knockedAt;
+  const fillOpacity  = isGhost ? 0 : (isFresh ? 0.35 : 0.28);
+  const strokeWeight = isGhost ? 1.5 : 3;
+  const strokeOpacity = isGhost ? 0.45 : 1.0;
 
   const polygon = new google.maps.Polygon({
     paths: zone.path,
@@ -2494,20 +2509,23 @@ function renderZonePolygon(zone) {
       position: centroid,
       disableAutoPan: true,
     });
-    // Use a custom marker instead for better performance
+    // SVG label — pointer-events:none so clicks pass through to polygon
+    const labelText = zone.assignedRep ? zone.name + ' · ' + zone.assignedRep : zone.name;
+    const svgLabel = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="28" style="pointer-events:none">'
+      + '<rect x="0" y="0" width="200" height="28" rx="6" fill="rgba(15,19,24,0.75)"/>'
+      + '<text x="100" y="19" text-anchor="middle" font-family="Outfit,sans-serif" font-size="11" font-weight="700" fill="white">' + labelText + '</text>'
+      + '</svg>';
     const labelMarker = new google.maps.Marker({
       position: centroid,
       map,
-      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }, // invisible anchor
-      label: {
-        text: zone.assignedRep ? `${zone.name} · ${zone.assignedRep}` : zone.name,
-        color: '#ffffff',
-        fontSize: '11px',
-        fontWeight: '700',
-        fontFamily: 'Outfit, sans-serif',
+      icon: {
+        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgLabel),
+        scaledSize: new google.maps.Size(200, 28),
+        anchor: new google.maps.Point(100, 14),
       },
       zIndex: 4,
       clickable: false,
+      optimized: false,
     });
     zonePolygons[labelKey] = labelMarker;
   }
