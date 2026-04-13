@@ -1190,6 +1190,18 @@ textarea#knock-notes:focus { border-color:var(--accent); }
         <button class="map-type-btn inactive" id="btn-auto-addresses" onclick="toggleAutoAddressPins()" style="border-color:rgba(34,197,94,0.3);color:rgba(34,197,94,0.8);white-space:nowrap;flex-shrink:0" title="Enable address auto-pins">📍 Addresses</button>
       </div>
 
+      <!-- Zone color legend (leaders only, shown when zones exist) -->
+      <div id="zone-legend" style="display:none;position:absolute;top:52px;right:12px;z-index:10;background:rgba(15,19,24,0.92);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;backdrop-filter:blur(8px);font-family:'Outfit',sans-serif">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:7px;text-transform:uppercase">Zone Cooldown</div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;align-items:center;gap:7px"><div style="width:12px;height:12px;border-radius:3px;background:#3b82f6;flex-shrink:0"></div><span style="font-size:11px;color:#aaa">Rep color — never knocked</span></div>
+          <div style="display:flex;align-items:center;gap:7px"><div style="width:12px;height:12px;border-radius:3px;background:#ef4444;flex-shrink:0"></div><span style="font-size:11px;color:#aaa">🔴 0–30 days (avoid)</span></div>
+          <div style="display:flex;align-items:center;gap:7px"><div style="width:12px;height:12px;border-radius:3px;background:#f97316;flex-shrink:0"></div><span style="font-size:11px;color:#aaa">🟠 31–60 days</span></div>
+          <div style="display:flex;align-items:center;gap:7px"><div style="width:12px;height:12px;border-radius:3px;background:#eab308;flex-shrink:0"></div><span style="font-size:11px;color:#aaa">🟡 61–89 days</span></div>
+          <div style="display:flex;align-items:center;gap:7px"><div style="width:12px;height:12px;border-radius:3px;background:rgba(107,114,128,0.3);border:1px solid #6b7280;flex-shrink:0"></div><span style="font-size:11px;color:#aaa">✅ 90+ days (ready)</span></div>
+        </div>
+      </div>
+
       <!-- Bottom left controls -->
       <div style="position:absolute;bottom:calc(66px + env(safe-area-inset-bottom));left:12px;z-index:10;display:flex;flex-direction:column;gap:6px">
         <button id="show-all-btn" onclick="clearFilter()" title="Show All Pins" style="display:none;width:40px;height:40px;border-radius:10px;border:none;background:#22c55e;color:#000;font-size:16px;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4);font-weight:700" title="Show All Pins">✦</button>
@@ -2176,11 +2188,17 @@ let zoneModeActive = false;
 
 // ── Cooldown: 3 months in ms ──
 const ZONE_COOLDOWN_MS = 90 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
+// Returns: 'fresh' | 'hot' (0-30d) | 'warm' (31-60d) | 'cool' (61-89d) | 'ready' (90d+)
 function zoneStatus(zone) {
-  if (!zone.knockedAt) return 'fresh';           // never knocked
+  if (!zone.knockedAt) return 'fresh';
   const elapsed = Date.now() - new Date(zone.knockedAt).getTime();
-  return elapsed < ZONE_COOLDOWN_MS ? 'cooling' : 'ready'; // cooling = avoid, ready = ok to re-knock
+  const days = elapsed / DAY_MS;
+  if (days < 30)  return 'hot';   // 0-30 days: RED — freshly knocked
+  if (days < 60)  return 'warm';  // 31-60 days: ORANGE — mid cooldown
+  if (days < 90)  return 'cool';  // 61-89 days: YELLOW — almost ready
+  return 'ready';                  // 90+ days: expired cooldown, ready to re-knock
 }
 
 
@@ -2218,19 +2236,33 @@ function repColorIndex(repName) {
 }
 
 function zoneColor(zone) {
+  // Cooldown colors take priority when zone has been knocked
+  if (zone.knockedAt) {
+    const s = zoneStatus(zone);
+    if (s === 'hot')   return { fill:'#ef4444', stroke:'#dc2626' }; // RED   — 0-30 days
+    if (s === 'warm')  return { fill:'#f97316', stroke:'#ea580c' }; // ORANGE — 31-60 days
+    if (s === 'cool')  return { fill:'#eab308', stroke:'#ca8a04' }; // YELLOW — 61-89 days
+    if (s === 'ready') return { fill:'transparent', stroke:'#6b7280', ghost:true }; // EXPIRED — ready
+  }
+  // Not yet knocked: show rep color so they can identify their turf
   if (zone.assignedRep) {
     return ZONE_COLORS[repColorIndex(zone.assignedRep)];
   }
-  return { fill:'#7c3aed', stroke:'#6d28d9' }; // purple = unassigned
+  return { fill:'#7c3aed', stroke:'#6d28d9' }; // purple = unassigned/fresh
 }
 
 function zoneCooldownLabel(zone) {
-  if (!zone.knockedAt) return 'Never knocked — fresh territory';
+  if (!zone.knockedAt) return '🟢 Fresh — never knocked';
   const elapsed = Date.now() - new Date(zone.knockedAt).getTime();
-  if (elapsed >= ZONE_COOLDOWN_MS) return '✅ Ready to re-knock';
-  const remaining = ZONE_COOLDOWN_MS - elapsed;
-  const days = Math.ceil(remaining / (24*60*60*1000));
-  return `⏳ ${days} days left in cooldown (knocked ${new Date(zone.knockedAt).toLocaleDateString()})`;
+  const daysElapsed = Math.floor(elapsed / DAY_MS);
+  const remaining   = Math.max(0, 90 - daysElapsed);
+  const knocked      = new Date(zone.knockedAt).toLocaleDateString('en-US', { month:'short', day:'numeric' });
+
+  const s = zoneStatus(zone);
+  if (s === 'hot')   return `🔴 ${daysElapsed} days ago (${knocked}) — ${remaining} days until re-knock`;
+  if (s === 'warm')  return `🟠 ${daysElapsed} days ago (${knocked}) — ${remaining} days until re-knock`;
+  if (s === 'cool')  return `🟡 ${daysElapsed} days ago (${knocked}) — ${remaining} days until re-knock`;
+  return `✅ Ready to re-knock (knocked ${knocked}, ${daysElapsed} days ago)`;
 }
 
 // ── Load zones from localStorage (Supabase sync optional) ──
@@ -2394,29 +2426,53 @@ function renderZonePolygon(zone) {
 
   const c = zoneColor(zone);
 
-  // Assigned zones get a slightly more opaque fill so they stand out
-  const fillOpacity = zone.assignedRep ? 0.28 : 0.18;
-  const strokeWeight = zone.assignedRep ? 3 : 2;
+  // Ghost zones (expired cooldown) — thin dashed outline, no fill
+  const isGhost = c.ghost === true;
+  const fillOpacity  = isGhost ? 0 : (zone.assignedRep ? 0.28 : 0.18);
+  const strokeWeight = isGhost ? 1.5 : (zone.assignedRep ? 3 : 2);
+  const strokeOpacity = isGhost ? 0.45 : 0.95;
 
   const polygon = new google.maps.Polygon({
     paths: zone.path,
     strokeColor: c.stroke,
-    strokeOpacity: 0.95,
+    strokeOpacity,
     strokeWeight,
-    fillColor: c.fill,
+    fillColor: isGhost ? 'transparent' : c.fill,
     fillOpacity,
     map,
     clickable: true,
-    zIndex: zone.assignedRep ? 3 : 1,
+    zIndex: isGhost ? 1 : (zone.assignedRep ? 3 : 2),
   });
 
-  polygon.addListener('click', () => showZoneInfoPopup(zone));
+  polygon.addListener('click', (e) => {
+    // If pin drop mode is active, pass click through to drop a pin
+    if (pinModeActive) {
+      closeBottomSheet();
+      const lat = e.latLng.lat(), lng = e.latLng.lng();
+      const existing = checkAlreadyKnocked(lat, lng);
+      if (existing) {
+        const s = STATUSES.find(x => x.key === existing.status);
+        if (!confirm(`⚠️ Already knocked!\n\n${existing.address}\nStatus: ${s ? s.label : existing.status}\nRep: ${existing.rep || 'Unknown'}\n\nDo you want to update this knock?`)) {
+          togglePinMode(false); return;
+        }
+        openModal(lat, lng, existing.id);
+      } else {
+        openModal(lat, lng);
+      }
+      togglePinMode(false);
+      return;
+    }
+    // Normal click → show zone info popup
+    showZoneInfoPopup(zone);
+  });
   zonePolygons[zone.id] = polygon;
 
   // Overlap warning: if this zone overlaps another assigned zone, show red border
-  if (isLeader() && zone.assignedRep) {
+  // Overlap warning (leaders only, non-expired zones)
+  if (isLeader() && zone.assignedRep && !isGhost) {
     const overlaps = zones.some(z =>
       z.id !== zone.id && z.assignedRep && z.assignedRep !== zone.assignedRep &&
+      zoneStatus(z) !== 'ready' &&
       polygonsOverlap(zone.path, z.path)
     );
     if (overlaps) {
@@ -2468,58 +2524,114 @@ function getPolygonCentroid(path) {
 // ── Zone info popup ──
 function showZoneInfoPopup(zone) {
   document.getElementById('zone-info-overlay')?.remove();
+
   const overlay = document.createElement('div');
   overlay.id = 'zone-info-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
 
-  // Check for overlaps with other assigned zones
-  const hasOverlap = isLeader() && zone.assignedRep && zones.some(z =>
+  const c         = zoneColor(zone);
+  const statusNow = zoneStatus(zone);
+  const leader    = isLeader();
+
+  // ── Color identity: tells user exactly what this color means ────────
+  const colorIdentity =
+    statusNow === 'hot'   ? { label:'Month 1 — Red Zone',    sub:'Knocked 0–30 days ago. Avoid re-knocking.',   dot:'#ef4444' } :
+    statusNow === 'warm'  ? { label:'Month 2 — Orange Zone', sub:'Knocked 31–60 days ago. Still cooling down.', dot:'#f97316' } :
+    statusNow === 'cool'  ? { label:'Month 3 — Yellow Zone', sub:'Knocked 61–89 days ago. Almost ready.',       dot:'#eab308' } :
+    statusNow === 'ready' ? { label:'Ready to Re-Knock ✅',  sub:'90+ days since last knock. Good to go!',      dot:'#22c55e' } :
+                            { label:'Fresh Zone',             sub:'This territory has never been knocked.',      dot:(c.fill === 'transparent' ? '#6b7280' : c.fill) };
+
+  // ── Overlap badge ────────────────────────────────────────────────────
+  const hasOverlap = leader && zone.assignedRep && zones.some(z =>
     z.id !== zone.id && z.assignedRep && z.assignedRep !== zone.assignedRep &&
     polygonsOverlap(zone.path, z.path)
   );
   const overlapBadge = hasOverlap
-    ? `<span style="background:rgba(239,68,68,0.2);color:#ef4444;border:1px solid #ef4444;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">⚠️ OVERLAP</span>`
+    ? '<span style="background:rgba(239,68,68,0.2);color:#ef4444;border:1px solid #ef4444;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">⚠️ OVERLAP</span>'
     : '';
 
-  const c = zoneColor(zone);
-  const assigned = zone.assignedRep
-    ? `<span style="background:rgba(59,130,246,0.2);color:#60a5fa;border:1px solid #3b82f6;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">👤 ${zone.assignedRep}</span>`
-    : `<span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid #7c3aed;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">🔷 Unassigned</span>`;
+  // ── Assignment badge ─────────────────────────────────────────────────
+  const assignedBadge = zone.assignedRep
+    ? '<span style="background:rgba(59,130,246,0.2);color:#60a5fa;border:1px solid #3b82f6;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">👤 ' + zone.assignedRep + '</span>'
+    : '<span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid #7c3aed;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">🔷 Unassigned</span>';
 
-  const assignedInfo = zone.assignedRep
-    ? `<div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:12px 14px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:4px">ASSIGNED TO</div>
-        <div style="font-size:15px;color:#60a5fa;font-weight:700">${zone.assignedRep}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:3px">Since ${new Date(zone.assignedAt||zone.drawnAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
-      </div>`
-    : `<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px;text-align:center;color:var(--muted);font-size:13px">No rep assigned yet</div>`;
+  // ── Assigned-to card ─────────────────────────────────────────────────
+  const assignedCard = zone.assignedRep
+    ? '<div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:12px 14px">'
+      + '<div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:4px">ASSIGNED TO</div>'
+      + '<div style="font-size:15px;color:#60a5fa;font-weight:700">' + zone.assignedRep + '</div>'
+      + '<div style="font-size:10px;color:var(--muted);margin-top:3px">Since ' + new Date(zone.assignedAt||zone.drawnAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + '</div>'
+      + '</div>'
+    : '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px;text-align:center;color:var(--muted);font-size:13px">No rep assigned yet</div>';
 
-  overlay.innerHTML = `
-    <div style="background:#0f1318;border:1px solid rgba(255,255,255,0.1);border-radius:18px;width:100%;max-width:400px;padding:28px 24px;position:relative;animation:fadeSlideIn 0.2s ease">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-        <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:#fff">${zone.name||'Knock Zone'}</div>
-          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${assigned}${overlapBadge}</div>
-        </div>
-        <div style="width:44px;height:44px;border-radius:50%;background:${c.fill};border:2px solid ${c.stroke};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🔷</div>
-      </div>
+  // ── Cooldown card (only when knocked) ────────────────────────────────
+  let cooldownCard = '';
+  if (zone.knockedAt) {
+    const cdStyle =
+      statusNow === 'hot'   ? 'background:rgba(239,68,68,0.2);color:#ef4444;border:1px solid #ef4444' :
+      statusNow === 'warm'  ? 'background:rgba(249,115,22,0.2);color:#f97316;border:1px solid #f97316' :
+      statusNow === 'cool'  ? 'background:rgba(234,179,8,0.2);color:#eab308;border:1px solid #eab308' :
+                              'background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid #22c55e';
+    const cdLabel =
+      statusNow === 'hot'   ? '🔴 Month 1 (0–30 days)' :
+      statusNow === 'warm'  ? '🟠 Month 2 (31–60 days)' :
+      statusNow === 'cool'  ? '🟡 Month 3 (61–89 days)' :
+                              '✅ Ready to Re-Knock';
+    cooldownCard =
+      '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px">'
+      + '<div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:6px">COOLDOWN STATUS</div>'
+      + '<div style="margin-bottom:5px"><span style="border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;' + cdStyle + '">' + cdLabel + '</span></div>'
+      + '<div style="font-size:12px;color:var(--muted)">' + zoneCooldownLabel(zone) + '</div>'
+      + '</div>';
+  }
 
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">
-        ${assignedInfo}
-        <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:4px">DRAWN BY</div>
-          <div style="font-size:13px;color:#e8edf5;font-weight:600">${zone.drawnBy||'Unknown'} · ${new Date(zone.drawnAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
-        </div>
-      </div>
+  // ── Action buttons ───────────────────────────────────────────────────
+  const assignBtn = leader
+    ? '<button onclick="showAssignZoneModal(\'' + zone.id + '\')" style="width:100%;padding:12px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);border-radius:10px;color:#60a5fa;font-family:\'Outfit\',sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px">👤 ' + (zone.assignedRep ? 'Reassign Rep' : 'Assign Rep') + '</button>'
+    : '';
+  const deleteBtn = leader
+    ? '<button onclick="deleteZone(\'' + zone.id + '\')" style="flex:1;padding:11px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-family:\'Outfit\',sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Delete</button>'
+    : '';
 
-      <div style="display:flex;flex-direction:column;gap:8px">
-        ${isLeader() ? `<button onclick="showAssignZoneModal('${zone.id}')" style="width:100%;padding:12px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);border-radius:10px;color:#60a5fa;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">👤 ${zone.assignedRep ? 'Reassign Rep' : 'Assign Rep'}</button>` : ''}
-        <div style="display:flex;gap:8px">
-          ${isLeader() ? `<button onclick="deleteZone('${zone.id}')" style="flex:1;padding:11px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Delete</button>` : ''}
-          <button onclick="document.getElementById('zone-info-overlay').remove()" style="flex:1;padding:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#aaa;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Close</button>
-        </div>
-      </div>
-    </div>`;
+  // ── Assemble ─────────────────────────────────────────────────────────
+  overlay.innerHTML =
+    '<div style="background:#0f1318;border:1px solid rgba(255,255,255,0.1);border-radius:18px;width:100%;max-width:400px;padding:24px;position:relative;animation:fadeSlideIn 0.2s ease">'
+
+    // Color identity banner
+    + '<div style="background:' + colorIdentity.dot + '22;border:1px solid ' + colorIdentity.dot + '55;border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">'
+    +   '<div style="width:18px;height:18px;border-radius:4px;background:' + colorIdentity.dot + ';flex-shrink:0"></div>'
+    +   '<div>'
+    +     '<div style="font-family:\'Outfit\',sans-serif;font-size:14px;font-weight:800;color:#fff">' + colorIdentity.label + '</div>'
+    +     '<div style="font-family:\'Outfit\',sans-serif;font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">' + colorIdentity.sub + '</div>'
+    +   '</div>'
+    + '</div>'
+
+    // Zone name + badges
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'
+    +   '<div>'
+    +     '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;letter-spacing:2px;color:#fff">' + (zone.name||'Knock Zone') + '</div>'
+    +     '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">' + assignedBadge + overlapBadge + '</div>'
+    +   '</div>'
+    +   '<div style="width:40px;height:40px;border-radius:50%;background:' + colorIdentity.dot + ';flex-shrink:0"></div>'
+    + '</div>'
+
+    // Cards
+    + '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">'
+    +   assignedCard
+    +   cooldownCard
+    +   '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px">'
+    +     '<div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#555;margin-bottom:4px">DRAWN BY</div>'
+    +     '<div style="font-size:13px;color:#e8edf5;font-weight:600">' + (zone.drawnBy||'Unknown') + ' · ' + new Date(zone.drawnAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + '</div>'
+    +   '</div>'
+    + '</div>'
+
+    // Buttons
+    + assignBtn
+    + '<div style="display:flex;gap:8px">'
+    +   deleteBtn
+    +   '<button onclick="document.getElementById(\'zone-info-overlay\').remove()" style="flex:1;padding:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#aaa;font-family:\'Outfit\',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Close</button>'
+    + '</div>'
+    + '</div>';
 
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
   document.body.appendChild(overlay);
