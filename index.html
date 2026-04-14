@@ -1054,7 +1054,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
   </div>
 </div>
 <div id="cal-event-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:8000;align-items:flex-end;justify-content:center">
-  <div style="background:#1c1c1e;border-radius:20px 20px 0 0;width:100%;max-width:500px;overflow:hidden;animation:slideUpModal 0.28s cubic-bezier(.4,0,.2,1)">
+  <div style="background:#1c1c1e;border-radius:20px 20px 0 0;width:100%;max-width:500px;max-height:92vh;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;animation:slideUpModal 0.28s cubic-bezier(.4,0,.2,1)">
 
     <!-- Top bar: X | New / Edit | ✓ -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px">
@@ -1065,49 +1065,62 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 
     <!-- Event / Reminder toggle -->
     <div style="margin:0 16px 14px;background:rgba(255,255,255,0.08);border-radius:10px;display:flex;padding:2px">
-      <button id="evt-type-event" onclick="setEventType('event')" style="flex:1;padding:7px;border:none;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.15);color:var(--text);transition:all 0.15s">Event</button>
-      <button id="evt-type-reminder" onclick="setEventType('reminder')" style="flex:1;padding:7px;border:none;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Reminder</button>
+      <button id="evt-type-event" onclick="setEventType('event')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.15);color:var(--text);transition:all 0.15s">Event</button>
+      <button id="evt-type-reminder" onclick="setEventType('reminder')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Reminder</button>
     </div>
 
-    <!-- Title + Location -->
+    <!-- Title + Notes -->
     <div style="margin:0 16px 10px;background:var(--surface2);border-radius:12px;overflow:hidden">
       <input id="cal-event-title" placeholder="Title" style="width:100%;padding:13px 16px;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.08);color:var(--text);font-family:'Montserrat',sans-serif;font-size:16px;outline:none;box-sizing:border-box"/>
-      <input id="cal-event-location" placeholder="Location or Notes" style="width:100%;padding:13px 16px;background:transparent;border:none;color:var(--muted);font-family:'Montserrat',sans-serif;font-size:15px;outline:none;box-sizing:border-box"/>
+      <input id="cal-event-location" placeholder="Notes" style="width:100%;padding:13px 16px;background:transparent;border:none;color:var(--muted);font-family:'Montserrat',sans-serif;font-size:15px;outline:none;box-sizing:border-box"/>
     </div>
 
-    <!-- All-day toggle -->
+    <!-- All-day + Starts + Ends -->
     <div style="margin:0 16px 10px;background:var(--surface2);border-radius:12px;overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,0.08)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
         <span style="font-family:'Montserrat',sans-serif;font-size:15px;color:var(--text)">All-day</span>
-        <div id="allday-toggle" onclick="toggleAllDay()" style="width:50px;height:28px;border-radius:14px;background:#3a3a3c;cursor:pointer;position:relative;transition:background 0.2s">
+        <div id="allday-toggle" onclick="toggleAllDay()" style="width:50px;height:28px;border-radius:14px;background:#3a3a3c;cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0">
           <div id="allday-knob" style="position:absolute;left:2px;top:2px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left 0.2s;box-shadow:0 2px 4px rgba(0,0,0,0.4)"></div>
         </div>
       </div>
-
-      <!-- Starts row -->
-      <div onclick="openDatePicker('start')" style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer">
-        <span style="font-family:'Montserrat',sans-serif;font-size:15px;color:var(--text)">Starts</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span id="starts-date-label" style="font-family:'Montserrat',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
-          <span id="starts-time-label" class="allday-hide" style="font-family:'Montserrat',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
+      <div onclick="openDatePicker('start')" style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;gap:8px">
+        <span style="font-family:'Montserrat',sans-serif;font-size:15px;color:var(--text);flex-shrink:0">Starts</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+          <span id="starts-date-label" style="font-family:'Montserrat',sans-serif;font-size:13px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 9px;border-radius:7px;white-space:nowrap"></span>
+          <span id="starts-time-label" class="allday-hide" style="font-family:'Montserrat',sans-serif;font-size:13px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 9px;border-radius:7px;white-space:nowrap"></span>
         </div>
       </div>
-
-      <!-- Ends row -->
-      <div onclick="openDatePicker('end')" style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer">
-        <span style="font-family:'Montserrat',sans-serif;font-size:15px;color:var(--text)">Ends</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span id="ends-date-label" style="font-family:'Montserrat',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
-          <span id="ends-time-label" class="allday-hide" style="font-family:'Montserrat',sans-serif;font-size:14px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 10px;border-radius:7px"></span>
+      <div onclick="openDatePicker('end')" style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer;gap:8px">
+        <span style="font-family:'Montserrat',sans-serif;font-size:15px;color:var(--text);flex-shrink:0">Ends</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+          <span id="ends-date-label" style="font-family:'Montserrat',sans-serif;font-size:13px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 9px;border-radius:7px;white-space:nowrap"></span>
+          <span id="ends-time-label" class="allday-hide" style="font-family:'Montserrat',sans-serif;font-size:13px;color:#fff;background:rgba(255,255,255,0.12);padding:5px 9px;border-radius:7px;white-space:nowrap"></span>
         </div>
       </div>
     </div>
 
-    <!-- Repeat -->
-    <div style="margin:0 16px 24px;background:var(--surface2);border-radius:12px">
+    <!-- Remind me (per-event notification timing) -->
+    <div style="margin:0 16px 10px;background:var(--surface2);border-radius:12px;overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px">
+        <span style="font-family:'Montserrat',sans-serif;font-size:15px;color:var(--text)">Remind me</span>
+        <select id="cal-event-remind" style="background:var(--surface2);border:none;color:var(--muted);font-family:'Montserrat',sans-serif;font-size:14px;outline:none;cursor:pointer;max-width:170px">
+          <option value="none">None</option>
+          <option value="5">5 min before</option>
+          <option value="15">15 min before</option>
+          <option value="30">30 min before</option>
+          <option value="60">1 hour before</option>
+          <option value="120">2 hours before</option>
+          <option value="240">4 hours before</option>
+          <option value="1440">1 day before</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Repeat + optional end date -->
+    <div style="margin:0 16px 10px;background:var(--surface2);border-radius:12px;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
         <span style="font-family:'Montserrat',sans-serif;font-size:15px;color:var(--text)">Repeat</span>
-        <select id="cal-event-repeat" style="background:transparent;border:none;color:var(--muted);font-family:'Montserrat',sans-serif;font-size:14px;outline:none;cursor:pointer;text-align:right">
+        <select id="cal-event-repeat" onchange="toggleRepeatEnd()" style="background:var(--surface2);border:none;color:var(--muted);font-family:'Montserrat',sans-serif;font-size:14px;outline:none;cursor:pointer;max-width:150px">
           <option value="never">Never</option>
           <option value="daily">Every Day</option>
           <option value="weekly">Every Week</option>
@@ -1115,7 +1128,29 @@ textarea#knock-notes:focus { border-color:var(--accent); }
           <option value="monthly">Every Month</option>
         </select>
       </div>
+      <!-- Repeat end date row — hidden unless repeat != never -->
+      <div id="repeat-end-row" style="display:none;flex-direction:column;padding:0 16px 13px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:13px;border-top:1px solid rgba(255,255,255,0.06)">
+          <span style="font-family:'Montserrat',sans-serif;font-size:15px;color:var(--text)">Ends</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+              <input type="radio" name="repeat-end" id="repeat-end-forever" value="forever" checked onclick="toggleRepeatEndDate()" style="accent-color:var(--green)"/>
+              <span style="font-family:'Montserrat',sans-serif;font-size:13px;color:var(--muted)">Forever</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+              <input type="radio" name="repeat-end" id="repeat-end-on" value="on" onclick="toggleRepeatEndDate()" style="accent-color:var(--green)"/>
+              <span style="font-family:'Montserrat',sans-serif;font-size:13px;color:var(--muted)">On date</span>
+            </label>
+          </div>
+        </div>
+        <div id="repeat-end-date-row" style="display:none;margin-top:10px">
+          <input type="date" id="cal-repeat-end-date" style="width:100%;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:14px;outline:none;box-sizing:border-box"/>
+        </div>
+      </div>
     </div>
+
+    <!-- bottom spacer so last field isn't behind phone home bar -->
+    <div style="height:24px"></div>
 
   </div>
 </div>
@@ -4680,20 +4715,19 @@ window.switchDashTab = function(tab) {
   });
   if (tab === 'calendar') {
     const isOwner = window._auth ? window._auth.canAccessPortal() : false;
-    const myName = window.currentSession?.name || '';
+    const myName  = window.currentSession?.name || '';
 
-    // Always default to logged-in user's own calendar
-    if (!window.calCurrentRep && myName) window.calCurrentRep = myName;
+    // Always default to own calendar — reset on every tab visit
+    // Owners can switch via Change Rep button, but always start on their own
+    if (!window.calCurrentRep || !isOwner) window.calCurrentRep = myName;
 
-    // Hide the gate entirely — nobody should see "Select a Rep" on load
     document.getElementById('cal-rep-gate').style.display = 'none';
     document.getElementById('cal-main').style.display = 'flex';
 
-    // Set the display name
     const nameDisplay = document.getElementById('cal-rep-name-display');
     if (nameDisplay) nameDisplay.textContent = '📅 ' + (window.calCurrentRep || myName);
 
-    // Show/hide the "Switch Rep" button — owners only
+    // Change Rep button: owners only (Option A)
     const changeBtn = document.getElementById('cal-change-rep-btn');
     if (changeBtn) changeBtn.style.display = isOwner ? '' : 'none';
 
@@ -4899,12 +4933,73 @@ window.calNavMonth = function(dir) {
   renderCalendar();
 };
 
-function getRepEvents(rep) {
+// Expand recurring events into all occurrences within a date range
+function expandRecurringEvent(ev, rangeStart, rangeEnd) {
+  if (!ev.repeat || ev.repeat === 'never') return [ev];
+  const results = [];
+  const origin  = new Date(ev.datetime);
+  if (isNaN(origin.getTime())) return [ev];
+
+  // Determine repeat end boundary
+  let repeatUntil = rangeEnd;
+  if (ev.repeatEndDate) {
+    const endDate = new Date(ev.repeatEndDate);
+    endDate.setHours(23, 59, 59, 999);
+    if (endDate < repeatUntil) repeatUntil = endDate;
+  }
+
+  // Duration of the event
+  const durationMs = ev.endDatetime
+    ? new Date(ev.endDatetime) - origin
+    : 3600000;
+
+  let cursor = new Date(origin);
+  let safety = 0;
+
+  while (cursor <= repeatUntil && safety < 500) {
+    safety++;
+    if (cursor >= rangeStart) {
+      const occEnd = new Date(cursor.getTime() + durationMs);
+      results.push({
+        ...ev,
+        id:          ev.id + '_occ_' + cursor.getTime(),
+        datetime:    cursor.toISOString().slice(0,16),
+        endDatetime: occEnd.toISOString().slice(0,16),
+        isOccurrence: true,
+        originId:    ev.id,
+      });
+    }
+    // Advance cursor by repeat interval
+    const next = new Date(cursor);
+    if      (ev.repeat === 'daily')    next.setDate(next.getDate() + 1);
+    else if (ev.repeat === 'weekly')   next.setDate(next.getDate() + 7);
+    else if (ev.repeat === 'biweekly') next.setDate(next.getDate() + 14);
+    else if (ev.repeat === 'monthly')  next.setMonth(next.getMonth() + 1);
+    else break;
+    cursor = next;
+  }
+  return results;
+}
+
+function getRepEvents(rep, rangeStart, rangeEnd) {
+  // Default range: 3 months back → 13 months forward
+  if (!rangeStart) rangeStart = new Date(Date.now() - 90*24*60*60*1000);
+  if (!rangeEnd)   rangeEnd   = new Date(Date.now() + 395*24*60*60*1000);
+
   const pinAppts = knocks
     .filter(k => k.rep === rep && k.appointment)
     .map(k => ({ id: 'pin_'+k.id, title: '📍 ' + k.address.split(',')[0], datetime: k.appointment, notes: k.notes||'', fromPin: true, pinId: k.id }));
+
   const manual = calEvents.filter(e => e.rep === rep);
-  return [...pinAppts, ...manual].sort((a,b) => new Date(a.datetime) - new Date(b.datetime));
+
+  // Expand recurring events
+  const expanded = [];
+  manual.forEach(ev => {
+    const occs = expandRecurringEvent(ev, rangeStart, rangeEnd);
+    expanded.push(...occs);
+  });
+
+  return [...pinAppts, ...expanded].sort((a,b) => new Date(a.datetime) - new Date(b.datetime));
 }
 
 function renderCalendar() {
@@ -4916,7 +5011,10 @@ function renderCalendar() {
   const today = new Date();
   const todayStr = today.toDateString();
 
-  const events = getRepEvents(calCurrentRep);
+  // Pass range = exactly this month so recurring events are expanded correctly
+  const monthStart = new Date(calYear, calMonth, 1);
+  const monthEnd   = new Date(calYear, calMonth+1, 0, 23, 59, 59);
+  const events = getRepEvents(calCurrentRep, monthStart, monthEnd);
   const eventsByDay = {};
   events.forEach(e => {
     const d = new Date(e.datetime);
@@ -4934,8 +5032,9 @@ function renderCalendar() {
   for (let d=1; d<=daysInMonth; d++) {
     const isToday = new Date(calYear,calMonth,d).toDateString() === todayStr;
     const evs = eventsByDay[d] || [];
-    const hasPin = evs.some(e=>e.fromPin);
-    const hasManual = evs.some(e=>!e.fromPin);
+    const hasPin      = evs.some(e=>e.fromPin);
+    const hasReminder = evs.some(e=>!e.fromPin && (e.type==='reminder'||e.title?.startsWith('Reminder:')));
+    const hasManual   = evs.some(e=>!e.fromPin && !(e.type==='reminder'||e.title?.startsWith('Reminder:')));
     cells += `<div onclick="calDayClick(${d})" style="
       min-height:52px;border-radius:10px;padding:6px 5px;cursor:pointer;
       background:${isToday?'rgba(34,197,94,0.12)':'var(--surface2)'};
@@ -4947,6 +5046,7 @@ function renderCalendar() {
       <div style="display:flex;gap:2px;flex-wrap:wrap;justify-content:center">
         ${hasPin?'<span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block"></span>':''}
         ${hasManual?'<span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;display:inline-block"></span>':''}
+        ${hasReminder?'<span style="width:7px;height:7px;border-radius:50%;background:#f59e0b;display:inline-block"></span>':''}
       </div>
     </div>`;
   }
@@ -5001,7 +5101,9 @@ function openDayView(date) {
   document.getElementById('cal-day-modal').style.display = 'flex';
   setTimeout(() => {
     const scroll = document.getElementById('cal-day-scroll');
-    const events = getRepEvents(calCurrentRep).filter(e => {
+    const dayStart = new Date(date); dayStart.setHours(0,0,0,0);
+    const dayEnd   = new Date(date); dayEnd.setHours(23,59,59,999);
+    const events = getRepEvents(calCurrentRep, dayStart, dayEnd).filter(e => {
       const d = new Date(e.datetime);
       return d.toDateString() === date.toDateString();
     });
@@ -5014,7 +5116,9 @@ const PX_PER_HOUR = 64;
 
 function renderDayView(date) {
   date = date || calDayViewDate;
-  const events = getRepEvents(calCurrentRep).filter(e => {
+  const _dayStart = new Date(date); _dayStart.setHours(0,0,0,0);
+  const _dayEnd   = new Date(date); _dayEnd.setHours(23,59,59,999);
+  const events = getRepEvents(calCurrentRep, _dayStart, _dayEnd).filter(e => {
     const d = new Date(e.datetime);
     return d.toDateString() === date.toDateString();
   });
@@ -5200,11 +5304,45 @@ function updateDateLabels() {
   if (et) et.textContent = formatTimeLabel(calEndDate);
 }
 
+let calEventType = 'event'; // 'event' | 'reminder'
+
 window.setEventType = function(type) {
-  document.getElementById('evt-type-event').style.background = type==='event' ? 'rgba(255,255,255,0.15)' : 'transparent';
-  document.getElementById('evt-type-event').style.color = type==='event' ? 'var(--text)' : 'var(--muted)';
-  document.getElementById('evt-type-reminder').style.background = type==='reminder' ? 'rgba(255,255,255,0.15)' : 'transparent';
-  document.getElementById('evt-type-reminder').style.color = type==='reminder' ? 'var(--text)' : 'var(--muted)';
+  calEventType = type;
+  const evBtn  = document.getElementById('evt-type-event');
+  const remBtn = document.getElementById('evt-type-reminder');
+  if (evBtn) {
+    evBtn.style.background = type==='event' ? 'rgba(255,255,255,0.15)' : 'transparent';
+    evBtn.style.color      = type==='event' ? 'var(--text)' : 'var(--muted)';
+  }
+  if (remBtn) {
+    remBtn.style.background = type==='reminder' ? 'rgba(255,255,255,0.15)' : 'transparent';
+    remBtn.style.color      = type==='reminder' ? 'var(--text)' : 'var(--muted)';
+  }
+  // Update placeholder to guide user
+  const titleEl = document.getElementById('cal-event-title');
+  if (titleEl) titleEl.placeholder = type==='reminder' ? 'Reminder title' : 'Title';
+  // Update modal header
+  const headerEl = document.getElementById('cal-modal-title-label');
+  if (headerEl && !document.getElementById('cal-event-title')?.value) {
+    headerEl.textContent = type==='reminder' ? 'New Reminder' : 'New Event';
+  }
+};
+
+window.toggleRepeatEnd = function() {
+  const val = document.getElementById('cal-event-repeat')?.value;
+  const row = document.getElementById('repeat-end-row');
+  if (row) row.style.display = (val && val !== 'never') ? 'flex' : 'none';
+  if (val === 'never') {
+    const forever = document.getElementById('repeat-end-forever');
+    if (forever) forever.checked = true;
+    toggleRepeatEndDate();
+  }
+};
+
+window.toggleRepeatEndDate = function() {
+  const onDate = document.getElementById('repeat-end-on')?.checked;
+  const dateRow = document.getElementById('repeat-end-date-row');
+  if (dateRow) dateRow.style.display = onDate ? 'block' : 'none';
 };
 
 window.toggleAllDay = function() {
@@ -5348,10 +5486,22 @@ function getWheelValue(id) {
 
 window.openAddCalEvent = function(prefillDate) {
   calEditId = null;
+  calEventType = 'event';
   document.getElementById('cal-modal-title-label').textContent = 'New Event';
   document.getElementById('cal-event-title').value = '';
+  document.getElementById('cal-event-title').placeholder = 'Title';
   document.getElementById('cal-event-location').value = '';
   document.getElementById('cal-event-repeat').value = 'never';
+  const remindEl = document.getElementById('cal-event-remind');
+  if (remindEl) remindEl.value = 'none';
+  const repeatEndRow = document.getElementById('repeat-end-row');
+  if (repeatEndRow) repeatEndRow.style.display = 'none';
+  const repeatEndDateRow = document.getElementById('repeat-end-date-row');
+  if (repeatEndDateRow) repeatEndDateRow.style.display = 'none';
+  const foreverEl = document.getElementById('repeat-end-forever');
+  if (foreverEl) foreverEl.checked = true;
+  setEventType('event');
+
   calIsAllDay = false;
   document.getElementById('allday-toggle').style.background = '#3a3a3c';
   document.getElementById('allday-knob').style.left = '2px';
@@ -5378,11 +5528,25 @@ window.editCalEvent = function(id) {
   const ev = calEvents.find(e => e.id === id);
   if (!ev) return;
   calEditId = id;
-  document.getElementById('cal-modal-title-label').textContent = 'Edit Event';
-  document.getElementById('cal-event-title').value = ev.title;
+  calEventType = ev.type || 'event';
+  setEventType(calEventType);
+  document.getElementById('cal-modal-title-label').textContent = calEventType==='reminder' ? 'Edit Reminder' : 'Edit Event';
+  // Strip "Reminder: " prefix from stored title for editing
+  const displayTitle = ev.title.startsWith('Reminder: ') ? ev.title.slice(10) : ev.title;
+  document.getElementById('cal-event-title').value = displayTitle;
   document.getElementById('cal-event-location').value = ev.notes || '';
   const repeatEl = document.getElementById('cal-event-repeat');
   if (repeatEl) repeatEl.value = ev.repeat || 'never';
+  const remindEl = document.getElementById('cal-event-remind');
+  if (remindEl) remindEl.value = ev.remindMinutes || 'none';
+  // Restore repeat end date
+  toggleRepeatEnd();
+  if (ev.repeatEndDate) {
+    const onEl = document.getElementById('repeat-end-on');
+    if (onEl) { onEl.checked = true; toggleRepeatEndDate(); }
+    const endDateEl = document.getElementById('cal-repeat-end-date');
+    if (endDateEl) endDateEl.value = ev.repeatEndDate;
+  }
 
   // Parse datetime carefully — handle both ISO string and local formats
   calStartDate = ev.datetime ? new Date(ev.datetime) : new Date();
@@ -5410,43 +5574,64 @@ window.deleteCalEvent = function(id) {
 };
 
 window.saveCalEvent = function() {
-  const title = document.getElementById('cal-event-title').value.trim();
-  const notes = document.getElementById('cal-event-location')?.value?.trim() || '';
-  const repeat = document.getElementById('cal-event-repeat')?.value || 'never';
-  if (!title) { alert('Please add a title.'); return; }
+  const rawTitle = document.getElementById('cal-event-title').value.trim();
+  const notes    = document.getElementById('cal-event-location')?.value?.trim() || '';
+  const repeat   = document.getElementById('cal-event-repeat')?.value || 'never';
+  const remindMinutes = document.getElementById('cal-event-remind')?.value || 'none';
+  const type     = calEventType || 'event';
+
+  if (!rawTitle) {
+    if (typeof showToast === 'function') showToast('Please add a title', 2000);
+    return;
+  }
+
+  // Prefix title with "Reminder: " for reminder type
+  const title = type === 'reminder' ? 'Reminder: ' + rawTitle : rawTitle;
 
   // Validate dates
   if (!calStartDate || isNaN(calStartDate.getTime())) {
-    alert('Please set a valid start date and time.'); return;
+    if (typeof showToast === 'function') showToast('Please set a start date', 2000);
+    return;
   }
 
-  const datetime = calStartDate.toISOString().slice(0,16);
+  const datetime    = calStartDate.toISOString().slice(0,16);
   const endDatetime = calEndDate && !isNaN(calEndDate.getTime())
     ? calEndDate.toISOString().slice(0,16)
     : new Date(calStartDate.getTime() + 3600000).toISOString().slice(0,16);
 
+  // Repeat end date
+  const repeatEndOnDate = document.getElementById('repeat-end-on')?.checked;
+  const repeatEndDate   = (repeat !== 'never' && repeatEndOnDate)
+    ? (document.getElementById('cal-repeat-end-date')?.value || null)
+    : null;
+
   if (calEditId) {
     const idx = calEvents.findIndex(e => e.id === calEditId);
     if (idx !== -1) {
-      calEvents[idx].title = title;
-      calEvents[idx].datetime = datetime;
-      calEvents[idx].endDatetime = endDatetime;
-      calEvents[idx].notes = notes;
-      calEvents[idx].repeat = repeat;
-      calEvents[idx].updatedAt = new Date().toISOString();
+      calEvents[idx].title         = title;
+      calEvents[idx].type          = type;
+      calEvents[idx].datetime      = datetime;
+      calEvents[idx].endDatetime   = endDatetime;
+      calEvents[idx].notes         = notes;
+      calEvents[idx].repeat        = repeat;
+      calEvents[idx].repeatEndDate = repeatEndDate;
+      calEvents[idx].remindMinutes = remindMinutes;
+      calEvents[idx].updatedAt     = new Date().toISOString();
     }
   } else {
-    // Security: for non-owners, force rep to logged-in user — cannot be spoofed
-    const isOwner = window._auth ? window._auth.canAccessPortal() : false;
+    const isOwner  = window._auth ? window._auth.canAccessPortal() : false;
     const eventRep = isOwner ? window.calCurrentRep : (window.currentSession?.name || window.calCurrentRep);
     calEvents.push({
       id: 'evt_' + Date.now(),
       rep: eventRep,
       title,
+      type,
       datetime,
       endDatetime,
       notes,
       repeat,
+      repeatEndDate,
+      remindMinutes,
       created: new Date().toISOString()
     });
   }
@@ -5455,7 +5640,6 @@ window.saveCalEvent = function() {
   closeCalEventModal();
   renderCalendar();
 
-  // Re-render day view on the correct date
   if (currentDashTab === 'calendar' && calCurrentRep) {
     const targetDate = calDayViewDate || calStartDate;
     if (targetDate) renderDayView(targetDate);
@@ -5471,38 +5655,59 @@ function addPinAppointmentToCalendar(knock) {
   if (currentDashTab === 'calendar' && calCurrentRep === knock.rep) renderCalendar();
 }
 
-// Browser notifications
+// ── Browser notifications with per-event reminder timing ─────────────────
 function scheduleNotifications() {
   if (!('Notification' in window)) return;
   if (Notification.permission === 'default') {
-    Notification.requestPermission();
+    Notification.requestPermission().then(p => {
+      if (p === 'granted') checkUpcomingNotifications();
+    });
   }
 }
 
 function checkUpcomingNotifications() {
+  if (!('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
   const now = new Date();
-  const in15 = new Date(now.getTime() + 15*60*1000);
-  const allRepNames = [...reps, ...archivedReps].map(r => r.name);
-  allRepNames.forEach(rep => {
-    getRepEvents(rep).forEach(ev => {
-      const dt = new Date(ev.datetime);
-      if (dt >= now && dt <= in15) {
-        const key = 'notif_' + ev.id + '_' + dt.toISOString().slice(0,13);
-        if (!sessionStorage.getItem(key)) {
-          sessionStorage.setItem(key, '1');
-          new Notification(`⏰ Upcoming: ${ev.title}`, {
-            body: `${rep} · ${dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`,
-            icon: 'https://sebastianmieses24-ops.github.io/knocktrack/favicon.ico'
-          });
-        }
-      }
+
+  // Only check the logged-in user's own events
+  const myName = window.currentSession?.name;
+  if (!myName) return;
+
+  const lookAhead = new Date(now.getTime() + 24*60*60*1000); // check up to 24h ahead
+  getRepEvents(myName, now, lookAhead).forEach(ev => {
+    if (!ev.remindMinutes || ev.remindMinutes === 'none') return;
+    const mins = parseInt(ev.remindMinutes);
+    if (isNaN(mins)) return;
+
+    const dt      = new Date(ev.datetime);
+    const fireAt  = new Date(dt.getTime() - mins * 60 * 1000); // fire X mins before event
+
+    // Check if we're within a 1-minute window of the fire time
+    const diff = Math.abs(now - fireAt);
+    if (diff > 60 * 1000) return; // not within fire window
+
+    const key = 'notif_' + ev.id + '_' + fireAt.toISOString().slice(0,16);
+    if (sessionStorage.getItem(key)) return; // already fired
+    sessionStorage.setItem(key, '1');
+
+    const timeLabel = dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const minLabel  = mins >= 60
+      ? (mins >= 1440 ? '1 day' : mins/60 + ' hr') + ' before'
+      : mins + ' min before';
+    const isReminder = ev.type === 'reminder' || ev.title.startsWith('Reminder:');
+    const icon = isReminder ? '🔔' : '📅';
+
+    new Notification(icon + ' ' + ev.title, {
+      body: timeLabel + ' · ' + minLabel,
+      icon: 'https://sebastianmieses24-ops.github.io/knocktrack/favicon.ico',
+      tag:  key,
     });
   });
 }
-// Check every 5 minutes
-setInterval(checkUpcomingNotifications, 5 * 60 * 1000);
-setTimeout(() => { scheduleNotifications(); checkUpcomingNotifications(); }, 3000);
+// Check every 60 seconds (tight loop so reminders fire on time)
+setInterval(checkUpcomingNotifications, 60 * 1000);
+setTimeout(() => { scheduleNotifications(); checkUpcomingNotifications(); }, 2000);
 // ── END CALENDAR ──────────────────────────────────────
 
 
