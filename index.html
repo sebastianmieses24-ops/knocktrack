@@ -699,6 +699,35 @@ textarea#knock-notes:focus { border-color:var(--accent); }
   #pin-drop-btn { padding:6px 9px; font-size:11px; white-space:nowrap; flex-shrink:0; }
 }
 
+@keyframes slideUpSheet {
+  from { transform:translateY(100%); }
+  to   { transform:translateY(0); }
+}
+/* Show FAB + hide top controls bar on mobile */
+@media (max-width:768px) {
+  #mobile-fab { display:flex !important; }
+  /* Hide the crowded desktop control strip */
+  #pin-drop-btn { display:none !important; }
+  #btn-knocks-tab { display:none !important; }
+  #btn-draw-zone { display:none !important; }
+  #btn-auto-addresses { display:none !important; }
+  /* Keep only Map/Satellite on top bar — minimal */
+  #map-type-toggle {
+    gap:4px;
+    flex-wrap:nowrap;
+    overflow:visible;
+  }
+  /* FAB rotates when sheet open */
+  #mobile-fab.fab-open {
+    background:#ef4444;
+    transform:translateX(-50%) rotate(45deg);
+  }
+  /* Zone legend smaller on mobile */
+  #zone-legend { display:none !important; }
+  /* Map shell accounts for FAB above nav */
+  #map-shell { bottom:56px; }
+}
+
 @media (min-width:769px) and (max-width:1100px) {
   #sidebar { width:240px; }
   .stats-grid { grid-template-columns:repeat(3,1fr); }
@@ -1259,6 +1288,78 @@ textarea#knock-notes:focus { border-color:var(--accent); }
 </div>
 
 <!-- ═══ MOBILE BOTTOM NAV ═══ -->
+<!-- ── MOBILE FAB (floating action button) ─────────────────────────── -->
+<button id="mobile-fab" onclick="toggleMobileFAB()"
+  style="display:none;position:fixed;bottom:72px;left:50%;transform:translateX(-50%);z-index:600;
+         width:58px;height:58px;border-radius:50%;background:#22c55e;border:none;
+         box-shadow:0 4px 20px rgba(34,197,94,0.5);font-size:26px;cursor:pointer;
+         align-items:center;justify-content:center;transition:transform 0.2s,background 0.2s">
+  +
+</button>
+
+<!-- ── MOBILE ACTION SHEET ─────────────────────────────────────────── -->
+<div id="mobile-action-sheet" style="display:none;position:fixed;inset:0;z-index:700">
+  <div onclick="toggleMobileFAB()" style="position:absolute;inset:0;background:rgba(0,0,0,0.5)"></div>
+  <div style="position:absolute;bottom:0;left:0;right:0;background:var(--surface);
+              border-radius:20px 20px 0 0;padding:16px 16px calc(80px + env(safe-area-inset-bottom));
+              animation:slideUpSheet 0.25s ease">
+    <div style="width:38px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 18px"></div>
+    <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;
+                color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding:0 4px">Actions</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+
+      <!-- Drop Pin -->
+      <button onclick="mobileFABAction('pin')"
+        style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--surface2);
+               border:1px solid var(--border);border-radius:12px;cursor:pointer;width:100%;text-align:left">
+        <div style="width:40px;height:40px;border-radius:10px;background:rgba(34,197,94,0.15);
+                    display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📍</div>
+        <div>
+          <div style="font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:var(--text)">Drop a Pin</div>
+          <div style="font-family:'Outfit',sans-serif;font-size:12px;color:var(--muted);margin-top:2px">Tap the map to log a knock</div>
+        </div>
+      </button>
+
+      <!-- My Zone / Draw Zone -->
+      <button id="mobile-zone-action" onclick="mobileFABAction('zone')"
+        style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--surface2);
+               border:1px solid var(--border);border-radius:12px;cursor:pointer;width:100%;text-align:left">
+        <div style="width:40px;height:40px;border-radius:10px;background:rgba(124,58,237,0.15);
+                    display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🔷</div>
+        <div>
+          <div id="mobile-zone-label" style="font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:var(--text)">My Zone</div>
+          <div id="mobile-zone-sub" style="font-family:'Outfit',sans-serif;font-size:12px;color:var(--muted);margin-top:2px">View your assigned territory</div>
+        </div>
+      </button>
+
+      <!-- Satellite toggle -->
+      <button onclick="mobileFABAction('satellite')"
+        style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--surface2);
+               border:1px solid var(--border);border-radius:12px;cursor:pointer;width:100%;text-align:left">
+        <div style="width:40px;height:40px;border-radius:10px;background:rgba(56,189,248,0.12);
+                    display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🛰️</div>
+        <div>
+          <div style="font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:var(--text)">Toggle Satellite</div>
+          <div style="font-family:'Outfit',sans-serif;font-size:12px;color:var(--muted);margin-top:2px">Switch between map and aerial view</div>
+        </div>
+      </button>
+
+      <!-- Addresses -->
+      <button onclick="mobileFABAction('addresses')"
+        style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--surface2);
+               border:1px solid var(--border);border-radius:12px;cursor:pointer;width:100%;text-align:left">
+        <div style="width:40px;height:40px;border-radius:10px;background:rgba(34,197,94,0.12);
+                    display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🏠</div>
+        <div>
+          <div style="font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:var(--text)">Address Pins</div>
+          <div id="mobile-addr-sub" style="font-family:'Outfit',sans-serif;font-size:12px;color:var(--muted);margin-top:2px">Load address dots for this area</div>
+        </div>
+      </button>
+
+    </div>
+  </div>
+</div>
+
 <div id="mobile-nav">
   <button class="mobile-nav-btn active-nav" onclick="mobileNav('map')">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
@@ -1657,6 +1758,9 @@ async function initMap() {
     window.pendingDestination = null;
     applyDestination(dest);
   }
+
+  // Init mobile FAB
+  initMobileFAB();
 
   // Auto-start real-time location tracking
   setTimeout(startLocationTracking, 1000);
@@ -3300,6 +3404,211 @@ function initAddressPinAutoFetch() {
 // END ADDRESS AUTO-POPULATION SYSTEM
 // ══════════════════════════════════════════════════════════════════════════
 
+// ══════════════════════════════════════════════════════════════════════════
+// MOBILE FAB — Floating Action Button + Action Sheet
+// ══════════════════════════════════════════════════════════════════════════
+
+let fabOpen = false;
+
+window.toggleMobileFAB = function() {
+  fabOpen = !fabOpen;
+  const fab   = document.getElementById('mobile-fab');
+  const sheet = document.getElementById('mobile-action-sheet');
+  if (!fab || !sheet) return;
+
+  if (fabOpen) {
+    fab.classList.add('fab-open');
+    fab.textContent = '+';
+    sheet.style.display = 'block';
+    // Update zone label based on role
+    const zoneLabel = document.getElementById('mobile-zone-label');
+    const zoneSub   = document.getElementById('mobile-zone-sub');
+    if (zoneLabel && zoneSub) {
+      if (typeof isLeader === 'function' && isLeader()) {
+        zoneLabel.textContent = 'Draw Zone';
+        zoneSub.textContent   = 'Create a radius zone around a point';
+      } else {
+        zoneLabel.textContent = 'My Zone';
+        zoneSub.textContent   = 'View your assigned territory';
+      }
+    }
+    // Update address sub
+    const addrSub = document.getElementById('mobile-addr-sub');
+    if (addrSub) {
+      addrSub.textContent = autoPopEnabled ? 'Addresses ON — tap to turn off' : 'Load address dots for this area';
+    }
+  } else {
+    fab.classList.remove('fab-open');
+    fab.textContent = '+';
+    sheet.style.display = 'none';
+  }
+};
+
+window.mobileFABAction = function(action) {
+  // Close the sheet first
+  fabOpen = false;
+  const fab   = document.getElementById('mobile-fab');
+  const sheet = document.getElementById('mobile-action-sheet');
+  if (fab)   { fab.classList.remove('fab-open'); fab.textContent = '+'; }
+  if (sheet) sheet.style.display = 'none';
+
+  switch (action) {
+    case 'pin':
+      // Activate drop pin mode
+      togglePinMode(true);
+      if (typeof showToast === 'function')
+        showToast('📍 Tap the map to drop a pin', 4000);
+      break;
+
+    case 'zone':
+      // For leaders: radius zone drawing on mobile
+      // For reps: show their assigned zone
+      if (typeof isLeader === 'function' && isLeader()) {
+        startMobileRadiusZone();
+      } else {
+        if (typeof toggleZoneMode === 'function') toggleZoneMode();
+      }
+      break;
+
+    case 'satellite':
+      // Toggle between roadmap and satellite
+      if (map) {
+        const current = map.getMapTypeId();
+        if (current === 'hybrid' || current === 'satellite') {
+          setMapType('roadmap');
+        } else {
+          setMapType('hybrid');
+        }
+      }
+      break;
+
+    case 'addresses':
+      if (typeof toggleAutoAddressPins === 'function') toggleAutoAddressPins();
+      break;
+  }
+};
+
+// ── Mobile Radius Zone Drawing ────────────────────────────────────────────
+// Method B: Leader taps a center point, a circle appears, they confirm radius
+let mobileZoneCircle  = null;
+let mobileZoneCenter  = null;
+let mobileZoneRadius  = 150; // metres, default
+
+window.startMobileRadiusZone = function() {
+  if (typeof showToast === 'function')
+    showToast('Tap the map center point for your zone', 4000);
+
+  // Single-tap to place center
+  const listener = map.addListener('click', (e) => {
+    google.maps.event.removeListener(listener);
+    mobileZoneCenter = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+    showMobileRadiusPicker();
+  });
+};
+
+function showMobileRadiusPicker() {
+  // Draw a circle at the chosen center
+  if (mobileZoneCircle) mobileZoneCircle.setMap(null);
+  mobileZoneCircle = new google.maps.Circle({
+    center: mobileZoneCenter,
+    radius: mobileZoneRadius,
+    map,
+    strokeColor: '#7c3aed',
+    strokeOpacity: 0.9,
+    strokeWeight: 2.5,
+    fillColor: '#7c3aed',
+    fillOpacity: 0.22,
+  });
+
+  // Remove any existing picker UI
+  document.getElementById('mobile-radius-picker')?.remove();
+
+  const picker = document.createElement('div');
+  picker.id = 'mobile-radius-picker';
+  picker.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;z-index:800;' +
+    'background:#0f1318;border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:20px;' +
+    'animation:slideUpSheet 0.2s ease';
+
+  picker.innerHTML =
+    '<div style="font-family:Outfit,sans-serif;font-size:16px;font-weight:800;color:#fff;margin-bottom:4px">Zone Radius</div>' +
+    '<div style="font-family:Outfit,sans-serif;font-size:12px;color:var(--muted);margin-bottom:16px">Drag to adjust the zone size</div>' +
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">' +
+      '<span style="font-size:12px;color:var(--muted);white-space:nowrap">50m</span>' +
+      '<input id="radius-slider" type="range" min="50" max="500" value="150" step="10"' +
+        ' style="flex:1;accent-color:#7c3aed;height:6px;cursor:pointer">' +
+      '<span style="font-size:12px;color:var(--muted);white-space:nowrap">500m</span>' +
+    '</div>' +
+    '<div style="text-align:center;font-family:Rajdhani,sans-serif;font-size:22px;font-weight:700;color:#a78bfa;margin-bottom:16px" id="radius-display">150m</div>' +
+    '<div style="display:flex;gap:10px">' +
+      '<button onclick="confirmMobileZone()" style="flex:1;padding:13px;background:#7c3aed;border:none;border-radius:10px;color:#fff;font-family:Outfit,sans-serif;font-size:14px;font-weight:700;cursor:pointer">Save Zone</button>' +
+      '<button onclick="cancelMobileZone()" style="flex:1;padding:13px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:Outfit,sans-serif;font-size:14px;font-weight:700;cursor:pointer">Cancel</button>' +
+    '</div>';
+
+  document.body.appendChild(picker);
+
+  // Live update circle as slider moves
+  document.getElementById('radius-slider').addEventListener('input', (e) => {
+    mobileZoneRadius = parseInt(e.target.value);
+    document.getElementById('radius-display').textContent = mobileZoneRadius + 'm';
+    if (mobileZoneCircle) mobileZoneCircle.setRadius(mobileZoneRadius);
+  });
+}
+
+window.confirmMobileZone = function() {
+  document.getElementById('mobile-radius-picker')?.remove();
+  if (mobileZoneCircle) { mobileZoneCircle.setMap(null); mobileZoneCircle = null; }
+
+  const name = prompt('Name this zone:', 'Mobile Zone ' + (zones.length + 1));
+  if (!name) return;
+
+  // Convert circle to polygon (16-point approximation)
+  const path = [];
+  const R = 6371000; // Earth radius in metres
+  const lat0 = mobileZoneCenter.lat * Math.PI / 180;
+  const lng0 = mobileZoneCenter.lng * Math.PI / 180;
+  for (let i = 0; i < 16; i++) {
+    const angle = (i / 16) * 2 * Math.PI;
+    const dlat  = (mobileZoneRadius / R) * Math.cos(angle);
+    const dlng  = (mobileZoneRadius / R) * Math.sin(angle) / Math.cos(lat0);
+    path.push({
+      lat: mobileZoneCenter.lat + dlat * 180 / Math.PI,
+      lng: mobileZoneCenter.lng + dlng * 180 / Math.PI,
+    });
+  }
+
+  const zone = {
+    id: 'zone_' + Date.now(),
+    name: name.trim() || 'Mobile Zone',
+    path,
+    drawnAt:     new Date().toISOString(),
+    drawnBy:     window.currentSession?.name || 'Unknown',
+    assignedRep: null, assignedAt: null,
+    knockedAt:   null, knockedBy:  null,
+  };
+
+  zones.push(zone);
+  saveZones();
+  saveZoneToSupabase(zone);
+  renderZonePolygon(zone);
+  showAssignZoneModal(zone.id);
+  if (typeof showToast === 'function') showToast('Zone saved — assign a rep', 3000);
+};
+
+window.cancelMobileZone = function() {
+  document.getElementById('mobile-radius-picker')?.remove();
+  if (mobileZoneCircle) { mobileZoneCircle.setMap(null); mobileZoneCircle = null; }
+};
+
+// Show FAB when map is active on mobile
+function initMobileFAB() {
+  const isMobile = window.innerWidth <= 768;
+  const fab = document.getElementById('mobile-fab');
+  if (fab && isMobile) fab.style.display = 'flex';
+}
+// ══════════════════════════════════════════════════════════════════════════
+// END MOBILE FAB
+// ══════════════════════════════════════════════════════════════════════════
+
 window.setMapType = function(type) {
   if (!map) return;
   if (type === 'hybrid') {
@@ -3838,8 +4147,22 @@ function showDashboard() {
   populateDashRepSelect();
   renderDashboard();
   document.getElementById('dashboard').style.display = 'flex';
+  // Hide mobile FAB on dashboard
+  const fab = document.getElementById('mobile-fab');
+  if (fab) fab.style.display = 'none';
+  // Close action sheet if open
+  const sheet = document.getElementById('mobile-action-sheet');
+  if (sheet) sheet.style.display = 'none';
+  fabOpen = false;
 }
-function hideDashboard() { document.getElementById('dashboard').style.display = 'none'; }
+function hideDashboard() {
+  document.getElementById('dashboard').style.display = 'none';
+  // Show mobile FAB when on map
+  if (window.innerWidth <= 768) {
+    const fab = document.getElementById('mobile-fab');
+    if (fab) fab.style.display = 'flex';
+  }
+}
 
 document.getElementById('open-map-btn').addEventListener('click', () => hideDashboard());
 
@@ -5911,9 +6234,10 @@ if (reps.length === 0) {
 // Each hash was produced by hashPin('GN@...') offline.
 (function buildAuthStore() {
   // Hash → owner identity map (hashes, not passwords)
-  // Secured Portal access — only these 7 owners can log in via master password
+  // Secured Portal access — 8 authorized owners
   const _hashes = {
     '-udlp6q': { name: 'Sebastian Mieses', role: 'CEO'       },
+    'wt1t4r':  { name: 'Brock Allison',    role: 'Team Lead' },
     'gb1718':  { name: 'Beau Boyers',      role: 'Team Lead' },
     '-x4iuou': { name: 'Michael Deangelo', role: 'Team Lead' },
     '-3bwb06': { name: 'Joshua Guy',       role: 'Team Lead' },
@@ -5976,7 +6300,7 @@ if (reps.length === 0) {
   });
 })();
 
-window.OWNER_ALLOWED_REPS = ['Sebastian Mieses','Calvin Bingaman','Beau Boyers','Brandon Cavey','Michael Deangelo','Jim Weyandt','Joshua Guy'];
+window.OWNER_ALLOWED_REPS = ['Sebastian Mieses','Brock Allison','Calvin Bingaman','Beau Boyers','Brandon Cavey','Michael Deangelo','Jim Weyandt','Joshua Guy'];
 
 function saveReps() {
   localStorage.setItem('knocktrack_reps', JSON.stringify(reps));
