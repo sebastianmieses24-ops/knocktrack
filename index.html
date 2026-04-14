@@ -3420,13 +3420,18 @@ window.toggleMobileFAB = function() {
     fab.classList.add('fab-open');
     fab.textContent = '+';
     sheet.style.display = 'block';
-    // Update zone label based on role
+    // Update zone label based on role + current state
     const zoneLabel = document.getElementById('mobile-zone-label');
     const zoneSub   = document.getElementById('mobile-zone-sub');
     if (zoneLabel && zoneSub) {
       if (typeof isLeader === 'function' && isLeader()) {
-        zoneLabel.textContent = 'Draw Zone';
-        zoneSub.textContent   = 'Create a radius zone around a point';
+        if (typeof zoneModeActive !== 'undefined' && zoneModeActive) {
+          zoneLabel.textContent = '✕ Cancel Zone Drawing';
+          zoneSub.textContent   = 'Stop drawing the current zone';
+        } else {
+          zoneLabel.textContent = 'Draw Zone';
+          zoneSub.textContent   = 'Tap points on map to draw zone boundary';
+        }
       } else {
         zoneLabel.textContent = 'My Zone';
         zoneSub.textContent   = 'View your assigned territory';
@@ -3461,13 +3466,10 @@ window.mobileFABAction = function(action) {
       break;
 
     case 'zone':
-      // For leaders: radius zone drawing on mobile
-      // For reps: show their assigned zone
-      if (typeof isLeader === 'function' && isLeader()) {
-        startMobileRadiusZone();
-      } else {
-        if (typeof toggleZoneMode === 'function') toggleZoneMode();
-      }
+      // Same behavior on mobile and desktop — toggleZoneMode handles both
+      // Leaders: activates Google Maps DrawingManager polygon drawing
+      // Reps: shows their assigned zone
+      if (typeof toggleZoneMode === 'function') toggleZoneMode();
       break;
 
     case 'satellite':
@@ -3490,114 +3492,7 @@ window.mobileFABAction = function(action) {
 
 // ── Mobile Radius Zone Drawing ────────────────────────────────────────────
 // Method B: Leader taps a center point, a circle appears, they confirm radius
-let mobileZoneCircle  = null;
-let mobileZoneCenter  = null;
-let mobileZoneRadius  = 150; // metres, default
-
-window.startMobileRadiusZone = function() {
-  if (typeof showToast === 'function')
-    showToast('Tap the map center point for your zone', 4000);
-
-  // Single-tap to place center
-  const listener = map.addListener('click', (e) => {
-    google.maps.event.removeListener(listener);
-    mobileZoneCenter = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-    showMobileRadiusPicker();
-  });
-};
-
-function showMobileRadiusPicker() {
-  // Draw a circle at the chosen center
-  if (mobileZoneCircle) mobileZoneCircle.setMap(null);
-  mobileZoneCircle = new google.maps.Circle({
-    center: mobileZoneCenter,
-    radius: mobileZoneRadius,
-    map,
-    strokeColor: '#7c3aed',
-    strokeOpacity: 0.9,
-    strokeWeight: 2.5,
-    fillColor: '#7c3aed',
-    fillOpacity: 0.22,
-  });
-
-  // Remove any existing picker UI
-  document.getElementById('mobile-radius-picker')?.remove();
-
-  const picker = document.createElement('div');
-  picker.id = 'mobile-radius-picker';
-  picker.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;z-index:800;' +
-    'background:#0f1318;border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:20px;' +
-    'animation:slideUpSheet 0.2s ease';
-
-  picker.innerHTML =
-    '<div style="font-family:Outfit,sans-serif;font-size:16px;font-weight:800;color:#fff;margin-bottom:4px">Zone Radius</div>' +
-    '<div style="font-family:Outfit,sans-serif;font-size:12px;color:var(--muted);margin-bottom:16px">Drag to adjust the zone size</div>' +
-    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">' +
-      '<span style="font-size:12px;color:var(--muted);white-space:nowrap">50m</span>' +
-      '<input id="radius-slider" type="range" min="50" max="500" value="150" step="10"' +
-        ' style="flex:1;accent-color:#7c3aed;height:6px;cursor:pointer">' +
-      '<span style="font-size:12px;color:var(--muted);white-space:nowrap">500m</span>' +
-    '</div>' +
-    '<div style="text-align:center;font-family:Rajdhani,sans-serif;font-size:22px;font-weight:700;color:#a78bfa;margin-bottom:16px" id="radius-display">150m</div>' +
-    '<div style="display:flex;gap:10px">' +
-      '<button onclick="confirmMobileZone()" style="flex:1;padding:13px;background:#7c3aed;border:none;border-radius:10px;color:#fff;font-family:Outfit,sans-serif;font-size:14px;font-weight:700;cursor:pointer">Save Zone</button>' +
-      '<button onclick="cancelMobileZone()" style="flex:1;padding:13px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:Outfit,sans-serif;font-size:14px;font-weight:700;cursor:pointer">Cancel</button>' +
-    '</div>';
-
-  document.body.appendChild(picker);
-
-  // Live update circle as slider moves
-  document.getElementById('radius-slider').addEventListener('input', (e) => {
-    mobileZoneRadius = parseInt(e.target.value);
-    document.getElementById('radius-display').textContent = mobileZoneRadius + 'm';
-    if (mobileZoneCircle) mobileZoneCircle.setRadius(mobileZoneRadius);
-  });
-}
-
-window.confirmMobileZone = function() {
-  document.getElementById('mobile-radius-picker')?.remove();
-  if (mobileZoneCircle) { mobileZoneCircle.setMap(null); mobileZoneCircle = null; }
-
-  const name = prompt('Name this zone:', 'Mobile Zone ' + (zones.length + 1));
-  if (!name) return;
-
-  // Convert circle to polygon (16-point approximation)
-  const path = [];
-  const R = 6371000; // Earth radius in metres
-  const lat0 = mobileZoneCenter.lat * Math.PI / 180;
-  const lng0 = mobileZoneCenter.lng * Math.PI / 180;
-  for (let i = 0; i < 16; i++) {
-    const angle = (i / 16) * 2 * Math.PI;
-    const dlat  = (mobileZoneRadius / R) * Math.cos(angle);
-    const dlng  = (mobileZoneRadius / R) * Math.sin(angle) / Math.cos(lat0);
-    path.push({
-      lat: mobileZoneCenter.lat + dlat * 180 / Math.PI,
-      lng: mobileZoneCenter.lng + dlng * 180 / Math.PI,
-    });
-  }
-
-  const zone = {
-    id: 'zone_' + Date.now(),
-    name: name.trim() || 'Mobile Zone',
-    path,
-    drawnAt:     new Date().toISOString(),
-    drawnBy:     window.currentSession?.name || 'Unknown',
-    assignedRep: null, assignedAt: null,
-    knockedAt:   null, knockedBy:  null,
-  };
-
-  zones.push(zone);
-  saveZones();
-  saveZoneToSupabase(zone);
-  renderZonePolygon(zone);
-  showAssignZoneModal(zone.id);
-  if (typeof showToast === 'function') showToast('Zone saved — assign a rep', 3000);
-};
-
-window.cancelMobileZone = function() {
-  document.getElementById('mobile-radius-picker')?.remove();
-  if (mobileZoneCircle) { mobileZoneCircle.setMap(null); mobileZoneCircle = null; }
-};
+// Zone drawing uses the same toggleZoneMode() as desktop — no separate mobile implementation needed.
 
 // Show FAB when map is active on mobile
 function initMobileFAB() {
