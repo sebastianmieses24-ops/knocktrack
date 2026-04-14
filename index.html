@@ -1285,10 +1285,15 @@ textarea#knock-notes:focus { border-color:var(--accent); }
     <div id="modal-address">Getting address…</div>
     <span class="modal-label">Outcome</span>
     <div class="status-grid" id="status-grid"></div>
-    <span class="modal-label">Assign Rep</span>
-    <select id="knock-rep-name" style="width:100%;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:13px;outline:none;-webkit-appearance:none">
-      <option value="">— Select a rep —</option>
-    </select>
+    <!-- Rep assignment: auto-filled for reps, dropdown for leaders -->
+    <div id="modal-rep-row" style="display:none;margin-bottom:4px">
+      <span class="modal-label" style="margin-bottom:4px;display:block">Assign Rep</span>
+      <select id="knock-rep-name" style="width:100%;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:13px;outline:none;-webkit-appearance:none">
+        <option value="">— Select a rep —</option>
+      </select>
+    </div>
+    <!-- Hidden rep field for auto-assignment (reps) -->
+    <input type="hidden" id="knock-rep-name-hidden" value=""/>
     <span class="modal-label">Notes (optional)</span>
     <textarea id="knock-notes" placeholder="e.g. Call back Tuesday 6pm"></textarea>
     <div class="modal-buttons">
@@ -1537,7 +1542,10 @@ function selectStatus(key, btn) {
 
   // One-tap for Not Home — auto-save immediately if rep is set and this is a new pin
   if (key === 'not-home' && !editingId) {
-    const rep = document.getElementById('knock-rep-name').value.trim();
+    // Read rep from select (leaders) or hidden field (reps)
+  const _repFromSelect = document.getElementById('knock-rep-name')?.value?.trim() || '';
+  const _repFromHidden = document.getElementById('knock-rep-name-hidden')?.value?.trim() || '';
+  const rep = _repFromSelect || _repFromHidden || window.currentSession?.name || '';
     if (rep) {
       setTimeout(() => document.getElementById('save-knock-btn').click(), 120);
     }
@@ -1708,14 +1716,27 @@ function openModal(lat, lng, existingId = null, prefillAddress = null) {
     b.style.background = 'var(--surface2)';
   });
   document.getElementById('knock-notes').value = '';
-  document.getElementById('knock-rep-name').value = window._defaultRep || '';
+  // Auto-assign rep based on session
+  const _session  = window.currentSession;
+  const _isLeader = typeof isLeader === 'function' ? isLeader() : false;
+  const _autoRep  = _session?.name || '';
+
+  const repRow    = document.getElementById('modal-rep-row');
+  const repSelect = document.getElementById('knock-rep-name');
+  const repHidden = document.getElementById('knock-rep-name-hidden');
+
+  // Everyone: auto-assign to logged-in user — no dropdown for anyone
+  if (repRow) repRow.style.display = 'none';
+  if (repHidden) repHidden.value = _autoRep;
+  if (repSelect) repSelect.value = _autoRep;
 
   if (existingId) {
     const ex = knocks.find(k => k.id === existingId);
     if (ex) {
       selectedStatus = ex.status;
       document.getElementById('knock-notes').value = ex.notes || '';
-      document.getElementById('knock-rep-name').value = ex.rep || '';
+      if (repSelect) repSelect.value = ex.rep || _autoRep;
+      if (repHidden) repHidden.value = ex.rep || _autoRep;
       const btn = document.querySelector(`.status-btn[data-key="${ex.status}"]`);
       if (btn) selectStatus(ex.status, btn);
     }
@@ -1747,27 +1768,8 @@ document.getElementById('save-knock-btn').addEventListener('click', async () => 
   }
   const address = document.getElementById('modal-address').textContent;
   const notes = document.getElementById('knock-notes').value.trim();
-  const rep = document.getElementById('knock-rep-name').value.trim();
-
-  // Require rep on new pins
-  if (!rep && !editingId) {
-    const repSel = document.getElementById('knock-rep-name');
-    repSel.style.border = '2px solid #e05c5c';
-    repSel.style.boxShadow = '0 0 0 3px rgba(224,92,92,0.2)';
-    setTimeout(() => { repSel.style.border = '1px solid var(--border)'; repSel.style.boxShadow = 'none'; }, 2000);
-    // Show error message
-    let errMsg = document.getElementById('rep-required-msg');
-    if (!errMsg) {
-      errMsg = document.createElement('div');
-      errMsg.id = 'rep-required-msg';
-      errMsg.style.cssText = 'color:#e05c5c;font-size:12px;font-weight:700;margin-top:5px;text-align:center';
-      errMsg.textContent = '⚠️ Please assign a rep before saving';
-      repSel.parentNode.insertBefore(errMsg, repSel.nextSibling);
-    }
-    errMsg.style.display = 'block';
-    setTimeout(() => { if (errMsg) errMsg.style.display = 'none'; }, 2500);
-    return;
-  }
+  // Rep is always the logged-in user — no dropdown, no manual selection
+  const rep = window.currentSession?.name || document.getElementById('knock-rep-name-hidden')?.value?.trim() || '';
 
   if (editingId) {
     const idx = knocks.findIndex(k => k.id === editingId);
@@ -5909,16 +5911,15 @@ if (reps.length === 0) {
 // Each hash was produced by hashPin('GN@...') offline.
 (function buildAuthStore() {
   // Hash → owner identity map (hashes, not passwords)
+  // Secured Portal access — only these 7 owners can log in via master password
   const _hashes = {
     '-udlp6q': { name: 'Sebastian Mieses', role: 'CEO'       },
-    'wt1t4r':  { name: 'Brock Allison',    role: 'Team Lead' },
     'gb1718':  { name: 'Beau Boyers',      role: 'Team Lead' },
     '-x4iuou': { name: 'Michael Deangelo', role: 'Team Lead' },
     '-3bwb06': { name: 'Joshua Guy',       role: 'Team Lead' },
     'x0rl6v':  { name: 'Calvin Bingaman',  role: 'Team Lead' },
     'wswrj5':  { name: 'Brandon Cavey',    role: 'Team Lead' },
     '-ykm21k': { name: 'Jim Weyandt',      role: 'Team Lead' },
-    '-scsekx': { name: 'Owner',            role: 'Owner'     }, // legacy greennova2024
   };
 
   // ── Session integrity token ───────────────────────────────────────────
@@ -5975,7 +5976,7 @@ if (reps.length === 0) {
   });
 })();
 
-window.OWNER_ALLOWED_REPS = ['Brock Allison','Sebastian Mieses','Beau Boyers','Joshua Guy','Michael Deangelo','Calvin Bingaman','Brandon Cavey','Jim Weyandt'];
+window.OWNER_ALLOWED_REPS = ['Sebastian Mieses','Calvin Bingaman','Beau Boyers','Brandon Cavey','Michael Deangelo','Jim Weyandt','Joshua Guy'];
 
 function saveReps() {
   localStorage.setItem('knocktrack_reps', JSON.stringify(reps));
