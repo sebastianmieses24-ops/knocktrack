@@ -699,6 +699,10 @@ textarea#knock-notes:focus { border-color:var(--accent); }
   #pin-drop-btn { padding:6px 9px; font-size:11px; white-space:nowrap; flex-shrink:0; }
 }
 
+@keyframes slideDownBanner {
+  from { transform:translateY(-100%); opacity:0; }
+  to   { transform:translateY(0);     opacity:1; }
+}
 @keyframes slideUpSheet {
   from { transform:translateY(100%); }
   to   { transform:translateY(0); }
@@ -5367,13 +5371,21 @@ window.openDatePicker = function(target) {
 };
 
 window.closeDatePicker = function() {
-  // Read wheel values by scroll position (reliable across all browsers/mobile)
-  const hVal = getWheelValueByScroll('wheel-hour');
-  const mVal = getWheelValueByScroll('wheel-minute');
-  const apVal = getWheelValueByScroll('wheel-ampm');
+  // Snap all wheels to nearest item FIRST — stops iOS/Android scroll momentum
+  // and ensures wheel-selected reflects the visually selected value
+  ['wheel-hour', 'wheel-minute', 'wheel-ampm'].forEach(id => {
+    snapWheel(document.getElementById(id));
+  });
+
+  // Read from wheel-selected (most reliable — set by scroll + snap)
+  const hVal  = getWheelValue('wheel-hour');
+  const mVal  = getWheelValue('wheel-minute');
+  const apVal = getWheelValue('wheel-ampm');
 
   let hour24 = parseInt(hVal) || 12;
   const minVal = parseInt(mVal) || 0;
+
+  // AM/PM → 24h conversion
   if (apVal === 'PM' && hour24 !== 12) hour24 += 12;
   if (apVal === 'AM' && hour24 === 12) hour24 = 0;
 
@@ -5384,27 +5396,63 @@ window.closeDatePicker = function() {
     if (calEndDate <= calStartDate) calEndDate = new Date(calStartDate.getTime() + 3600000);
   } else {
     calEndDate = new Date(pickerSelectedDate);
+    if (calEndDate <= calStartDate) calEndDate = new Date(calStartDate.getTime() + 3600000);
   }
   updateDateLabels();
   document.getElementById('date-picker-sheet').style.display = 'none';
 };
 
-// Reliable wheel value reader — uses scroll position to determine center item
+// ── Wheel reading — item height 40px, top padding 70px, visible 180px ──────
+const WHEEL_ITEM_H  = 40;
+const WHEEL_PAD     = 70;
+const WHEEL_VIS_H   = 180;
+
+// PRIMARY: read from wheel-selected class (set by scroll handler)
+// FALLBACK: calculate from scroll position
+function getWheelValue(id) {
+  const el = document.getElementById(id);
+  if (!el) return '';
+  const sel = el.querySelector('.wheel-selected');
+  if (sel) return sel.dataset.val;
+  return getWheelValueByScroll(id);
+}
+
 function getWheelValueByScroll(id) {
   const el = document.getElementById(id);
   if (!el) return '';
   const items = el.querySelectorAll('.wheel-item');
   if (!items.length) return '';
-  // Center of the visible area
-  const center = el.scrollTop + (el.clientHeight / 2);
+  // Correct center: scrollTop + (visibleHeight/2 - itemHeight/2)
+  const center = el.scrollTop + (WHEEL_VIS_H / 2);
   let closest = null;
   let minDist = Infinity;
   items.forEach(item => {
-    const itemCenter = item.offsetTop + (item.offsetHeight / 2);
+    const itemCenter = item.offsetTop + (WHEEL_ITEM_H / 2);
     const dist = Math.abs(itemCenter - center);
     if (dist < minDist) { minDist = dist; closest = item; }
   });
   return closest ? closest.dataset.val : '';
+}
+
+// Snap wheel to nearest item and update wheel-selected
+function snapWheel(el) {
+  if (!el) return;
+  const items = el.querySelectorAll('.wheel-item');
+  if (!items.length) return;
+  const center = el.scrollTop + (WHEEL_VIS_H / 2);
+  let closest = null;
+  let minDist = Infinity;
+  items.forEach(item => {
+    const itemCenter = item.offsetTop + (WHEEL_ITEM_H / 2);
+    const dist = Math.abs(itemCenter - center);
+    if (dist < minDist) { minDist = dist; closest = item; }
+  });
+  if (closest) {
+    items.forEach(i => i.classList.remove('wheel-selected'));
+    closest.classList.add('wheel-selected');
+    // Snap scroll to item center
+    el.scrollTop = closest.offsetTop - WHEEL_PAD;
+  }
 }
 
 window.pickerNavMonth = function(dir) {
@@ -5457,21 +5505,40 @@ function buildWheels(date) {
 
 function buildWheel(id, items, selected) {
   const el = document.getElementById(id);
-  el.innerHTML = '<div style="height:70px"></div>' +
-    items.map(v => `<div class="wheel-item${v===selected?' wheel-selected':''}" data-val="${v}">${v}</div>`).join('') +
-    '<div style="height:70px"></div>';
-  // Scroll to selected
-  const selEl = el.querySelector('.wheel-selected');
-  if (selEl) el.scrollTop = selEl.offsetTop - 70;
-  el.addEventListener('scroll', () => onWheelScroll(el), {passive:true});
+  if (!el) return;
+  // Remove old scroll listeners by cloning
+  const fresh = el.cloneNode(false);
+  el.parentNode.replaceChild(fresh, el);
+  const newEl = document.getElementById(id);
+
+  newEl.innerHTML = '<div style="height:' + WHEEL_PAD + 'px"></div>' +
+    items.map(v => '<div class="wheel-item' + (v===selected?' wheel-selected':'') + '" data-val="' + v + '">' + v + '</div>').join('') +
+    '<div style="height:' + WHEEL_PAD + 'px"></div>';
+
+  // Scroll to selected item
+  const selEl = newEl.querySelector('.wheel-selected');
+  if (selEl) newEl.scrollTop = selEl.offsetTop - WHEEL_PAD;
+
+  // Update wheel-selected on scroll
+  newEl.addEventListener('scroll', () => onWheelScroll(newEl), {passive:true});
+
+  // On scroll end (with fallback for older browsers) — snap to nearest item
+  let snapTimer;
+  newEl.addEventListener('scroll', () => {
+    clearTimeout(snapTimer);
+    snapTimer = setTimeout(() => snapWheel(newEl), 120);
+  }, {passive:true});
 }
 
 function onWheelScroll(el) {
   const items = el.querySelectorAll('.wheel-item');
-  let closest = null; let minDist = Infinity;
-  const center = el.scrollTop + 70 + 20; // 70px padding + half item
+  let closest = null;
+  let minDist = Infinity;
+  // Correct center: halfway through visible height
+  const center = el.scrollTop + (WHEEL_VIS_H / 2);
   items.forEach(item => {
-    const dist = Math.abs(item.offsetTop - center);
+    const itemCenter = item.offsetTop + (WHEEL_ITEM_H / 2);
+    const dist = Math.abs(itemCenter - center);
     if (dist < minDist) { minDist = dist; closest = item; }
   });
   items.forEach(i => i.classList.remove('wheel-selected'));
@@ -5666,46 +5733,100 @@ function scheduleNotifications() {
 }
 
 function checkUpcomingNotifications() {
-  if (!('Notification' in window)) return;
-  if (Notification.permission !== 'granted') return;
-  const now = new Date();
-
-  // Only check the logged-in user's own events
+  const now    = new Date();
   const myName = window.currentSession?.name;
   if (!myName) return;
 
-  const lookAhead = new Date(now.getTime() + 24*60*60*1000); // check up to 24h ahead
+  const lookAhead = new Date(now.getTime() + 24*60*60*1000);
   getRepEvents(myName, now, lookAhead).forEach(ev => {
     if (!ev.remindMinutes || ev.remindMinutes === 'none') return;
     const mins = parseInt(ev.remindMinutes);
     if (isNaN(mins)) return;
 
-    const dt      = new Date(ev.datetime);
-    const fireAt  = new Date(dt.getTime() - mins * 60 * 1000); // fire X mins before event
+    const dt     = new Date(ev.datetime);
+    const fireAt = new Date(dt.getTime() - mins * 60 * 1000);
 
-    // Check if we're within a 1-minute window of the fire time
-    const diff = Math.abs(now - fireAt);
-    if (diff > 60 * 1000) return; // not within fire window
+    // Fire within a 90-second window (checked every 60s)
+    if (Math.abs(now - fireAt) > 90 * 1000) return;
 
-    const key = 'notif_' + ev.id + '_' + fireAt.toISOString().slice(0,16);
-    if (sessionStorage.getItem(key)) return; // already fired
+    const key = 'notif_fired_' + (ev.originId || ev.id) + '_' + fireAt.toISOString().slice(0,16);
+    if (sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, '1');
 
-    const timeLabel = dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    const minLabel  = mins >= 60
-      ? (mins >= 1440 ? '1 day' : mins/60 + ' hr') + ' before'
+    const timeLabel  = dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const minLabel   = mins >= 1440 ? '1 day before'
+      : mins >= 60  ? (mins/60) + ' hr before'
       : mins + ' min before';
     const isReminder = ev.type === 'reminder' || ev.title.startsWith('Reminder:');
     const icon = isReminder ? '🔔' : '📅';
+    const displayTitle = ev.title.startsWith('Reminder: ') ? ev.title.slice(10) : ev.title;
 
-    new Notification(icon + ' ' + ev.title, {
-      body: timeLabel + ' · ' + minLabel,
-      icon: 'https://sebastianmieses24-ops.github.io/knocktrack/favicon.ico',
-      tag:  key,
-    });
+    // ── In-app banner (works on ALL browsers including iOS Safari) ───────
+    showReminderBanner(icon + ' ' + displayTitle, timeLabel + ' · ' + minLabel);
+
+    // ── Browser notification (works when permission granted) ─────────────
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification(icon + ' ' + displayTitle, {
+          body: timeLabel + ' · ' + minLabel,
+          icon: 'https://sebastianmieses24-ops.github.io/knocktrack/favicon.ico',
+          tag: key,
+        });
+      } catch(e) { /* Safari may throw — in-app banner already shown */ }
+    }
   });
 }
-// Check every 60 seconds (tight loop so reminders fire on time)
+
+// ── In-app reminder banner — shown inside the app UI ─────────────────────
+function showReminderBanner(title, subtitle) {
+  // Remove any existing banner
+  document.getElementById('reminder-banner')?.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'reminder-banner';
+  banner.style.cssText = [
+    'position:fixed',
+    'top:env(safe-area-inset-top, 0px)',
+    'left:0','right:0',
+    'z-index:99999',
+    'background:linear-gradient(135deg,#1a1a2e,#16213e)',
+    'border-bottom:2px solid #22c55e',
+    'padding:14px 20px',
+    'display:flex',
+    'align-items:center',
+    'gap:14px',
+    'box-shadow:0 4px 24px rgba(0,0,0,0.5)',
+    'animation:slideDownBanner 0.3s ease',
+    'cursor:pointer',
+  ].join(';');
+
+  banner.innerHTML =
+    '<div style="width:40px;height:40px;border-radius:50%;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🔔</div>' +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-family:Outfit,sans-serif;font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + title + '</div>' +
+      '<div style="font-family:Montserrat,sans-serif;font-size:12px;color:#22c55e;margin-top:2px">' + subtitle + '</div>' +
+    '</div>' +
+    '<button id="dismiss-reminder-btn" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:18px;cursor:pointer;padding:4px;flex-shrink:0">✕</button>';
+
+  banner.addEventListener('click', e => {
+    const btn = e.target.closest('#dismiss-reminder-btn');
+    if (btn) {
+      banner.remove();
+    } else {
+      // Tap anywhere else → open calendar
+      banner.remove();
+      if (typeof showDashboard === 'function') showDashboard();
+      setTimeout(() => { if (typeof switchDashTab === 'function') switchDashTab('calendar'); }, 100);
+    }
+  });
+
+  document.body.appendChild(banner);
+
+  // Auto-dismiss after 8 seconds
+  setTimeout(() => banner?.remove(), 8000);
+}
+
+// Check every 60 seconds
 setInterval(checkUpcomingNotifications, 60 * 1000);
 setTimeout(() => { scheduleNotifications(); checkUpcomingNotifications(); }, 2000);
 // ── END CALENDAR ──────────────────────────────────────
