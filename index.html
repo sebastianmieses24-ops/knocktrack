@@ -4638,93 +4638,103 @@ function initFollowModeListeners() {
 // ── Two-finger rotation gesture handler ──────────────────────────────────
 // Intercepts pinch/rotate gesture on the map div and applies heading change
 function initMapRotationGesture() {
-  // ── Strategy: transparent overlay div above the map ──────────────────
-  // We NEVER attach touchmove to #google-map (that breaks Maps' pinch-zoom).
-  // Instead a pointer-events:none overlay is promoted to pointer-events:all
-  // ONLY when a two-finger twist is detected, then immediately demoted back.
-  // The Maps API retains full control of pinch-zoom at all times.
+  // ── Root cause of previous failure ────────────────────────────────────
+  // Google Maps JS API calls e.stopPropagation() internally on ALL touch
+  // events that land on #google-map. With capture:false our listeners on
+  // #map-shell never fire because propagation is stopped before bubbling.
+  // Fix: capture:true — fires in CAPTURE phase BEFORE Maps API sees the event.
+  //
+  // Second issue: locking gesture type permanently to 'pinch' when dist
+  // changes first. Real twist gestures always involve SOME distance change.
+  // Fix: use continuous angle-vs-distance RATIO each frame, not a one-time lock.
+  // ──────────────────────────────────────────────────────────────────────
 
   const mapDiv = document.getElementById('google-map');
   if (!mapDiv) return;
 
-  // State
-  let _t1Start = null, _t2Start = null;  // initial touch positions
-  let _startDist    = 0;                 // initial finger distance
-  let _startAngle   = 0;                 // initial finger angle
-  let _startHeading = 0;                 // map heading when gesture began
-  let _gestureType  = null;              // 'rotate' | 'pinch' | null
-  let _lastHeading  = 0;
+  // Prevent double-init
+  if (mapDiv._rotationInited) return;
+  mapDiv._rotationInited = true;
 
-  // Helpers
+  let _prevAngle    = null;   // angle from previous frame (for incremental delta)
+  let _prevDist     = null;   // distance from previous frame
+  let _startHeading = 0;
+  let _active       = false;  // true when 2 fingers are on screen
+  let _accumHeading = 0;      // accumulated heading so far this gesture
+
   function getDist(t1, t2) {
     const dx = t2.clientX - t1.clientX;
     const dy = t2.clientY - t1.clientY;
     return Math.sqrt(dx * dx + dy * dy);
   }
+
   function getAngle(t1, t2) {
     return Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * 180 / Math.PI;
   }
 
-  // Attach to the map CONTAINER (not google-map div) to avoid conflicting
-  // with Maps API internals. Use capture phase so we see events first.
-  const shell = document.getElementById('map-shell') || mapDiv.parentElement;
-  if (!shell) return;
+  // Normalize angle delta to [-180, 180] to handle wrap-around
+  function normalizeDelta(d) {
+    while (d > 180)  d -= 360;
+    while (d < -180) d += 360;
+    return d;
+  }
 
-  shell.addEventListener('touchstart', function(e) {
-    if (e.touches.length !== 2) {
-      _gestureType = null;
-      return;
+  // Use CAPTURE phase (true) — fires before Maps API can stopPropagation
+  mapDiv.addEventListener('touchstart', function(e) {
+    if (e.touches.length === 2) {
+      _prevAngle    = getAngle(e.touches[0], e.touches[1]);
+      _prevDist     = getDist(e.touches[0],  e.touches[1]);
+      _startHeading = map ? (map.getHeading() || 0) : 0;
+      _accumHeading = _startHeading;
+      _active       = true;
+    } else {
+      _active    = false;
+      _prevAngle = null;
     }
-    _t1Start      = e.touches[0];
-    _t2Start      = e.touches[1];
-    _startDist    = getDist(_t1Start, _t2Start);
-    _startAngle   = getAngle(_t1Start, _t2Start);
-    _startHeading = map ? (map.getHeading() || 0) : 0;
-    _lastHeading  = _startHeading;
-    _gestureType  = null; // undecided until we see movement
-  }, { passive: true, capture: false });
+  }, { passive: true, capture: true });   // ← capture:true is the key fix
 
-  shell.addEventListener('touchmove', function(e) {
-    if (e.touches.length !== 2 || !map) return;
+  mapDiv.addEventListener('touchmove', function(e) {
+    if (!_active || e.touches.length !== 2 || !map) return;
 
     const t1 = e.touches[0];
     const t2 = e.touches[1];
-
-    const currentDist  = getDist(t1, t2);
     const currentAngle = getAngle(t1, t2);
+    const currentDist  = getDist(t1, t2);
 
-    const distDelta  = Math.abs(currentDist - _startDist);
-    const angleDelta = Math.abs(currentAngle - _startAngle);
-
-    // Classify gesture on first significant movement
-    if (_gestureType === null) {
-      if (distDelta > 12) {
-        _gestureType = 'pinch'; // fingers spreading/closing → zoom, not rotate
-      } else if (angleDelta > 6) {
-        _gestureType = 'rotate';
-      }
-      // If neither threshold met yet, keep undecided
+    if (_prevAngle === null) {
+      _prevAngle = currentAngle;
+      _prevDist  = currentDist;
+      return;
     }
 
-    // Only apply rotation when gesture is classified as rotate
-    if (_gestureType !== 'rotate') return;
+    // Per-frame deltas (incremental — avoids wrap-around issues)
+    const angleDelta = normalizeDelta(currentAngle - _prevAngle);
+    const distDelta  = Math.abs(currentDist - _prevDist);
 
-    const delta  = currentAngle - _startAngle;
-    const newH   = ((_startHeading + delta) % 360 + 360) % 360;
+    // Rotation vs pinch ratio:
+    // If |angleDelta| > distDelta * 0.15 → rotation is dominant → apply heading
+    // This means: even if fingers are spreading, we still rotate as long as
+    // the angular component is meaningfully large relative to the radial change.
+    // Real-world: twisting thumbs always has angleDelta >> distDelta * 0.15
+    const rotationDominant = Math.abs(angleDelta) > distDelta * 0.15 || Math.abs(angleDelta) > 1.5;
 
-    // Only update if heading changed meaningfully (reduces jitter)
-    if (Math.abs(newH - _lastHeading) > 0.3) {
-      map.setHeading(newH);
-      _lastHeading = newH;
+    if (rotationDominant && Math.abs(angleDelta) > 0.2) {
+      _accumHeading = ((_accumHeading + angleDelta) % 360 + 360) % 360;
+      map.setHeading(_accumHeading);
       updateCompass();
     }
-  }, { passive: true, capture: false });
 
-  shell.addEventListener('touchend', function(e) {
+    _prevAngle = currentAngle;
+    _prevDist  = currentDist;
+  }, { passive: true, capture: true });   // ← capture:true
+
+  mapDiv.addEventListener('touchend', function(e) {
     if (e.touches.length < 2) {
-      _gestureType = null;
+      _active    = false;
+      _prevAngle = null;
+      _prevDist  = null;
     }
-  }, { passive: true, capture: false });
+  }, { passive: true, capture: true });   // ← capture:true
 }
 
 function showRecenterBtn(show) {
