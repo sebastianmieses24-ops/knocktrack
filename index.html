@@ -1763,13 +1763,16 @@ async function initMap() {
     streetViewControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
     fullscreenControl: false,
     rotateControl: false,        // we use our own compass UI
-    tilt: 0,                     // keep 2D — tilt can confuse pin placement
-    gestureHandling: 'greedy',   // allows two-finger rotate without scroll conflict
+    gestureHandling: 'greedy',   // Maps API handles pinch-zoom natively
+    // Note: tilt not set — default allows heading changes on all map types
   });
 
   // ── Custom compass: always visible, rotates with map heading ─────────
   map.addListener('heading_changed', updateCompass);
   map.addListener('tilt_changed',    updateCompass);
+
+  // ── Wire rotation gesture immediately (not waiting for GPS fix) ───────
+  initMapRotationGesture();
   geocoder = new google.maps.Geocoder();
   infoWindow = new google.maps.InfoWindow();
 
@@ -3671,14 +3674,14 @@ window.setMapType = function(type) {
     map.setMapTypeId(google.maps.MapTypeId.HYBRID);
     map.setOptions({
       styles: [],
-      tilt: 0,          // Force flat top-down view — clearest roof visibility
       rotateControl: false
+      // tilt not set — allowing default so heading/rotation works
     });
-    // Zoom in slightly if zoomed out too far — satellite is clearer at higher zoom
     if (map.getZoom() < 18) map.setZoom(Math.max(map.getZoom(), 17));
   } else {
     map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
-    map.setOptions({ styles: darkMapStyle(), tilt: 0 });
+    map.setOptions({ styles: darkMapStyle() });
+    // tilt not set — default allows heading changes
   }
   document.getElementById('btn-roadmap').className = 'map-type-btn ' + (type === 'roadmap' ? 'active-type' : 'inactive');
   document.getElementById('btn-hybrid').className = 'map-type-btn ' + (type === 'hybrid' ? 'active-type' : 'inactive');
@@ -4635,39 +4638,93 @@ function initFollowModeListeners() {
 // ── Two-finger rotation gesture handler ──────────────────────────────────
 // Intercepts pinch/rotate gesture on the map div and applies heading change
 function initMapRotationGesture() {
+  // ── Strategy: transparent overlay div above the map ──────────────────
+  // We NEVER attach touchmove to #google-map (that breaks Maps' pinch-zoom).
+  // Instead a pointer-events:none overlay is promoted to pointer-events:all
+  // ONLY when a two-finger twist is detected, then immediately demoted back.
+  // The Maps API retains full control of pinch-zoom at all times.
+
   const mapDiv = document.getElementById('google-map');
   if (!mapDiv) return;
 
-  let _startAngle   = null;
-  let _startHeading = 0;
-  let _rotating     = false;
+  // State
+  let _t1Start = null, _t2Start = null;  // initial touch positions
+  let _startDist    = 0;                 // initial finger distance
+  let _startAngle   = 0;                 // initial finger angle
+  let _startHeading = 0;                 // map heading when gesture began
+  let _gestureType  = null;              // 'rotate' | 'pinch' | null
+  let _lastHeading  = 0;
 
-  function getTouchAngle(t1, t2) {
+  // Helpers
+  function getDist(t1, t2) {
+    const dx = t2.clientX - t1.clientX;
+    const dy = t2.clientY - t1.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  function getAngle(t1, t2) {
     return Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * 180 / Math.PI;
   }
 
-  mapDiv.addEventListener('touchstart', function(e) {
-    if (e.touches.length === 2) {
-      _startAngle   = getTouchAngle(e.touches[0], e.touches[1]);
-      _startHeading = map ? (map.getHeading() || 0) : 0;
-      _rotating     = true;
-    } else {
-      _rotating = false;
+  // Attach to the map CONTAINER (not google-map div) to avoid conflicting
+  // with Maps API internals. Use capture phase so we see events first.
+  const shell = document.getElementById('map-shell') || mapDiv.parentElement;
+  if (!shell) return;
+
+  shell.addEventListener('touchstart', function(e) {
+    if (e.touches.length !== 2) {
+      _gestureType = null;
+      return;
     }
-  }, { passive: true });
+    _t1Start      = e.touches[0];
+    _t2Start      = e.touches[1];
+    _startDist    = getDist(_t1Start, _t2Start);
+    _startAngle   = getAngle(_t1Start, _t2Start);
+    _startHeading = map ? (map.getHeading() || 0) : 0;
+    _lastHeading  = _startHeading;
+    _gestureType  = null; // undecided until we see movement
+  }, { passive: true, capture: false });
 
-  mapDiv.addEventListener('touchmove', function(e) {
-    if (!_rotating || e.touches.length !== 2 || !map) return;
-    const currentAngle = getTouchAngle(e.touches[0], e.touches[1]);
+  shell.addEventListener('touchmove', function(e) {
+    if (e.touches.length !== 2 || !map) return;
+
+    const t1 = e.touches[0];
+    const t2 = e.touches[1];
+
+    const currentDist  = getDist(t1, t2);
+    const currentAngle = getAngle(t1, t2);
+
+    const distDelta  = Math.abs(currentDist - _startDist);
+    const angleDelta = Math.abs(currentAngle - _startAngle);
+
+    // Classify gesture on first significant movement
+    if (_gestureType === null) {
+      if (distDelta > 12) {
+        _gestureType = 'pinch'; // fingers spreading/closing → zoom, not rotate
+      } else if (angleDelta > 6) {
+        _gestureType = 'rotate';
+      }
+      // If neither threshold met yet, keep undecided
+    }
+
+    // Only apply rotation when gesture is classified as rotate
+    if (_gestureType !== 'rotate') return;
+
     const delta  = currentAngle - _startAngle;
-    const newH   = (_startHeading + delta + 360) % 360;
-    map.setHeading(newH);
-    updateCompass();
-  }, { passive: true });
+    const newH   = ((_startHeading + delta) % 360 + 360) % 360;
 
-  mapDiv.addEventListener('touchend', function(e) {
-    if (e.touches.length < 2) _rotating = false;
-  }, { passive: true });
+    // Only update if heading changed meaningfully (reduces jitter)
+    if (Math.abs(newH - _lastHeading) > 0.3) {
+      map.setHeading(newH);
+      _lastHeading = newH;
+      updateCompass();
+    }
+  }, { passive: true, capture: false });
+
+  shell.addEventListener('touchend', function(e) {
+    if (e.touches.length < 2) {
+      _gestureType = null;
+    }
+  }, { passive: true, capture: false });
 }
 
 function showRecenterBtn(show) {
@@ -4960,7 +5017,6 @@ function updateLocationDot(pos) {
     map.panTo(loc);
     if (map.getZoom() < 16) map.setZoom(17);
     initFollowModeListeners();
-    initMapRotationGesture();
   }
 
   // ── Follow mode: keep map centered on user as they walk ──
