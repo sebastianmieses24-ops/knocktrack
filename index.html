@@ -380,23 +380,28 @@ h1,h2,h3 { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; }
   position:relative;
   min-width:0;
   min-height:0;
-  overflow:hidden; /* clips rotated content — no black corners visible */
+  /* NO overflow:hidden — that would clip the wrapper before rotation */
 }
 
-/* Rotation wrapper — this is what actually rotates */
+/* Rotation wrapper — rotates the map tiles without clipping corners.
+   Uses viewport units so sizing is absolute, not relative to clipped parent.
+   Centered on the viewport center point. */
 #map-rotate-wrapper {
-  position:absolute;
-  /* Oversized to 150% so corners always fill viewport at any rotation angle */
-  /* √2 ≈ 141.4% needed; 150% gives a comfortable margin */
-  width:150%;
-  height:150%;
-  top:-25%;
-  left:-25%;
-  transform-origin:50% 50%;
+  position:fixed;
+  /* Size at 150vw × 150vh — guaranteed to cover any rotation angle (√2 ≈ 141%) */
+  width:150vw;
+  height:150vh;
+  /* Center on viewport */
+  top:50vh;
+  left:50vw;
+  transform:translate(-50%, -50%);
+  transform-origin:center center;
   will-change:transform;
+  /* z-index below UI overlays which are positioned above in the DOM */
+  z-index:0;
 }
 
-/* google-map fills its wrapper completely */
+/* google-map fills wrapper completely */
 #google-map {
   position:absolute;
   inset:0;
@@ -4652,8 +4657,7 @@ function updateCompass(deg) {
 
 // Reset map to north-up
 window.resetMapNorth = function() {
-  applyMapRotation(0);
-  updateCompass(0);
+  applyMapRotation(0); // applyMapRotation handles both transform and compass
 };
 
 // Detect when user manually pans — disable follow mode
@@ -4676,11 +4680,11 @@ window._mapRotationDeg = 0;
 function applyMapRotation(deg) {
   deg = ((deg % 360) + 360) % 360;
   window._mapRotationDeg = deg;
-  // Rotate the WRAPPER (not google-map itself) — wrapper is 150% sized
-  // so corners always fill the visible area at any rotation angle.
-  // All UI overlays (controls, compass, pins) stay outside wrapper → don't rotate.
   const wrapper = document.getElementById('map-rotate-wrapper');
-  if (wrapper) wrapper.style.transform = 'rotate(' + deg + 'deg)';
+  if (wrapper) {
+    // Must preserve the translate(-50%,-50%) centering while adding rotation
+    wrapper.style.transform = 'translate(-50%, -50%) rotate(' + deg + 'deg)';
+  }
   updateCompass(deg);
 }
 
