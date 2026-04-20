@@ -319,7 +319,6 @@ h1,h2,h3 { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; }
   top:0; left:0; right:0; bottom:0;
   display:flex;
   flex-direction:column;
-  overflow:hidden; /* clips oversized google-map div during rotation */
 }
 
 #topbar {
@@ -381,19 +380,28 @@ h1,h2,h3 { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; }
   position:relative;
   min-width:0;
   min-height:0;
+  overflow:hidden; /* clips rotated content — no black corners visible */
 }
 
-#google-map {
+/* Rotation wrapper — this is what actually rotates */
+#map-rotate-wrapper {
   position:absolute;
-  /* Size at 142% (√2) so any rotation angle fills the viewport — no black corners */
-  width:142%;
-  height:142%;
-  /* Center the oversized div — negative margins pull it into position */
-  top:-21%;
-  left:-21%;
+  /* Oversized to 150% so corners always fill viewport at any rotation angle */
+  /* √2 ≈ 141.4% needed; 150% gives a comfortable margin */
+  width:150%;
+  height:150%;
+  top:-25%;
+  left:-25%;
   transform-origin:50% 50%;
   will-change:transform;
-  /* Parent must clip the overflow */
+}
+
+/* google-map fills its wrapper completely */
+#google-map {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
 }
 
 #map-hint {
@@ -1247,7 +1255,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
   <!-- Map + Sidebar -->
   <div id="map-and-sidebar">
     <div id="map-container">
-      <div id="google-map"></div>
+      <div id="map-rotate-wrapper"><div id="google-map"></div></div>
       <div id="map-hint" style="display:none">📍 Tap anywhere on the map to drop a pin</div>
 
       <!-- Top right controls -->
@@ -4666,18 +4674,13 @@ function initFollowModeListeners() {
 window._mapRotationDeg = 0;
 
 function applyMapRotation(deg) {
-  // Normalize to [0, 360)
   deg = ((deg % 360) + 360) % 360;
   window._mapRotationDeg = deg;
-
-  const mapDiv = document.getElementById('google-map');
-  if (mapDiv) {
-    // Pure CSS rotation — no dynamic scale needed because the map is
-    // already sized at 142% (√2) which fills the viewport at all angles.
-    // GPU-composited via will-change:transform set in CSS.
-    mapDiv.style.transform = 'rotate(' + deg + 'deg)';
-  }
-
+  // Rotate the WRAPPER (not google-map itself) — wrapper is 150% sized
+  // so corners always fill the visible area at any rotation angle.
+  // All UI overlays (controls, compass, pins) stay outside wrapper → don't rotate.
+  const wrapper = document.getElementById('map-rotate-wrapper');
+  if (wrapper) wrapper.style.transform = 'rotate(' + deg + 'deg)';
   updateCompass(deg);
 }
 
@@ -4688,12 +4691,10 @@ function updateCompassDirect(deg) {
 
 function initMapRotationGesture() {
   const mapDiv = document.getElementById('google-map');
-  if (!mapDiv || mapDiv._rotationInited) return;
-  mapDiv._rotationInited = true;
-
-  // GPU acceleration prep
-  mapDiv.style.willChange      = 'transform';
-  mapDiv.style.transformOrigin = '50% 50%';
+  if (!mapDiv) return;
+  const wrapper = document.getElementById('map-rotate-wrapper');
+  if (!wrapper || wrapper._rotationInited) return;
+  wrapper._rotationInited = true;
 
   let _prevAngle = null;
   let _prevDist  = null;
