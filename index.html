@@ -378,35 +378,16 @@ h1,h2,h3 { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; }
 #map-container {
   flex:1;
   position:relative;
+  overflow:hidden;
   min-width:0;
   min-height:0;
-  /* NO overflow:hidden — that would clip the wrapper before rotation */
 }
 
-/* Rotation wrapper — rotates the map tiles without clipping corners.
-   Uses viewport units so sizing is absolute, not relative to clipped parent.
-   Centered on the viewport center point. */
-#map-rotate-wrapper {
-  position:fixed;
-  /* Size at 150vw × 150vh — guaranteed to cover any rotation angle (√2 ≈ 141%) */
-  width:150vw;
-  height:150vh;
-  /* Center on viewport */
-  top:50vh;
-  left:50vw;
-  transform:translate(-50%, -50%);
-  transform-origin:center center;
-  will-change:transform;
-  /* z-index below UI overlays which are positioned above in the DOM */
-  z-index:0;
-}
-
-/* google-map fills wrapper completely */
+/* google-map: JS sets pixel dimensions at runtime for correct rotation coverage */
 #google-map {
   position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
+  transform-origin:center center;
+  will-change:transform;
 }
 
 #map-hint {
@@ -1260,7 +1241,7 @@ textarea#knock-notes:focus { border-color:var(--accent); }
   <!-- Map + Sidebar -->
   <div id="map-and-sidebar">
     <div id="map-container">
-      <div id="map-rotate-wrapper"><div id="google-map"></div></div>
+      <div id="google-map"></div>
       <div id="map-hint" style="display:none">📍 Tap anywhere on the map to drop a pin</div>
 
       <!-- Top right controls -->
@@ -1788,8 +1769,27 @@ async function initMap() {
   });
 
   // ── Wire rotation gesture immediately ────────────────────────────────
-  initMapRotationGesture();
   window._mapRotationDeg = 0;
+  window._mapRotationCenter = null;
+
+  // Size map for rotation once layout has settled
+  setTimeout(function() {
+    sizeMapForRotation();
+    // Store initial center so rotation locks to it
+    if (map) window._mapRotationCenter = map.getCenter();
+    // Re-size if window resizes (orientation change)
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(function() {
+        sizeMapForRotation();
+        // Notify Maps API of container resize
+        google.maps.event.trigger(map, 'resize');
+        if (window._mapRotationCenter) map.setCenter(window._mapRotationCenter);
+      });
+      ro.observe(document.getElementById('map-container'));
+    }
+  }, 300);
+
+  initMapRotationGesture();
   geocoder = new google.maps.Geocoder();
   infoWindow = new google.maps.InfoWindow();
 
@@ -4657,7 +4657,7 @@ function updateCompass(deg) {
 
 // Reset map to north-up
 window.resetMapNorth = function() {
-  applyMapRotation(0); // applyMapRotation handles both transform and compass
+  applyMapRotation(0);
 };
 
 // Detect when user manually pans — disable follow mode
@@ -4677,14 +4677,62 @@ function initFollowModeListeners() {
 // Global rotation state — accessible for compass and reset
 window._mapRotationDeg = 0;
 
+// ── Map rotation — the correct approach for Google Maps JS API ───────────
+// 1. Size #google-map as a SQUARE with side = container diagonal (in pixels)
+//    A square rotated at any angle always covers the rectangle it came from.
+//    Using pixel sizing (not %) means layout box is correct for overflow:hidden.
+// 2. CSS rotate #google-map — the overflow:hidden parent clips corners cleanly.
+// 3. map.setHeading() keeps the Maps API in sync so pinch-zoom, pan, and
+//    touch→lat/lng all remain accurate.
+
+function sizeMapForRotation() {
+  const container = document.getElementById('map-container');
+  const mapDiv    = document.getElementById('google-map');
+  if (!container || !mapDiv) return;
+
+  const W = container.offsetWidth;
+  const H = container.offsetHeight;
+  if (!W || !H) return;
+
+  // Square side = diagonal of container (guarantees coverage at any angle)
+  const diag = Math.ceil(Math.sqrt(W * W + H * H));
+  const offset = -Math.ceil((diag - W) / 2);  // negative offset to center
+  const offsetY = -Math.ceil((diag - H) / 2);
+
+  mapDiv.style.width  = diag + 'px';
+  mapDiv.style.height = diag + 'px';
+  mapDiv.style.left   = offset + 'px';
+  mapDiv.style.top    = offsetY + 'px';
+  mapDiv.style.position = 'absolute';
+
+  // Store for use in rotation
+  window._mapContainerW = W;
+  window._mapContainerH = H;
+  window._mapDiag = diag;
+}
+
 function applyMapRotation(deg) {
   deg = ((deg % 360) + 360) % 360;
   window._mapRotationDeg = deg;
-  const wrapper = document.getElementById('map-rotate-wrapper');
-  if (wrapper) {
-    // Must preserve the translate(-50%,-50%) centering while adding rotation
-    wrapper.style.transform = 'translate(-50%, -50%) rotate(' + deg + 'deg)';
+
+  const mapDiv = document.getElementById('google-map');
+  if (!mapDiv) return;
+
+  // Ensure map is sized as a square (call on first rotation or after resize)
+  if (!window._mapDiag) sizeMapForRotation();
+
+  // CSS rotate around the geometric center of the square
+  mapDiv.style.transform = 'rotate(' + deg + 'deg)';
+
+  // Keep Maps API in sync — heading, compass, labels, coordinate conversion
+  if (map) {
+    try { map.setHeading(deg); } catch(e) {}
+    // Prevent drift: re-lock center after heading change
+    if (window._mapRotationCenter) {
+      map.setCenter(window._mapRotationCenter);
+    }
   }
+
   updateCompass(deg);
 }
 
@@ -4695,10 +4743,8 @@ function updateCompassDirect(deg) {
 
 function initMapRotationGesture() {
   const mapDiv = document.getElementById('google-map');
-  if (!mapDiv) return;
-  const wrapper = document.getElementById('map-rotate-wrapper');
-  if (!wrapper || wrapper._rotationInited) return;
-  wrapper._rotationInited = true;
+  if (!mapDiv || mapDiv._rotationInited) return;
+  mapDiv._rotationInited = true;
 
   let _prevAngle = null;
   let _prevDist  = null;
@@ -4723,8 +4769,10 @@ function initMapRotationGesture() {
   // Attach to document with capture:true — fires before Maps API sees events
   // This is the only reliable way: Maps API calls stopPropagation internally
   document.addEventListener('touchstart', function(e) {
-    // Only act on touches that started inside the map div
-    const rect = mapDiv.getBoundingClientRect();
+    // Only act on touches inside the map container
+    const container = document.getElementById('map-container');
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
     const t0   = e.touches[0];
     if (t0.clientX < rect.left || t0.clientX > rect.right ||
         t0.clientY < rect.top  || t0.clientY > rect.bottom) {
@@ -4735,6 +4783,8 @@ function initMapRotationGesture() {
       _prevAngle = getAngle(e.touches[0], e.touches[1]);
       _prevDist  = getDist(e.touches[0],  e.touches[1]);
       _active    = true;
+      // Snapshot center so we can lock it during rotation
+      if (map) window._mapRotationCenter = map.getCenter();
     } else {
       _active    = false;
       _prevAngle = null;
