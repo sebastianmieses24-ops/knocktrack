@@ -1775,18 +1775,17 @@ async function initMap() {
   // Size map for rotation once layout has settled
   setTimeout(function() {
     sizeMapForRotation();
-    // Store initial center so rotation locks to it
     if (map) window._mapRotationCenter = map.getCenter();
-    // Re-size if window resizes (orientation change)
-    if (window.ResizeObserver) {
-      const ro = new ResizeObserver(function() {
+    // Only resize on ORIENTATION CHANGE (not every touch) — 
+    // ResizeObserver fires during pinch-zoom layout changes and calling
+    // trigger('resize') mid-gesture kills Maps API touch state entirely
+    window.addEventListener('orientationchange', function() {
+      setTimeout(function() {
         sizeMapForRotation();
-        // Notify Maps API of container resize
         google.maps.event.trigger(map, 'resize');
         if (window._mapRotationCenter) map.setCenter(window._mapRotationCenter);
-      });
-      ro.observe(document.getElementById('map-container'));
-    }
+      }, 300);
+    });
   }, 300);
 
   initMapRotationGesture();
@@ -4784,19 +4783,16 @@ function applyMapRotation(deg) {
   const mapDiv = document.getElementById('google-map');
   if (!mapDiv) return;
 
-  // Ensure map is sized as a square (call on first rotation or after resize)
+  // Size once on first call — never mid-gesture (breaks pinch-zoom)
   if (!window._mapDiag) sizeMapForRotation();
 
-  // CSS rotate around the geometric center of the square
+  // CSS rotate only — no DOM size changes, no setCenter during gesture
   mapDiv.style.transform = 'rotate(' + deg + 'deg)';
 
-  // Keep Maps API in sync — heading, compass, labels, coordinate conversion
+  // Sync Maps API heading (affects labels/compass only, not tile rendering)
   if (map) {
     try { map.setHeading(deg); } catch(e) {}
-    // Prevent drift: re-lock center after heading change
-    if (window._mapRotationCenter) {
-      map.setCenter(window._mapRotationCenter);
-    }
+    // DO NOT call setCenter here — it fights Maps API pinch-zoom center tracking
   }
 
   updateCompass(deg);
@@ -4874,11 +4870,17 @@ function initMapRotationGesture() {
     const angleDelta = normDelta(currentAngle - _prevAngle);
     const distDelta  = Math.abs(currentDist - _prevDist);
 
-    // Apply rotation when angular component exceeds minimal threshold
-    // Keep threshold LOW (0.3°) so rotation feels immediate and responsive
-    if (Math.abs(angleDelta) > 0.3) {
+    // STRICT rotation gate:
+    // Pinch-zoom: fingers spread/close → distDelta large, angleDelta small
+    // Rotation:   fingers twist → angleDelta large, distDelta small
+    // Rule: only rotate if angleDelta > 3° AND distance barely changed (< 8px/frame)
+    // This gives Maps API complete uncontested control over pinch-zoom.
+    const isPureRotation = Math.abs(angleDelta) > 3.0 && distDelta < 8;
+
+    if (isPureRotation) {
       applyMapRotation(window._mapRotationDeg + angleDelta);
     }
+    // If not pure rotation: do NOTHING — let Maps API handle pinch natively
 
     _prevAngle = currentAngle;
     _prevDist  = currentDist;
@@ -4889,6 +4891,13 @@ function initMapRotationGesture() {
       _active    = false;
       _prevAngle = null;
       _prevDist  = null;
+      // After gesture ends: re-lock center if we were rotating
+      // Safe to do here — no active touch to interfere with
+      if (window._mapRotationCenter && map && window._mapRotationDeg !== 0) {
+        setTimeout(function() {
+          if (window._mapRotationCenter) map.setCenter(window._mapRotationCenter);
+        }, 50);
+      }
     }
   }, { passive: true, capture: true });
 }
