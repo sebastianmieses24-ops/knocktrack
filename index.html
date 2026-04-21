@@ -2254,62 +2254,128 @@ window.quickStatus = function(knockId, statusKey) {
 
 function makeMarkerIcon(statusKey, count) {
   count = count || 1;
-  const s = STATUSES.find(x => x.key === statusKey);
+  const s     = STATUSES.find(x => x.key === statusKey);
   const color = s ? s.color : '#888';
-  // Unvisited pins are smaller and more transparent — visual hierarchy
-  const isUnvisited = statusKey === 'unvisited';
-  const icons = {
-    'unvisited':`<circle cx="18" cy="14" r="6" fill="rgba(255,255,255,0.4)"/><text x="18" y="18" font-size="10" text-anchor="middle" font-family="Arial" fill="white" font-weight="bold">?</text>`,
-    'enrolled':`<text x="18" y="23" font-size="20" text-anchor="middle" font-family="Arial" fill="white">☀</text>`,
-    'not-home':`<text x="18" y="23" font-size="21" text-anchor="middle" font-family="Arial" fill="white">⌂</text>`,
-    'quality-lead':`<text x="18" y="24" font-size="22" text-anchor="middle" font-family="Arial" fill="white" font-weight="bold">↻</text>`,
-    'lead':`<text x="18" y="21" font-size="14" text-anchor="middle" font-family="Arial" fill="white">📍</text>`,
-    'missed-lead':`<text x="18" y="21" font-size="14" text-anchor="middle" font-family="Arial" fill="white">📅</text>`,
-    'not-interested':`<text x="18" y="22" font-size="17" text-anchor="middle" font-family="Arial" fill="white" font-weight="bold">✕</text>`,
-    'not-qualified':`<text x="18" y="21" font-size="14" text-anchor="middle" font-family="Arial" fill="white">👎</text>`,
-    'competitor':`<text x="18" y="22" font-size="17" text-anchor="middle" font-family="Arial" fill="white" font-weight="bold">✕</text>`,
-    'jerk':`<text x="18" y="21" font-size="14" text-anchor="middle" font-family="Arial" fill="white">😠</text>`,
-    'solar-roof':`<text x="18" y="23" font-size="20" text-anchor="middle" font-family="Arial" fill="white">☀</text>`,
-    'spanish':`<text x="18" y="21" font-size="14" text-anchor="middle" font-family="Arial" fill="white">💬</text>`,
+
+  // ── Icon paths — clean white SVG icons, centered in a 44px circle ──────
+  // All paths drawn on a 24×24 grid, rendered at cx=22,cy=22 (circle center)
+  const iconPaths = {
+    // House outline (Not Home, Missed Lead)
+    'house': '<path d="M22 10l-9 8h2v7h5v-5h4v5h5v-7h2z" fill="white"/>',
+    // Sun with rays (Enrolled, Solar on Roof)
+    'sun': '<circle cx="22" cy="22" r="4.5" fill="white"/>'
+           + '<line x1="22" y1="14" x2="22" y2="16" stroke="white" stroke-width="2" stroke-linecap="round"/>'
+           + '<line x1="22" y1="28" x2="22" y2="30" stroke="white" stroke-width="2" stroke-linecap="round"/>'
+           + '<line x1="14" y1="22" x2="16" y2="22" stroke="white" stroke-width="2" stroke-linecap="round"/>'
+           + '<line x1="28" y1="22" x2="30" y2="22" stroke="white" stroke-width="2" stroke-linecap="round"/>'
+           + '<line x1="16.5" y1="16.5" x2="17.9" y2="17.9" stroke="white" stroke-width="2" stroke-linecap="round"/>'
+           + '<line x1="26.1" y1="26.1" x2="27.5" y2="27.5" stroke="white" stroke-width="2" stroke-linecap="round"/>'
+           + '<line x1="27.5" y1="16.5" x2="26.1" y2="17.9" stroke="white" stroke-width="2" stroke-linecap="round"/>'
+           + '<line x1="17.9" y1="26.1" x2="16.5" y2="27.5" stroke="white" stroke-width="2" stroke-linecap="round"/>',
+    // Bold X (Not Interested, Competitor)
+    'x': '<line x1="15" y1="15" x2="29" y2="29" stroke="white" stroke-width="3.5" stroke-linecap="round"/>'
+         + '<line x1="29" y1="15" x2="15" y2="29" stroke="white" stroke-width="3.5" stroke-linecap="round"/>',
+    // Star / quality (Quality Lead)
+    'star': '<path d="M22 13l2.5 5 5.5.8-4 3.9.94 5.5L22 25.5l-4.94 2.7.94-5.5-4-3.9 5.5-.8z" fill="white"/>',
+    // Location pin (Lead)
+    'pin': '<path d="M22 13a5 5 0 0 0-5 5c0 3.75 5 9 5 9s5-5.25 5-9a5 5 0 0 0-5-5z" fill="white"/>'
+           + '<circle cx="22" cy="18" r="1.8" fill="' + color + '"/>',
+    // Calendar (Missed Lead — already using house, override below)
+    'calendar': '<rect x="15" y="15" width="14" height="13" rx="2" fill="none" stroke="white" stroke-width="2"/>'
+                + '<line x1="19" y1="13" x2="19" y2="17" stroke="white" stroke-width="2" stroke-linecap="round"/>'
+                + '<line x1="25" y1="13" x2="25" y2="17" stroke="white" stroke-width="2" stroke-linecap="round"/>'
+                + '<line x1="15" y1="21" x2="29" y2="21" stroke="white" stroke-width="1.5"/>',
+    // Thumbs down (Not Qualified)
+    'thumbdown': '<path d="M22 29l-1-7h-5v7l3-1h3zm0 0v-9h3a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2h-7l1 5h-1v11" fill="none" stroke="white" stroke-width="2" stroke-linejoin="round"/>',
+    // Flame/anger (Jerk)
+    'flame': '<path d="M22 13c0 0-6 5-3 9-2-1-3-3-2-5-3 3-2 8 3 9-1-2 0-4 2-4 1 2 0 5-2 6 5-1 8-5 6-10 1 1 1 3 0 4 3-2 3-7-4-9z" fill="white"/>',
+    // Speech bubble (No English)
+    'chat': '<path d="M15 14h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-7l-5 3v-3h-2a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z" fill="none" stroke="white" stroke-width="2" stroke-linejoin="round"/>'
+            + '<text x="22" y="22" font-size="7" text-anchor="middle" font-family="Arial" fill="white" font-weight="bold">ES</text>',
+    // Question mark (Unvisited)
+    'question': '<text x="22" y="27" font-size="16" text-anchor="middle" font-family="Arial" fill="white" font-weight="900">?</text>',
   };
-  if (isUnvisited) {
-    // Small grey dot for unvisited — unobtrusive, clearly "not yet knocked"
-    const dotSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-      <circle cx="10" cy="10" r="8" fill="${color}" fill-opacity="0.75" stroke="#fff" stroke-width="1.5"/>
-      <text x="10" y="14" font-size="9" text-anchor="middle" font-family="Arial" fill="white" font-weight="bold">?</text>
-    </svg>`;
-    return { url:`data:image/svg+xml;charset=UTF-8,${encodeURIComponent(dotSvg)}`, scaledSize:new google.maps.Size(20,20), anchor:new google.maps.Point(10,10) };
+
+  const statusIcons = {
+    'unvisited':      iconPaths.question,
+    'enrolled':       iconPaths.sun,
+    'not-home':       iconPaths.house,
+    'quality-lead':   iconPaths.star,
+    'lead':           iconPaths.pin,
+    'missed-lead':    iconPaths.calendar,
+    'not-interested': iconPaths.x,
+    'not-qualified':  iconPaths.thumbdown,
+    'competitor':     iconPaths.x,
+    'jerk':           iconPaths.flame,
+    'solar-roof':     iconPaths.sun,
+    'spanish':        iconPaths.chat,
+  };
+
+  // ── Unvisited: small subtle dot ──────────────────────────────────────
+  if (statusKey === 'unvisited') {
+    const D = 24; const R = 10; const cx = D/2; const cy = D/2;
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + D + '" height="' + D + '" viewBox="0 0 ' + D + ' ' + D + '">'
+      + '<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="' + color + '" opacity="0.7"/>'
+      + '<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="none" stroke="white" stroke-width="1.5" opacity="0.6"/>'
+      + '<text x="' + cx + '" y="' + (cy+4) + '" font-size="11" text-anchor="middle" font-family="Arial" fill="white" font-weight="900" opacity="0.8">?</text>'
+      + '</svg>';
+    return {
+      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+      scaledSize: new google.maps.Size(D, D),
+      anchor: new google.maps.Point(cx, cy)
+    };
   }
-  // Stacked shadow pins — each uses a previous knock's color if provided
+
+  // ── Circular pin dimensions ──────────────────────────────────────────
+  const D  = 44;  // circle diameter
+  const R  = 20;  // circle radius
+  const cx = 22;  // center x (accounting for potential badge)
+  const cy = 22;  // center y
+
+  // ── Stacked circles for multiple knocks ─────────────────────────────
   const prevColors = (count > 1 && Array.isArray(window._stackColors)) ? window._stackColors : [];
-  const shadow1Color = prevColors[1] || color;
-  const shadow2Color = prevColors[2] || color;
-  const stackShadows = count > 1
-    ? '<ellipse cx="20" cy="48" rx="7" ry="3" fill="rgba(0,0,0,0.2)"/>'
-      + '<path d="M20 2C12.268 2 6 8.268 6 16c0 9.333 14 28 14 28S34 25.333 34 16C34 8.268 27.732 2 20 2z" fill="' + shadow1Color + '" opacity="0.65" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>'
-    + (count > 2
-      ? '<ellipse cx="22" cy="50" rx="7" ry="3" fill="rgba(0,0,0,0.15)"/>'
-        + '<path d="M22 4C14.268 4 8 10.268 8 18c0 9.333 14 28 14 28S36 27.333 36 18C36 10.268 29.732 4 22 4z" fill="' + shadow2Color + '" opacity="0.45" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>'
-      : '')
-    : '';
+  let stackCircles = '';
+  if (count > 2) {
+    const c3 = prevColors[2] || color;
+    stackCircles += '<circle cx="' + (cx+8) + '" cy="' + (cy+6) + '" r="' + R + '" fill="' + c3 + '" stroke="white" stroke-width="1.5" opacity="0.5"/>';
+  }
+  if (count > 1) {
+    const c2 = prevColors[1] || color;
+    stackCircles += '<circle cx="' + (cx+4) + '" cy="' + (cy+3) + '" r="' + R + '" fill="' + c2 + '" stroke="white" stroke-width="1.5" opacity="0.75"/>';
+  }
 
-  // Count badge
+  // ── Count badge ───────────────────────────────────────────────────────
+  const badgeLabel = count > 9 ? '9+' : String(count);
   const badge = count > 1
-    ? `<circle cx="28" cy="6" r="8" fill="#ffffff" stroke="${color}" stroke-width="1.5"/>
-       <text x="28" y="10" font-size="8" text-anchor="middle" font-family="Arial" fill="${color}" font-weight="bold">${count > 9 ? '9+' : count}</text>`
+    ? '<circle cx="' + (cx+R-2) + '" cy="' + (cy-R+2) + '" r="9" fill="white" stroke="' + color + '" stroke-width="1.5"/>'
+      + '<text x="' + (cx+R-2) + '" y="' + (cy-R+6) + '" font-size="' + (count > 9 ? 7 : 9) + '" text-anchor="middle" font-family="Arial" fill="' + color + '" font-weight="900">' + badgeLabel + '</text>'
     : '';
 
-  const svgW = count > 1 ? 38 : 36;
-  const svgH = count > 1 ? 52 : 46;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
-    ${stackShadows}
-    <ellipse cx="18" cy="${svgH-2}" rx="7" ry="3" fill="rgba(0,0,0,0.3)"/>
-    <path d="M18 0C10.268 0 4 6.268 4 14c0 9.333 14 28 14 28S32 23.333 32 14C32 6.268 25.732 0 18 0z" fill="${color}" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-    <circle cx="18" cy="14" r="10" fill="rgba(0,0,0,0.15)"/>
-    ${icons[statusKey] || ''}
-    ${badge}
-  </svg>`;
-  return { url:`data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`, scaledSize:new google.maps.Size(svgW, svgH), anchor:new google.maps.Point(18, svgH) };
+  // ── Canvas size accounts for stacking offset ─────────────────────────
+  const svgW = count > 2 ? D+10 : count > 1 ? D+6 : D;
+  const svgH = count > 2 ? D+8  : count > 1 ? D+4 : D;
+  const iconContent = statusIcons[statusKey] || iconPaths.question;
+
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' + svgH + '" viewBox="0 0 ' + svgW + ' ' + svgH + '">'
+    // Drop shadow filter
+    + '<defs><filter id="sh" x="-20%" y="-20%" width="140%" height="140%">'
+    + '<feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="rgba(0,0,0,0.35)"/>'
+    + '</filter></defs>'
+    // Stacked circles (previous knocks)
+    + stackCircles
+    // Main circle
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="' + color + '" stroke="white" stroke-width="2" filter="url(#sh)"/>'
+    // Icon
+    + iconContent
+    // Count badge on top
+    + badge
+    + '</svg>';
+
+  return {
+    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+    scaledSize: new google.maps.Size(svgW, svgH),
+    anchor: new google.maps.Point(cx, cy)  // anchor at circle center, not bottom
+  };
 }
 
 function getStatusLabel(key) { const s = STATUSES.find(x => x.key === key); return s ? s.label : key; }
