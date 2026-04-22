@@ -4725,15 +4725,35 @@ window.resetMapNorth = function() {
   applyMapRotation(0);
 };
 
-// Detect when user manually pans — disable follow mode
+// Detect when user manually pans — disable follow mode temporarily
+// Auto-resumes follow mode 4 seconds after user stops touching the map
 function initFollowModeListeners() {
   if (!map) return;
+  let _resumeTimer = null;
+
   map.addListener('dragstart', () => {
-    if (followMode) {
-      followMode = false;
-      userPanned = true;
-      if (locationMarker) showRecenterBtn(true);
-    }
+    // User started panning — pause follow mode
+    followMode = false;
+    userPanned  = true;
+    if (locationMarker) showRecenterBtn(true);
+    // Cancel any pending auto-resume
+    if (_resumeTimer) { clearTimeout(_resumeTimer); _resumeTimer = null; }
+  });
+
+  map.addListener('dragend', () => {
+    // User lifted finger after panning
+    // Auto-resume follow mode after 4 seconds if they don't touch again
+    if (_resumeTimer) clearTimeout(_resumeTimer);
+    _resumeTimer = setTimeout(() => {
+      _resumeTimer = null;
+      if (!locationMarker) return; // no GPS fix yet
+      // Re-enable follow mode silently — no button press needed
+      followMode  = true;
+      userPanned  = false;
+      showRecenterBtn(false);
+      // Smoothly pan back to current location
+      map.panTo(locationMarker.getPosition());
+    }, 4000); // 4 seconds — enough time to look around without being annoying
   });
 }
 
