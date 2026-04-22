@@ -386,8 +386,9 @@ h1,h2,h3 { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; }
 /* google-map: JS sets pixel dimensions at runtime for correct rotation coverage */
 #google-map {
   position:absolute;
-  transform-origin:center center;
-  will-change:transform;
+  inset:0;
+  width:100%;
+  height:100%;
 }
 
 #map-hint {
@@ -1770,23 +1771,8 @@ async function initMap() {
 
   // ── Wire rotation gesture immediately ────────────────────────────────
   window._mapRotationDeg = 0;
-  window._mapRotationCenter = null;
 
-  // Size map for rotation once layout has settled
-  setTimeout(function() {
-    sizeMapForRotation();
-    if (map) window._mapRotationCenter = map.getCenter();
-    // Only resize on ORIENTATION CHANGE (not every touch) — 
-    // ResizeObserver fires during pinch-zoom layout changes and calling
-    // trigger('resize') mid-gesture kills Maps API touch state entirely
-    window.addEventListener('orientationchange', function() {
-      setTimeout(function() {
-        sizeMapForRotation();
-        google.maps.event.trigger(map, 'resize');
-        if (window._mapRotationCenter) map.setCenter(window._mapRotationCenter);
-      }, 300);
-    });
-  }, 300);
+  // map.setHeading() handles rotation natively — no div sizing needed
 
   initMapRotationGesture();
   geocoder = new google.maps.Geocoder();
@@ -4725,12 +4711,37 @@ window.resetMapNorth = function() {
   applyMapRotation(0);
 };
 
-// Follow mode: map always pans to user's GPS position as they walk.
-// Zoom, rotation, and heading are never touched — user controls those freely.
-// The "Back to my location" button only appears if GPS is lost or inactive.
+// Smart follow mode:
+// - ON by default: map pans to user position as they walk
+// - OFF when user manually drags the map to explore
+// - Resumes automatically after 5s of no interaction, OR when tapping
+//   the "Back to my location" button
+// Zoom and rotation NEVER turn off follow mode — only dragging does.
 function initFollowModeListeners() {
-  // Nothing to wire — follow mode is always on.
-  // panTo() in updateLocationDot() handles re-centering on every GPS tick.
+  if (!map || map._followListenersInited) return;
+  map._followListenersInited = true;
+
+  window._followMode = true;
+  let _resumeTimer   = null;
+
+  map.addListener('dragstart', () => {
+    // User is manually panning — pause follow
+    window._followMode = false;
+    if (locationMarker) showRecenterBtn(true);
+    if (_resumeTimer) { clearTimeout(_resumeTimer); _resumeTimer = null; }
+  });
+
+  map.addListener('dragend', () => {
+    // Auto-resume follow after 5s of no interaction
+    if (_resumeTimer) clearTimeout(_resumeTimer);
+    _resumeTimer = setTimeout(() => {
+      _resumeTimer = null;
+      if (!locationMarker) return;
+      window._followMode = true;
+      showRecenterBtn(false);
+      map.panTo(locationMarker.getPosition());
+    }, 5000);
+  });
 }
 
 // ── Two-finger rotation gesture handler ──────────────────────────────────
@@ -4738,59 +4749,23 @@ function initFollowModeListeners() {
 // Global rotation state — accessible for compass and reset
 window._mapRotationDeg = 0;
 
-// ── Map rotation — the correct approach for Google Maps JS API ───────────
-// 1. Size #google-map as a SQUARE with side = container diagonal (in pixels)
-//    A square rotated at any angle always covers the rectangle it came from.
-//    Using pixel sizing (not %) means layout box is correct for overflow:hidden.
-// 2. CSS rotate #google-map — the overflow:hidden parent clips corners cleanly.
-// 3. map.setHeading() keeps the Maps API in sync so pinch-zoom, pan, and
-//    touch→lat/lng all remain accurate.
-
-function sizeMapForRotation() {
-  const container = document.getElementById('map-container');
-  const mapDiv    = document.getElementById('google-map');
-  if (!container || !mapDiv) return;
-
-  const W = container.offsetWidth;
-  const H = container.offsetHeight;
-  if (!W || !H) return;
-
-  // Square side = diagonal of container (guarantees coverage at any angle)
-  const diag = Math.ceil(Math.sqrt(W * W + H * H));
-  const offset = -Math.ceil((diag - W) / 2);  // negative offset to center
-  const offsetY = -Math.ceil((diag - H) / 2);
-
-  mapDiv.style.width  = diag + 'px';
-  mapDiv.style.height = diag + 'px';
-  mapDiv.style.left   = offset + 'px';
-  mapDiv.style.top    = offsetY + 'px';
-  mapDiv.style.position = 'absolute';
-
-  // Store for use in rotation
-  window._mapContainerW = W;
-  window._mapContainerH = H;
-  window._mapDiag = diag;
-}
+// ── Map rotation via map.setHeading() — the ONLY correct approach ────────
+// CSS div rotation causes: inverted drag, upside-down labels past 90°,
+// coordinate system inversion, and lag from compositing oversized textures.
+// map.setHeading() tells the Maps API to rotate its internal renderer:
+// - Tiles rotate correctly at all angles
+// - Labels stay upright (API counter-rotates them)  
+// - Drag direction stays natural (API accounts for heading in touch coords)
+// - No CSS transform needed → no DOM sizing → no reflow → smooth 60fps
+// - Works on all tile types (roadmap, satellite, hybrid, custom styles)
 
 function applyMapRotation(deg) {
   deg = ((deg % 360) + 360) % 360;
   window._mapRotationDeg = deg;
-
-  const mapDiv = document.getElementById('google-map');
-  if (!mapDiv) return;
-
-  // Size once on first call — never mid-gesture (breaks pinch-zoom)
-  if (!window._mapDiag) sizeMapForRotation();
-
-  // CSS rotate only — no DOM size changes, no setCenter during gesture
-  mapDiv.style.transform = 'rotate(' + deg + 'deg)';
-
-  // Sync Maps API heading (affects labels/compass only, not tile rendering)
-  if (map) {
-    try { map.setHeading(deg); } catch(e) {}
-    // DO NOT call setCenter here — it fights Maps API pinch-zoom center tracking
-  }
-
+  if (!map) return;
+  try {
+    map.setHeading(deg);
+  } catch(e) {}
   updateCompass(deg);
 }
 
@@ -4841,8 +4816,7 @@ function initMapRotationGesture() {
       _prevAngle = getAngle(e.touches[0], e.touches[1]);
       _prevDist  = getDist(e.touches[0],  e.touches[1]);
       _active    = true;
-      // Snapshot center so we can lock it during rotation
-      if (map) window._mapRotationCenter = map.getCenter();
+      // setHeading() rotation — no center locking needed
     } else {
       _active    = false;
       _prevAngle = null;
@@ -4887,13 +4861,7 @@ function initMapRotationGesture() {
       _active    = false;
       _prevAngle = null;
       _prevDist  = null;
-      // After gesture ends: re-lock center if we were rotating
-      // Safe to do here — no active touch to interfere with
-      if (window._mapRotationCenter && map && window._mapRotationDeg !== 0) {
-        setTimeout(function() {
-          if (window._mapRotationCenter) map.setCenter(window._mapRotationCenter);
-        }, 50);
-      }
+      // No setCenter needed — setHeading() doesn't move the map center
     }
   }, { passive: true, capture: true });
 }
@@ -4905,12 +4873,10 @@ function showRecenterBtn(show) {
 
 // Re-enable follow mode when user taps re-center button
 window.reenterFollowMode = function() {
-  followMode = true;
-  userPanned = false;
+  window._followMode = true;
   showRecenterBtn(false);
   if (locationMarker) {
     map.panTo(locationMarker.getPosition());
-    map.setZoom(18);
   }
 };
 
@@ -5190,10 +5156,13 @@ function updateLocationDot(pos) {
     initFollowModeListeners();
   }
 
-  // ── Always follow: pan to user's position on every GPS update ──
-  // panTo() only moves the center — zoom, rotation, heading are untouched.
-  map.panTo(loc);
-  showRecenterBtn(false);
+  // ── Smart follow: pan to user only when in follow mode ──
+  // Follow mode is ON by default, turns OFF when user manually pans,
+  // turns back ON when user taps "Back to my location"
+  if (window._followMode !== false) {
+    map.panTo(loc);
+    showRecenterBtn(false);
+  }
 
   // Update location button to show active state
   const btn = document.getElementById('my-location-btn');
