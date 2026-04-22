@@ -4725,36 +4725,12 @@ window.resetMapNorth = function() {
   applyMapRotation(0);
 };
 
-// Detect when user manually pans — disable follow mode temporarily
-// Auto-resumes follow mode 4 seconds after user stops touching the map
+// Follow mode: map always pans to user's GPS position as they walk.
+// Zoom, rotation, and heading are never touched — user controls those freely.
+// The "Back to my location" button only appears if GPS is lost or inactive.
 function initFollowModeListeners() {
-  if (!map) return;
-  let _resumeTimer = null;
-
-  map.addListener('dragstart', () => {
-    // User started panning — pause follow mode
-    followMode = false;
-    userPanned  = true;
-    if (locationMarker) showRecenterBtn(true);
-    // Cancel any pending auto-resume
-    if (_resumeTimer) { clearTimeout(_resumeTimer); _resumeTimer = null; }
-  });
-
-  map.addListener('dragend', () => {
-    // User lifted finger after panning
-    // Auto-resume follow mode after 4 seconds if they don't touch again
-    if (_resumeTimer) clearTimeout(_resumeTimer);
-    _resumeTimer = setTimeout(() => {
-      _resumeTimer = null;
-      if (!locationMarker) return; // no GPS fix yet
-      // Re-enable follow mode silently — no button press needed
-      followMode  = true;
-      userPanned  = false;
-      showRecenterBtn(false);
-      // Smoothly pan back to current location
-      map.panTo(locationMarker.getPosition());
-    }, 4000); // 4 seconds — enough time to look around without being annoying
-  });
+  // Nothing to wire — follow mode is always on.
+  // panTo() in updateLocationDot() handles re-centering on every GPS tick.
 }
 
 // ── Two-finger rotation gesture handler ──────────────────────────────────
@@ -5214,11 +5190,10 @@ function updateLocationDot(pos) {
     initFollowModeListeners();
   }
 
-  // ── Follow mode: keep map centered on user as they walk ──
-  if (followMode && !userPanned) {
-    map.panTo(loc);
-    showRecenterBtn(false);
-  }
+  // ── Always follow: pan to user's position on every GPS update ──
+  // panTo() only moves the center — zoom, rotation, heading are untouched.
+  map.panTo(loc);
+  showRecenterBtn(false);
 
   // Update location button to show active state
   const btn = document.getElementById('my-location-btn');
