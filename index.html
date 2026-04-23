@@ -391,15 +391,7 @@ h1,h2,h3 { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; }
   transform-origin: center center;
   will-change: transform;
 }
-/* Counter-rotate all marker images inside the rotated map div.
-   --counter-rot is set dynamically by applyMapRotation() via JS.
-   This keeps every custom SVG pin upright regardless of map rotation angle.
-   The transition matches the rotation gesture speed for smooth feel. */
-#google-map img {
-  transform: rotate(var(--counter-rot, 0deg));
-  transform-origin: center center;
-  will-change: transform;
-}
+/* Marker counter-rotation handled via SVG transform attribute in makeMarkerIcon() */
 
 #map-hint {
   position:absolute;
@@ -2261,6 +2253,8 @@ function makeMarkerIcon(statusKey, count) {
   count = count || 1;
   const s     = STATUSES.find(x => x.key === statusKey);
   const color = s ? s.color : '#888';
+  // Counter-rotation angle: baked into SVG so icon stays upright when map rotates
+  const counterRot = -(window._currentMarkerHeading || 0);
 
   // ── Icon paths — clean white SVG icons, centered in a 44px circle ──────
   // All paths drawn on a 24×24 grid, rendered at cx=22,cy=22 (circle center)
@@ -2322,7 +2316,9 @@ function makeMarkerIcon(statusKey, count) {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + D + '" height="' + D + '" viewBox="0 0 ' + D + ' ' + D + '">'
       + '<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="' + color + '" opacity="0.7"/>'
       + '<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="none" stroke="white" stroke-width="1.5" opacity="0.6"/>'
+      + '<g transform="rotate(' + counterRot + ',' + cx + ',' + cy + ')">'
       + '<text x="' + cx + '" y="' + (cy+4) + '" font-size="11" text-anchor="middle" font-family="Arial" fill="white" font-weight="900" opacity="0.8">?</text>'
+      + '</g>'
       + '</svg>';
     return {
       url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
@@ -2361,19 +2357,21 @@ function makeMarkerIcon(statusKey, count) {
   const svgH = count > 2 ? D+8  : count > 1 ? D+4 : D;
   const iconContent = statusIcons[statusKey] || iconPaths.question;
 
+  // Wrap icon content and badge in a counter-rotation group.
+  // The circle itself stays fixed (it's symmetric — rotation doesn't matter).
+  // The icon inside (house, sun, X etc.) counter-rotates to stay upright.
+  const iconCX = cx; // rotation center = circle center
+  const iconCY = cy;
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' + svgH + '" viewBox="0 0 ' + svgW + ' ' + svgH + '">'
-    // Drop shadow filter
     + '<defs><filter id="sh" x="-20%" y="-20%" width="140%" height="140%">'
     + '<feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="rgba(0,0,0,0.35)"/>'
     + '</filter></defs>'
-    // Stacked circles (previous knocks)
     + stackCircles
-    // Main circle
     + '<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="' + color + '" stroke="white" stroke-width="2" filter="url(#sh)"/>'
-    // Icon
+    + '<g transform="rotate(' + counterRot + ',' + iconCX + ',' + iconCY + ')">'
     + iconContent
-    // Count badge on top
     + badge
+    + '</g>'
     + '</svg>';
 
   return {
@@ -4798,45 +4796,64 @@ function sizeMapForRotation() {
   if (map) google.maps.event.trigger(map, 'resize');
 }
 
+// Throttle for marker icon regeneration — max ~15fps to avoid perf hit
+let _markerRegenTimer = null;
+let _lastRegenDeg = null;
+
 function applyMapRotation(deg) {
   deg = ((deg % 360) + 360) % 360;
   window._mapRotationDeg = deg;
 
   const mapDiv = document.getElementById('google-map');
   if (mapDiv) {
-    // Rotate the map div visually
+    // CSS rotate the map div — works on all tile types (raster, vector, satellite)
     mapDiv.style.transform = 'rotate(' + deg + 'deg)';
-
-    // Set CSS custom property for counter-rotation of child elements.
-    // #google-map img { transform: rotate(var(--counter-rot)) } in CSS
-    // counter-rotates ALL marker images, keeping pins upright at any angle.
-    mapDiv.style.setProperty('--counter-rot', (-deg) + 'deg');
   }
 
   if (!map) return;
 
-  // setHeading() syncs Maps API compass + handles label orientation
-  // on HYBRID tiles (where it has visual effect)
+  // setHeading() keeps Maps API compass and coordinate system in sync
   try { map.setHeading(deg); } catch(e) {}
 
-  // Switch map type based on rotation:
-  // - When rotated: use HYBRID (satellite + labels).
-  //   setHeading() counter-rotates HYBRID labels natively → always readable.
-  // - When north-up (0°): restore the dark styled roadmap for clean aesthetics.
-  const isRotated = deg > 1 && deg < 359;
-  const currentType = map.getMapTypeId ? map.getMapTypeId() : null;
-  if (isRotated && currentType === 'roadmap') {
-    // Store current dark style so we can restore it
-    window._wasRotatedToHybrid = true;
-    map.setMapTypeId('hybrid');
-  } else if (!isRotated && window._wasRotatedToHybrid) {
-    window._wasRotatedToHybrid = false;
-    map.setMapTypeId('roadmap');
-    map.setOptions({ styles: darkMapStyle() });
-  }
-
   updateCompass(deg);
-  updateMarkerOrientations(deg);
+  updateMarkerOrientations(deg); // blue dot / pulse ring (SymbolPath icons)
+
+  // Throttle marker icon regeneration to ~15fps
+  // Each frame during rotation would be too expensive — regenerate every 4°
+  if (_lastRegenDeg === null || Math.abs(deg - _lastRegenDeg) >= 4) {
+    _lastRegenDeg = deg;
+    if (_markerRegenTimer) cancelAnimationFrame(_markerRegenTimer);
+    _markerRegenTimer = requestAnimationFrame(() => {
+      _markerRegenTimer = null;
+      regenMarkerIcons(deg);
+    });
+  }
+}
+
+// Regenerate all visible knock pin icons with counter-rotation baked into SVG.
+// This keeps colored circle pins upright while the map rotates beneath them.
+function regenMarkerIcons(headingDeg) {
+  if (typeof markers === 'undefined' || typeof knocks === 'undefined') return;
+  knocks.forEach(knock => {
+    const marker = markers[knock.id];
+    if (!marker || !marker.setIcon) return;
+    // Rebuild icon with current heading for counter-rotation
+    window._currentMarkerHeading = headingDeg;
+    window._stackColors = null; // will be re-fetched by makeMarkerIcon if needed
+    // Get current knock count for this address
+    const allAtAddr = knocks.filter(k =>
+      k.address && knock.address &&
+      k.address.trim().toLowerCase() === knock.address.trim().toLowerCase()
+    );
+    const isPrimary = allAtAddr.length === 0 ||
+      allAtAddr.sort((a,b) => new Date(b.time)-new Date(a.time))[0].id === knock.id;
+    if (!isPrimary) return;
+    const knockCount = allAtAddr.length;
+    window._stackColors = allAtAddr
+      .sort((a,b) => new Date(b.time)-new Date(a.time))
+      .map(k => { const st = STATUSES.find(x=>x.key===k.status); return st?st.color:'#888'; });
+    marker.setIcon(makeMarkerIcon(knock.status, knockCount));
+  });
 }
 
 // Keep SymbolPath markers (blue dot, pulse ring) upright during map rotation.
@@ -4861,8 +4878,8 @@ function updateMarkerOrientations(heading) {
       }
     });
 
-    // Custom SVG URL knock pins: handled by CSS custom property --counter-rot
-    // set on #google-map in applyMapRotation(). No JS needed per-marker.
+    // Custom SVG URL knock pins: handled by regenMarkerIcons()
+    // which rebuilds SVGs with baked-in counter-rotation transform.
   });
 }
 
