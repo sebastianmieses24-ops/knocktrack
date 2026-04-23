@@ -4840,17 +4840,15 @@ function initMapRotationGesture() {
     const angleDelta = normDelta(currentAngle - _prevAngle);
     const distDelta  = Math.abs(currentDist - _prevDist);
 
-    // STRICT rotation gate:
-    // Pinch-zoom: fingers spread/close → distDelta large, angleDelta small
-    // Rotation:   fingers twist → angleDelta large, distDelta small
-    // Rule: only rotate if angleDelta > 3° AND distance barely changed (< 8px/frame)
-    // This gives Maps API complete uncontested control over pinch-zoom.
-    const isPureRotation = Math.abs(angleDelta) > 3.0 && distDelta < 8;
-
-    if (isPureRotation) {
+    // Full 360° rotation gate — matches how Google Maps app behaves:
+    // Any detectable angular change triggers rotation.
+    // We do NOT block rotation when pinching is also happening —
+    // real users naturally zoom and rotate simultaneously.
+    // Only skip if angleDelta is sub-noise (< 0.5°) to prevent jitter.
+    if (Math.abs(angleDelta) >= 0.5) {
       applyMapRotation(window._mapRotationDeg + angleDelta);
     }
-    // If not pure rotation: do NOTHING — let Maps API handle pinch natively
+    // Maps API handles the pinch-zoom component independently and in parallel.
 
     _prevAngle = currentAngle;
     _prevDist  = currentDist;
