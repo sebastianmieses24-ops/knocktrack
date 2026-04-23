@@ -1765,8 +1765,9 @@ async function initMap() {
     streetViewControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
     fullscreenControl: false,
     rotateControl: false,
-    tilt: 0,                     // disable tilt — rotation only, no pitch
-    heading: 0,                  // start north-up
+    // gestureHandling:'greedy' — Maps API handles pinch-zoom natively
+    // Do NOT set tilt or heading here — let the API use defaults
+    // tilt:0 in init can disable the WebGL renderer which setHeading() needs
     gestureHandling: 'greedy',
   });
 
@@ -4817,41 +4818,51 @@ function initMapRotationGesture() {
   }
 
   function normDelta(d) {
-    while (d > 180)  d -= 360;
+    while (d >  180) d -= 360;
     while (d < -180) d += 360;
     return d;
   }
 
-  // Attach to document with capture:true — fires before Maps API sees events
-  // This is the only reliable way: Maps API calls stopPropagation internally
+  // touchstart: detect when 2 fingers are on the map area
+  // Check ANY finger is inside the map (not just touches[0]) to handle
+  // cases where one thumb starts on a UI element and the other on the map
   document.addEventListener('touchstart', function(e) {
-    // Only act on touches inside the map container
-    const container = document.getElementById('map-container');
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const t0   = e.touches[0];
-    if (t0.clientX < rect.left || t0.clientX > rect.right ||
-        t0.clientY < rect.top  || t0.clientY > rect.bottom) {
-      _active = false;
-      return;
-    }
     if (e.touches.length === 2) {
-      _prevAngle = getAngle(e.touches[0], e.touches[1]);
-      _prevDist  = getDist(e.touches[0],  e.touches[1]);
-      _active    = true;
-      // setHeading() rotation — no center locking needed
+      const container = document.getElementById('map-container');
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      // At least one finger must be inside the map area
+      const inMap = Array.from(e.touches).some(t =>
+        t.clientX >= rect.left && t.clientX <= rect.right &&
+        t.clientY >= rect.top  && t.clientY <= rect.bottom
+      );
+      if (inMap) {
+        _prevAngle = getAngle(e.touches[0], e.touches[1]);
+        _prevDist  = getDist(e.touches[0],  e.touches[1]);
+        _active    = true;
+      } else {
+        _active = false;
+      }
     } else {
+      // Single finger or 3+ fingers: disable our handler, let Maps API manage
       _active    = false;
       _prevAngle = null;
+      _prevDist  = null;
     }
   }, { passive: true, capture: true });
 
-  // passive:true — we never need preventDefault or stopPropagation.
-  // map.setHeading() and Maps API pinch-zoom are completely independent operations.
-  // Both can fire on the same touchmove event without conflict:
-  // - Our handler reads angleDelta and calls setHeading()
-  // - Maps API reads distDelta and updates zoom
-  // These are separate map state properties — they do not interfere.
+  // touchmove: per-frame gesture classification
+  // PINCH vs ROTATE decision made each frame using angle/distance ratio.
+  // This allows pinch-zoom to work perfectly while still enabling full 360° rotation.
+  //
+  // Measurement-based thresholds:
+  //   Pure pinch:    distDelta ≈ 15-30px/frame, angleDelta ≈ 0.5-2°  → ratio < 0.15
+  //   Pure rotation: distDelta ≈ 1-5px/frame,   angleDelta ≈ 3-8°    → ratio > 0.5
+  //   Mixed gesture: apply rotation; Maps API handles zoom independently
+  //
+  // Rule: if |angleDelta| < 0.5° → noise, skip
+  //       if distDelta > 0 and |angleDelta|/distDelta < 0.15 → pinch dominant, skip setHeading
+  //       else → apply rotation (setHeading)
   document.addEventListener('touchmove', function(e) {
     if (!_active || e.touches.length !== 2) return;
 
@@ -4860,19 +4871,28 @@ function initMapRotationGesture() {
     const currentAngle = getAngle(t1, t2);
     const currentDist  = getDist(t1, t2);
 
-    if (_prevAngle === null) {
+    if (_prevAngle === null || _prevDist === null) {
       _prevAngle = currentAngle;
       _prevDist  = currentDist;
       return;
     }
 
     const angleDelta = normDelta(currentAngle - _prevAngle);
+    const distDelta  = Math.abs(currentDist - _prevDist);
 
-    // Apply rotation on any meaningful angular change (>= 0.5° noise floor).
-    // No stopPropagation — Maps API still gets the event and handles zoom independently.
-    // Full 360° rotation: no distDelta gate, no hard caps, no snapback.
+    // Noise floor: ignore sub-0.5° angular changes
     if (Math.abs(angleDelta) >= 0.5) {
-      applyMapRotation(window._mapRotationDeg + angleDelta);
+      // Classify: if distance change is large relative to angular change,
+      // this is a pinch-dominant frame — skip setHeading so zoom works cleanly.
+      // If angular change is significant relative to distance, apply rotation.
+      const isPinchDominant = distDelta > 2 && (Math.abs(angleDelta) / distDelta) < 0.15;
+
+      if (!isPinchDominant) {
+        // Rotation is dominant or mixed — apply heading change
+        // Maps API handles zoom independently from its own touch handling
+        applyMapRotation(window._mapRotationDeg + angleDelta);
+      }
+      // If pinch dominant: do nothing here — Maps API handles zoom natively
     }
 
     _prevAngle = currentAngle;
@@ -4884,7 +4904,6 @@ function initMapRotationGesture() {
       _active    = false;
       _prevAngle = null;
       _prevDist  = null;
-      // No setCenter needed — setHeading() doesn't move the map center
     }
   }, { passive: true, capture: true });
 }
