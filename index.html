@@ -1787,6 +1787,7 @@ async function initMap() {
   }, 300);
 
   initMapRotationGesture();
+  initRotationCorrectedPan(); // corrects pan direction when map is CSS-rotated
   geocoder = new google.maps.Geocoder();
   infoWindow = new google.maps.InfoWindow();
 
@@ -4886,6 +4887,86 @@ function updateMarkerOrientations(heading) {
 function updateCompassDirect(deg) {
   const svg = document.getElementById('compass-svg');
   if (svg) svg.style.transform = 'rotate(' + deg + 'deg)';
+}
+
+// ── Rotation-corrected panning ───────────────────────────────────────────
+// When the map div is CSS-rotated, the Maps API's native pan handler
+// moves the map in its own (rotated) coordinate system, so dragging
+// UP on screen moves the map in the direction that is visually "up" in
+// the rotated tile space — which may appear sideways or inverted to the user.
+//
+// Fix: intercept single-finger touchmove when rotation is non-zero.
+// Rotate the screen-space finger delta by the map's CSS rotation angle,
+// then call map.panBy() with the corrected delta to produce the correct
+// screen-space visual movement.
+//
+// Math proof: if map is rotated θ, to achieve visual pan (dx, dy) on screen,
+// we must call panBy(dx*cos θ + dy*sin θ, -dx*sin θ + dy*cos θ).
+function initRotationCorrectedPan() {
+  let _panPrevX = null;
+  let _panPrevY = null;
+  let _panActive = false;
+
+  // Capture phase, non-passive so we can preventDefault when needed
+  document.addEventListener('touchstart', function(e) {
+    // Only activate for SINGLE finger touches (pan gesture)
+    // Two-finger gestures are handled by initMapRotationGesture (pinch/rotate)
+    if (e.touches.length === 1) {
+      const container = document.getElementById('map-container');
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const t = e.touches[0];
+      const inMap = t.clientX >= rect.left && t.clientX <= rect.right &&
+                    t.clientY >= rect.top  && t.clientY <= rect.bottom;
+      if (inMap) {
+        _panPrevX = t.clientX;
+        _panPrevY = t.clientY;
+        _panActive = true;
+      } else {
+        _panActive = false;
+      }
+    } else {
+      // Two-finger gesture: disable our pan handler
+      _panActive = false;
+      _panPrevX = null;
+      _panPrevY = null;
+    }
+  }, { passive: true, capture: true });
+
+  document.addEventListener('touchmove', function(e) {
+    // Only intercept when: single finger, in map, rotation is non-trivial
+    const deg = window._mapRotationDeg || 0;
+    const isRotated = deg > 0.5 && deg < 359.5;
+    if (!_panActive || !isRotated || e.touches.length !== 1 || !map) return;
+
+    const t = e.touches[0];
+    const dx_s = t.clientX - _panPrevX;  // screen-space delta X
+    const dy_s = t.clientY - _panPrevY;  // screen-space delta Y
+    _panPrevX = t.clientX;
+    _panPrevY = t.clientY;
+
+    if (dx_s === 0 && dy_s === 0) return;
+
+    // Prevent Maps API from applying its own (incorrect) pan
+    e.preventDefault();
+
+    // Rotate the screen-space delta into map-div space.
+    // panBy(dx_map, dy_map) will produce exactly (dx_s, dy_s) visual movement.
+    const θ = deg * Math.PI / 180;  // CSS rotation in radians
+    const dx_map =  dx_s * Math.cos(θ) + dy_s * Math.sin(θ);
+    const dy_map = -dx_s * Math.sin(θ) + dy_s * Math.cos(θ);
+
+    // Negate because panBy moves the viewport (pan right = world moves left)
+    map.panBy(-dx_map, -dy_map);
+  }, { passive: false, capture: true });
+
+  document.addEventListener('touchend', function(e) {
+    if (e.touches.length === 0) {
+      _panActive = false;
+      _panPrevX  = null;
+      _panPrevY  = null;
+    }
+  }, { passive: true, capture: true });
 }
 
 function initMapRotationGesture() {
