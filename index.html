@@ -1764,9 +1764,10 @@ async function initMap() {
     streetViewControl: true,
     streetViewControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
     fullscreenControl: false,
-    rotateControl: false,        // we use our own compass UI
-    gestureHandling: 'greedy',   // Maps API handles pinch-zoom natively
-    // Note: tilt not set — default allows heading changes on all map types
+    rotateControl: false,
+    tilt: 0,                     // disable tilt — rotation only, no pitch
+    heading: 0,                  // start north-up
+    gestureHandling: 'greedy',
   });
 
   // ── Wire rotation gesture immediately ────────────────────────────────
@@ -4721,27 +4722,19 @@ function initFollowModeListeners() {
   if (!map || map._followListenersInited) return;
   map._followListenersInited = true;
 
-  window._followMode = true;
-  let _resumeTimer   = null;
+  // BROWSE MODE is the default — follow only activates explicitly.
+  // When user pans: follow turns OFF and stays OFF.
+  // Only the "my location" button turns follow back ON.
+  // No timer, no auto-snap. User controls the camera at all times.
+  window._followMode = true; // ON initially (first GPS fix pans to user)
 
   map.addListener('dragstart', () => {
-    // User is manually panning — pause follow
-    window._followMode = false;
-    if (locationMarker) showRecenterBtn(true);
-    if (_resumeTimer) { clearTimeout(_resumeTimer); _resumeTimer = null; }
+    if (window._followMode) {
+      window._followMode = false;
+      if (locationMarker) showRecenterBtn(true);
+    }
   });
-
-  map.addListener('dragend', () => {
-    // Auto-resume follow after 5s of no interaction
-    if (_resumeTimer) clearTimeout(_resumeTimer);
-    _resumeTimer = setTimeout(() => {
-      _resumeTimer = null;
-      if (!locationMarker) return;
-      window._followMode = true;
-      showRecenterBtn(false);
-      map.panTo(locationMarker.getPosition());
-    }, 5000);
-  });
+  // No dragend handler — no auto-resume, no timer, no snap-back
 }
 
 // ── Two-finger rotation gesture handler ──────────────────────────────────
@@ -4765,6 +4758,9 @@ function applyMapRotation(deg) {
   if (!map) return;
   try {
     map.setHeading(deg);
+    // Ensure tilt stays 0 — no pitch, only bearing rotation
+    // This keeps labels and the horizon line correct at all rotations
+    if (map.getTilt && map.getTilt() !== 0) map.setTilt(0);
   } catch(e) {}
   updateCompass(deg);
 }
@@ -4823,6 +4819,8 @@ function initMapRotationGesture() {
     }
   }, { passive: true, capture: true });
 
+  // passive:false required so we can call stopPropagation on rotation gestures,
+  // preventing the Maps API's own gesture handler from fighting our setHeading() call.
   document.addEventListener('touchmove', function(e) {
     if (!_active || e.touches.length !== 2) return;
 
@@ -4840,19 +4838,19 @@ function initMapRotationGesture() {
     const angleDelta = normDelta(currentAngle - _prevAngle);
     const distDelta  = Math.abs(currentDist - _prevDist);
 
-    // Full 360° rotation gate — matches how Google Maps app behaves:
-    // Any detectable angular change triggers rotation.
-    // We do NOT block rotation when pinching is also happening —
-    // real users naturally zoom and rotate simultaneously.
-    // Only skip if angleDelta is sub-noise (< 0.5°) to prevent jitter.
+    // Rotation is dominant when angular change is meaningful relative to distance change.
+    // Threshold: angleDelta >= 0.5° noise floor.
+    // When rotation is dominant, stop propagation so Maps API doesn't override setHeading.
+    // When pinch is dominant (distDelta >> angleDelta), let Maps API handle zoom natively.
     if (Math.abs(angleDelta) >= 0.5) {
+      e.stopPropagation(); // prevent Maps API from overriding our heading change
       applyMapRotation(window._mapRotationDeg + angleDelta);
     }
-    // Maps API handles the pinch-zoom component independently and in parallel.
+    // If angleDelta is tiny (pure pinch), do nothing — Maps API handles zoom.
 
     _prevAngle = currentAngle;
     _prevDist  = currentDist;
-  }, { passive: true, capture: true });
+  }, { passive: false, capture: true });
 
   document.addEventListener('touchend', function(e) {
     if (e.touches.length < 2) {
@@ -4871,11 +4869,10 @@ function showRecenterBtn(show) {
 
 // Re-enable follow mode when user taps re-center button
 window.reenterFollowMode = function() {
+  // Explicit user action — re-enable follow and pan to location
   window._followMode = true;
   showRecenterBtn(false);
-  if (locationMarker) {
-    map.panTo(locationMarker.getPosition());
-  }
+  if (locationMarker) map.panTo(locationMarker.getPosition());
 };
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -5171,18 +5168,20 @@ function updateLocationDot(pos) {
 window.goToMyLocation = function() {
   if (!navigator.geolocation) { alert('Geolocation not supported by your browser.'); return; }
 
-  if (locationActive && locationCentred) {
-    // Second press: re-centre on user
-    if (locationMarker) {
-      map.panTo(locationMarker.getPosition());
-      map.setZoom(18);
-    }
-    return;
+  // Always re-enable follow mode and pan to current location.
+  // This is the ONLY action that re-centers the camera — user-initiated only.
+  window._followMode = true;
+  showRecenterBtn(false);
+
+  if (locationMarker) {
+    map.panTo(locationMarker.getPosition());
   }
 
-  // First press: request permission + start tracking
-  locationCentred = false; // force pan on next update
-  startLocationTracking();
+  if (!locationActive) {
+    // First time: start GPS tracking
+    locationCentred = false;
+    startLocationTracking();
+  }
 };
 
 function stopLocationTracking() {
