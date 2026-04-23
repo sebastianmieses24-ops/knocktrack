@@ -391,6 +391,15 @@ h1,h2,h3 { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; }
   transform-origin: center center;
   will-change: transform;
 }
+/* Counter-rotate all marker images inside the rotated map div.
+   --counter-rot is set dynamically by applyMapRotation() via JS.
+   This keeps every custom SVG pin upright regardless of map rotation angle.
+   The transition matches the rotation gesture speed for smooth feel. */
+#google-map img {
+  transform: rotate(var(--counter-rot, 0deg));
+  transform-origin: center center;
+  will-change: transform;
+}
 
 #map-hint {
   position:absolute;
@@ -4793,42 +4802,67 @@ function applyMapRotation(deg) {
   deg = ((deg % 360) + 360) % 360;
   window._mapRotationDeg = deg;
 
-  // CSS transform: visual rotation that works on ALL tile types
-  // (raster, vector, custom-styled, satellite — no exceptions)
   const mapDiv = document.getElementById('google-map');
-  if (mapDiv) mapDiv.style.transform = 'rotate(' + deg + 'deg)';
+  if (mapDiv) {
+    // Rotate the map div visually
+    mapDiv.style.transform = 'rotate(' + deg + 'deg)';
+
+    // Set CSS custom property for counter-rotation of child elements.
+    // #google-map img { transform: rotate(var(--counter-rot)) } in CSS
+    // counter-rotates ALL marker images, keeping pins upright at any angle.
+    mapDiv.style.setProperty('--counter-rot', (-deg) + 'deg');
+  }
 
   if (!map) return;
 
-  // setHeading() for compass direction + tile label counter-rotation
-  // Has visual effect on vector/satellite; no effect on raster but harmless
+  // setHeading() syncs Maps API compass + handles label orientation
+  // on HYBRID tiles (where it has visual effect)
   try { map.setHeading(deg); } catch(e) {}
+
+  // Switch map type based on rotation:
+  // - When rotated: use HYBRID (satellite + labels).
+  //   setHeading() counter-rotates HYBRID labels natively → always readable.
+  // - When north-up (0°): restore the dark styled roadmap for clean aesthetics.
+  const isRotated = deg > 1 && deg < 359;
+  const currentType = map.getMapTypeId ? map.getMapTypeId() : null;
+  if (isRotated && currentType === 'roadmap') {
+    // Store current dark style so we can restore it
+    window._wasRotatedToHybrid = true;
+    map.setMapTypeId('hybrid');
+  } else if (!isRotated && window._wasRotatedToHybrid) {
+    window._wasRotatedToHybrid = false;
+    map.setMapTypeId('roadmap');
+    map.setOptions({ styles: darkMapStyle() });
+  }
 
   updateCompass(deg);
   updateMarkerOrientations(deg);
 }
 
-// Keep all custom markers visually upright regardless of map heading.
-// Uses requestAnimationFrame to batch icon updates without blocking rotation.
+// Keep SymbolPath markers (blue dot, pulse ring) upright during map rotation.
+// Custom SVG URL pins are handled via CSS: #google-map img { rotate(var(--counter-rot)) }
+// SymbolPath icons use the .rotation property which must be set explicitly.
 let _markerOrientationFrame = null;
 function updateMarkerOrientations(heading) {
   if (_markerOrientationFrame) cancelAnimationFrame(_markerOrientationFrame);
   _markerOrientationFrame = requestAnimationFrame(() => {
     _markerOrientationFrame = null;
-    if (typeof markers === 'undefined') return;
-    Object.values(markers).forEach(marker => {
+
+    // Counter-rotate SymbolPath markers (blue dot, pulse ring)
+    // These are rendered as SVG paths by the Maps API, not as <img> tags,
+    // so the CSS rule doesn't cover them — must use the .rotation property.
+    const symbolMarkers = [locationMarker, locationPulseMarker].filter(Boolean);
+    symbolMarkers.forEach(marker => {
       if (!marker || !marker.getIcon) return;
       const icon = marker.getIcon();
       if (!icon || typeof icon === 'string') return;
-      // Only applies to SymbolPath icons (blue dot, pulse ring) which have .rotation
-      if (icon.path !== undefined && icon.rotation !== undefined) {
+      if (icon.path !== undefined) {
         marker.setIcon({ ...icon, rotation: -heading });
       }
-      // SVG URL icons (our custom pins) are already correct because
-      // the SVG icons are anchored at their center and the Maps API
-      // renders them upright — setHeading() does not rotate custom icon URLs.
-      // (Only SymbolPath icons rotate with heading by default.)
     });
+
+    // Custom SVG URL knock pins: handled by CSS custom property --counter-rot
+    // set on #google-map in applyMapRotation(). No JS needed per-marker.
   });
 }
 
