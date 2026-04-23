@@ -4722,19 +4722,21 @@ function initFollowModeListeners() {
   if (!map || map._followListenersInited) return;
   map._followListenersInited = true;
 
-  // BROWSE MODE is the default — follow only activates explicitly.
-  // When user pans: follow turns OFF and stays OFF.
-  // Only the "my location" button turns follow back ON.
-  // No timer, no auto-snap. User controls the camera at all times.
-  window._followMode = true; // ON initially (first GPS fix pans to user)
+  // Follow mode state machine:
+  // - Starts as false (no auto-pan before first GPS fix)  
+  // - Set to true by updateLocationDot on first fix, and by goToMyLocation
+  // - Set to false by dragstart (user took manual control of camera)
+  // - Never auto-resets via timer or interval
+  // _followMode is initialized in updateLocationDot on first fix, not here
 
   map.addListener('dragstart', () => {
-    if (window._followMode) {
+    if (window._followMode === true) {
       window._followMode = false;
+      // Show "Back to my location" only if we have a GPS fix
       if (locationMarker) showRecenterBtn(true);
     }
   });
-  // No dragend handler — no auto-resume, no timer, no snap-back
+  // No dragend, no timer, no auto-resume — user owns the camera
 }
 
 // ── Two-finger rotation gesture handler ──────────────────────────────────
@@ -4758,11 +4760,36 @@ function applyMapRotation(deg) {
   if (!map) return;
   try {
     map.setHeading(deg);
-    // Ensure tilt stays 0 — no pitch, only bearing rotation
-    // This keeps labels and the horizon line correct at all rotations
-    if (map.getTilt && map.getTilt() !== 0) map.setTilt(0);
   } catch(e) {}
   updateCompass(deg);
+  // Counter-rotate all custom SVG markers so they stay upright as map rotates.
+  // Google Maps tile labels auto-correct via setHeading(), but custom SVG icon
+  // markers are static images that rotate with the map div — they need correction.
+  updateMarkerOrientations(deg);
+}
+
+// Keep all custom markers visually upright regardless of map heading.
+// Uses requestAnimationFrame to batch icon updates without blocking rotation.
+let _markerOrientationFrame = null;
+function updateMarkerOrientations(heading) {
+  if (_markerOrientationFrame) cancelAnimationFrame(_markerOrientationFrame);
+  _markerOrientationFrame = requestAnimationFrame(() => {
+    _markerOrientationFrame = null;
+    if (typeof markers === 'undefined') return;
+    Object.values(markers).forEach(marker => {
+      if (!marker || !marker.getIcon) return;
+      const icon = marker.getIcon();
+      if (!icon || typeof icon === 'string') return;
+      // Only applies to SymbolPath icons (blue dot, pulse ring) which have .rotation
+      if (icon.path !== undefined && icon.rotation !== undefined) {
+        marker.setIcon({ ...icon, rotation: -heading });
+      }
+      // SVG URL icons (our custom pins) are already correct because
+      // the SVG icons are anchored at their center and the Maps API
+      // renders them upright — setHeading() does not rotate custom icon URLs.
+      // (Only SymbolPath icons rotate with heading by default.)
+    });
+  });
 }
 
 function updateCompassDirect(deg) {
@@ -4819,8 +4846,12 @@ function initMapRotationGesture() {
     }
   }, { passive: true, capture: true });
 
-  // passive:false required so we can call stopPropagation on rotation gestures,
-  // preventing the Maps API's own gesture handler from fighting our setHeading() call.
+  // passive:true — we never need preventDefault or stopPropagation.
+  // map.setHeading() and Maps API pinch-zoom are completely independent operations.
+  // Both can fire on the same touchmove event without conflict:
+  // - Our handler reads angleDelta and calls setHeading()
+  // - Maps API reads distDelta and updates zoom
+  // These are separate map state properties — they do not interfere.
   document.addEventListener('touchmove', function(e) {
     if (!_active || e.touches.length !== 2) return;
 
@@ -4836,21 +4867,17 @@ function initMapRotationGesture() {
     }
 
     const angleDelta = normDelta(currentAngle - _prevAngle);
-    const distDelta  = Math.abs(currentDist - _prevDist);
 
-    // Rotation is dominant when angular change is meaningful relative to distance change.
-    // Threshold: angleDelta >= 0.5° noise floor.
-    // When rotation is dominant, stop propagation so Maps API doesn't override setHeading.
-    // When pinch is dominant (distDelta >> angleDelta), let Maps API handle zoom natively.
+    // Apply rotation on any meaningful angular change (>= 0.5° noise floor).
+    // No stopPropagation — Maps API still gets the event and handles zoom independently.
+    // Full 360° rotation: no distDelta gate, no hard caps, no snapback.
     if (Math.abs(angleDelta) >= 0.5) {
-      e.stopPropagation(); // prevent Maps API from overriding our heading change
       applyMapRotation(window._mapRotationDeg + angleDelta);
     }
-    // If angleDelta is tiny (pure pinch), do nothing — Maps API handles zoom.
 
     _prevAngle = currentAngle;
     _prevDist  = currentDist;
-  }, { passive: false, capture: true });
+  }, { passive: true, capture: true });
 
   document.addEventListener('touchend', function(e) {
     if (e.touches.length < 2) {
@@ -5142,19 +5169,19 @@ function updateLocationDot(pos) {
     }, 80);
   }
 
-  // ── First fix: pan to user + enable follow mode ──
+  // ── First GPS fix: pan to user once, wire follow mode listeners ──
   if (!locationCentred) {
     locationCentred = true;
-    followMode = true;
+    window._followMode = true; // single source of truth — starts in follow mode
     map.panTo(loc);
     if (map.getZoom() < 16) map.setZoom(17);
-    initFollowModeListeners();
+    initFollowModeListeners(); // wires dragstart to turn follow OFF
   }
 
-  // ── Smart follow: pan to user only when in follow mode ──
-  // Follow mode is ON by default, turns OFF when user manually pans,
-  // turns back ON when user taps "Back to my location"
-  if (window._followMode !== false) {
+  // ── Follow mode: only pan if user hasn't manually moved away ──
+  // window._followMode = true  → user is actively following their location
+  // window._followMode = false → user manually panned, camera is theirs
+  if (window._followMode === true) {
     map.panTo(loc);
     showRecenterBtn(false);
   }
@@ -5168,8 +5195,7 @@ function updateLocationDot(pos) {
 window.goToMyLocation = function() {
   if (!navigator.geolocation) { alert('Geolocation not supported by your browser.'); return; }
 
-  // Always re-enable follow mode and pan to current location.
-  // This is the ONLY action that re-centers the camera — user-initiated only.
+  // User explicitly tapped "my location" — only place that re-enables follow.
   window._followMode = true;
   showRecenterBtn(false);
 
