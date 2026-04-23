@@ -386,9 +386,10 @@ h1,h2,h3 { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; }
 /* google-map: JS sets pixel dimensions at runtime for correct rotation coverage */
 #google-map {
   position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
+  /* Width/height set dynamically by sizeMapForRotation() as diagonal pixels */
+  /* transform-origin and will-change set for smooth GPU rotation */
+  transform-origin: center center;
+  will-change: transform;
 }
 
 #map-hint {
@@ -1774,7 +1775,15 @@ async function initMap() {
   // ── Wire rotation gesture immediately ────────────────────────────────
   window._mapRotationDeg = 0;
 
-  // map.setHeading() handles rotation natively — no div sizing needed
+  // Size map div for rotation — called ONCE after layout settles
+  // Never called again during gestures (would break pinch-zoom)
+  setTimeout(function() {
+    sizeMapForRotation();
+    // Re-size only on device orientation change (not on zoom/pan/resize)
+    window.addEventListener('orientationchange', function() {
+      setTimeout(sizeMapForRotation, 300);
+    });
+  }, 300);
 
   initMapRotationGesture();
   geocoder = new google.maps.Geocoder();
@@ -4755,17 +4764,47 @@ window._mapRotationDeg = 0;
 // - No CSS transform needed → no DOM sizing → no reflow → smooth 60fps
 // - Works on all tile types (roadmap, satellite, hybrid, custom styles)
 
+// Size #google-map as a square with side = container diagonal.
+// A square of size ≥ diagonal rotated at any angle always covers its container.
+// Using PIXEL values (not %) ensures the layout box is the full diagonal size,
+// so overflow:hidden on the parent clips the protruding corners correctly.
+// Called ONCE at init — never during gestures (would break pinch-zoom).
+function sizeMapForRotation() {
+  const container = document.getElementById('map-container');
+  const mapDiv    = document.getElementById('google-map');
+  if (!container || !mapDiv) return;
+  const W = container.offsetWidth;
+  const H = container.offsetHeight;
+  if (!W || !H) return;
+  const diag    = Math.ceil(Math.sqrt(W * W + H * H));
+  const offsetX = -Math.ceil((diag - W) / 2);
+  const offsetY = -Math.ceil((diag - H) / 2);
+  mapDiv.style.width    = diag + 'px';
+  mapDiv.style.height   = diag + 'px';
+  mapDiv.style.left     = offsetX + 'px';
+  mapDiv.style.top      = offsetY + 'px';
+  mapDiv.style.position = 'absolute';
+  window._mapDiag = diag;
+  // Tell Maps API about its new container dimensions
+  if (map) google.maps.event.trigger(map, 'resize');
+}
+
 function applyMapRotation(deg) {
   deg = ((deg % 360) + 360) % 360;
   window._mapRotationDeg = deg;
+
+  // CSS transform: visual rotation that works on ALL tile types
+  // (raster, vector, custom-styled, satellite — no exceptions)
+  const mapDiv = document.getElementById('google-map');
+  if (mapDiv) mapDiv.style.transform = 'rotate(' + deg + 'deg)';
+
   if (!map) return;
-  try {
-    map.setHeading(deg);
-  } catch(e) {}
+
+  // setHeading() for compass direction + tile label counter-rotation
+  // Has visual effect on vector/satellite; no effect on raster but harmless
+  try { map.setHeading(deg); } catch(e) {}
+
   updateCompass(deg);
-  // Counter-rotate all custom SVG markers so they stay upright as map rotates.
-  // Google Maps tile labels auto-correct via setHeading(), but custom SVG icon
-  // markers are static images that rotate with the map div — they need correction.
   updateMarkerOrientations(deg);
 }
 
