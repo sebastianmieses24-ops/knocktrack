@@ -4818,9 +4818,8 @@ function applyMapRotation(deg) {
   updateCompass(deg);
   updateMarkerOrientations(deg); // blue dot / pulse ring (SymbolPath icons)
 
-  // Throttle marker icon regeneration to ~15fps
-  // Each frame during rotation would be too expensive — regenerate every 4°
-  if (_lastRegenDeg === null || Math.abs(deg - _lastRegenDeg) >= 4) {
+  // Regen marker icons every 2° — smooth enough visually, fast enough on mobile
+  if (_lastRegenDeg === null || Math.abs(deg - _lastRegenDeg) >= 2) {
     _lastRegenDeg = deg;
     if (_markerRegenTimer) cancelAnimationFrame(_markerRegenTimer);
     _markerRegenTimer = requestAnimationFrame(() => {
@@ -4833,27 +4832,70 @@ function applyMapRotation(deg) {
 // Regenerate all visible knock pin icons with counter-rotation baked into SVG.
 // This keeps colored circle pins upright while the map rotates beneath them.
 function regenMarkerIcons(headingDeg) {
-  if (typeof markers === 'undefined' || typeof knocks === 'undefined') return;
-  knocks.forEach(knock => {
-    const marker = markers[knock.id];
-    if (!marker || !marker.setIcon) return;
-    // Rebuild icon with current heading for counter-rotation
-    window._currentMarkerHeading = headingDeg;
-    window._stackColors = null; // will be re-fetched by makeMarkerIcon if needed
-    // Get current knock count for this address
-    const allAtAddr = knocks.filter(k =>
-      k.address && knock.address &&
-      k.address.trim().toLowerCase() === knock.address.trim().toLowerCase()
-    );
-    const isPrimary = allAtAddr.length === 0 ||
-      allAtAddr.sort((a,b) => new Date(b.time)-new Date(a.time))[0].id === knock.id;
-    if (!isPrimary) return;
-    const knockCount = allAtAddr.length;
-    window._stackColors = allAtAddr
+  window._currentMarkerHeading = headingDeg;
+
+  // ── Knock pin icons ──────────────────────────────────────────────────
+  if (typeof markers !== 'undefined' && typeof knocks !== 'undefined') {
+    // Build address→primary map once (avoid O(n²) per-knock filtering)
+    const addrPrimary = {};
+    knocks
+      .slice()
       .sort((a,b) => new Date(b.time)-new Date(a.time))
-      .map(k => { const st = STATUSES.find(x=>x.key===k.status); return st?st.color:'#888'; });
-    marker.setIcon(makeMarkerIcon(knock.status, knockCount));
-  });
+      .forEach(k => {
+        const key = (k.address||'').trim().toLowerCase();
+        if (key && !addrPrimary[key]) addrPrimary[key] = k.id;
+      });
+
+    knocks.forEach(knock => {
+      const key = (knock.address||'').trim().toLowerCase();
+      if (addrPrimary[key] !== knock.id) return; // not primary — skip
+      const marker = markers[knock.id];
+      if (!marker || !marker.setIcon) return;
+
+      const allAtAddr = knocks.filter(k =>
+        (k.address||'').trim().toLowerCase() === key
+      );
+      const knockCount = allAtAddr.length;
+      window._stackColors = allAtAddr
+        .sort((a,b) => new Date(b.time)-new Date(a.time))
+        .map(k => { const st = STATUSES.find(x=>x.key===k.status); return st?st.color:'#888'; });
+      marker.setIcon(makeMarkerIcon(knock.status, knockCount));
+    });
+  }
+
+  // ── Zone / turf labels ───────────────────────────────────────────────
+  // Zone labels are SVG markers stored in zonePolygons[id + '_label'].
+  // They need the same counter-rotation as knock pins.
+  if (typeof zones !== 'undefined' && typeof zonePolygons !== 'undefined') {
+    zones.forEach(zone => {
+      const labelKey = zone.id + '_label';
+      const labelMarker = zonePolygons[labelKey];
+      if (!labelMarker || !labelMarker.setIcon) return;
+
+      const labelText = (zone.assignedRep && zone.name)
+        ? zone.name + '\n👤 ' + zone.assignedRep
+        : (zone.name || 'Knock Zone');
+      // Single-line label for SVG
+      const displayText = zone.assignedRep
+        ? zone.name + ' · ' + zone.assignedRep
+        : zone.name;
+
+      const counterRot = -headingDeg;
+      const svgLabel = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="28" style="pointer-events:none">'
+        + '<rect x="0" y="0" width="200" height="28" rx="6" fill="rgba(15,19,24,0.82)"/>'
+        + '<g transform="rotate(' + counterRot + ',100,14)">'
+        + '<text x="100" y="19" text-anchor="middle" font-family="Outfit,sans-serif" '
+        +   'font-size="11" font-weight="700" fill="white">' + displayText + '</text>'
+        + '</g>'
+        + '</svg>';
+
+      labelMarker.setIcon({
+        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgLabel),
+        scaledSize: new google.maps.Size(200, 28),
+        anchor: new google.maps.Point(100, 14),
+      });
+    });
+  }
 }
 
 // Keep SymbolPath markers (blue dot, pulse ring) upright during map rotation.
@@ -5078,6 +5120,31 @@ function initMapRotationGesture() {
       _active    = false;
       _prevAngle = null;
       _prevDist  = null;
+
+      // Snap to nearest 45° so street labels stay readable after rotation.
+      // Raster tiles have labels baked in — at 45° increments they're
+      // tilted but readable. Without snap they could stop at any angle (e.g. 173°).
+      const currentDeg = window._mapRotationDeg || 0;
+      const nearest45  = Math.round(currentDeg / 45) * 45;
+      const diff = ((nearest45 - currentDeg + 540) % 360) - 180; // shortest path
+      if (Math.abs(diff) > 1) {
+        const startDeg  = currentDeg;
+        const targetDeg = currentDeg + diff;
+        const start     = performance.now();
+        const DUR       = 180;
+        function snap(now) {
+          const t     = Math.min((now - start) / DUR, 1);
+          const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+          applyMapRotation(startDeg + diff * eased);
+          if (t < 1) requestAnimationFrame(snap);
+          else {
+            const final = ((nearest45 % 360) + 360) % 360;
+            applyMapRotation(final);
+            regenMarkerIcons(final);
+          }
+        }
+        requestAnimationFrame(snap);
+      }
     }
   }, { passive: true, capture: true });
 }
