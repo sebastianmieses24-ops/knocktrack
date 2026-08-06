@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Knock Track — by Green Nova</title>
+<title>KnockTrack</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Michroma&family=Rajdhani:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -861,6 +861,444 @@ textarea#knock-notes:focus { border-color:var(--accent); }
   60%      { transform: translateX(-6px); }
   80%      { transform: translateX(4px); }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   REP HOME SCREEN — KnockTrack Design System
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --kt-bg-primary:    #020D1D;
+  --kt-bg-secondary:  #061426;
+  --kt-card:          #061629;
+  --kt-card-deep:     #031120;
+  --kt-border:        #244B67;
+  --kt-border-soft:   #16374F;
+  --kt-green:         #39FF14;
+  --kt-green-bright:  #43FF13;
+  --kt-green-glow:    rgba(57,255,20,0.34);
+  --kt-cyan:          #3FD4FF;
+  --kt-white:         #F7F8FA;
+  --kt-text-secondary:#A8B5D1;
+  --kt-text-muted:    #8190B0;
+  --kt-progress-track:#213B50;
+  --kt-nav-divider:   #17344A;
+}
+
+#rep-home-screen {
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:4000;
+  background:var(--kt-bg-primary);
+  flex-direction:column;
+  overflow:hidden;
+}
+
+/* ── Rep Home: scrollable content above fixed nav ── */
+#rh-scroll {
+  flex:1;
+  overflow-y:auto;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:calc(72px + env(safe-area-inset-bottom));
+}
+
+/* ── Header ── */
+#rh-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 20px 10px;
+  background:var(--kt-bg-primary);
+  flex-shrink:0;
+}
+.rh-logo {
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+.rh-logo-text {
+  font-family:'Michroma',sans-serif;
+  font-size:22px;
+  letter-spacing:3px;
+  line-height:1;
+}
+.rh-logo-text .kt-green { color:#39FF14; }
+.rh-logo-text .kt-white { color:#F7F8FA; }
+.rh-header-right {
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.rh-bell-btn {
+  position:relative;
+  background:none;
+  border:none;
+  cursor:pointer;
+  padding:4px;
+  color:var(--kt-text-secondary);
+}
+.rh-bell-dot {
+  position:absolute;
+  top:3px; right:3px;
+  width:8px; height:8px;
+  border-radius:50%;
+  background:var(--kt-green);
+  border:1.5px solid var(--kt-bg-primary);
+  display:none;
+}
+.rh-avatar-wrap {
+  width:40px; height:40px;
+  border-radius:50%;
+  border:2px solid var(--kt-border);
+  box-shadow:0 0 0 3px var(--kt-card);
+  overflow:hidden;
+  cursor:pointer;
+  background:var(--kt-card);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Montserrat',sans-serif;
+  font-size:16px;font-weight:800;
+  color:var(--kt-white);
+  flex-shrink:0;
+}
+
+/* ── Greeting ── */
+#rh-greeting {
+  padding:8px 20px 4px;
+}
+.rh-greeting-line1 {
+  font-family:'Montserrat',sans-serif;
+  font-size:clamp(13px,3.5vw,15px);
+  font-weight:700;
+  color:var(--kt-text-muted);
+  letter-spacing:4px;
+  text-transform:uppercase;
+  margin-bottom:2px;
+}
+.rh-name {
+  font-family:'Bebas Neue','Montserrat',sans-serif;
+  font-size:clamp(52px,14vw,68px);
+  line-height:0.9;
+  font-weight:900;
+  color:var(--kt-white);
+  letter-spacing:4px;
+}
+.rh-date {
+  font-family:'Montserrat',sans-serif;
+  font-size:clamp(14px,4vw,18px);
+  font-weight:600;
+  color:var(--kt-text-secondary);
+  margin-top:6px;
+}
+
+/* ── Mission Card ── */
+#rh-mission-card {
+  margin:14px 16px 0;
+  background:var(--kt-card);
+  border:1px solid var(--kt-border);
+  border-radius:18px;
+  overflow:hidden;
+}
+.rh-mission-header {
+  padding:14px 16px 10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.rh-mission-label {
+  font-family:'Montserrat',sans-serif;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  color:var(--kt-text-muted);
+}
+.rh-zone-name {
+  font-family:'Montserrat',sans-serif;
+  font-size:clamp(15px,4.5vw,20px);
+  font-weight:700;
+  color:var(--kt-white);
+  margin-top:2px;
+  letter-spacing:1px;
+}
+.rh-mission-body {
+  display:flex;
+  align-items:stretch;
+  gap:0;
+  padding:0 16px 16px;
+}
+/* Door progress circle */
+.rh-door-ring-wrap {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  width:90px;
+}
+.rh-door-ring {
+  position:relative;
+  width:80px;height:80px;
+}
+.rh-door-ring svg { transform:rotate(-90deg); }
+.rh-door-ring-bg { fill:none; stroke:var(--kt-progress-track); stroke-width:7; }
+.rh-door-ring-fill { fill:none; stroke:var(--kt-green); stroke-width:7; stroke-linecap:round; transition:stroke-dashoffset 0.6s ease; }
+.rh-door-ring-text {
+  position:absolute; inset:0;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+}
+.rh-door-ring-num {
+  font-family:'Montserrat',sans-serif;
+  font-size:20px;font-weight:900;
+  color:var(--kt-white);line-height:1;
+}
+.rh-door-ring-goal {
+  font-family:'Montserrat',sans-serif;
+  font-size:10px;font-weight:700;
+  color:var(--kt-text-muted);letter-spacing:0.5px;
+  margin-top:2px;
+}
+.rh-door-ring-label {
+  font-family:'Montserrat',sans-serif;
+  font-size:9px;font-weight:800;
+  color:var(--kt-text-muted);letter-spacing:2px;
+  margin-top:4px;
+}
+/* Map preview */
+.rh-map-preview {
+  flex:1;
+  min-height:130px;
+  border-radius:12px;
+  overflow:hidden;
+  background:var(--kt-card-deep);
+  margin-left:12px;
+  border:1px solid var(--kt-border-soft);
+  position:relative;
+}
+#rh-mini-map {
+  width:100%;height:100%;
+  min-height:130px;
+}
+/* Start knocking button */
+.rh-start-btn {
+  display:flex;align-items:center;justify-content:center;
+  width:100%;
+  height:68px;
+  background:var(--kt-green);
+  border:none;
+  border-radius:0 0 17px 17px;
+  font-family:'Montserrat',sans-serif;
+  font-size:17px;font-weight:900;
+  letter-spacing:3px;
+  color:#020D1D;
+  cursor:pointer;
+  text-transform:uppercase;
+  box-shadow:0 0 28px var(--kt-green-glow);
+  transition:all 0.15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.rh-start-btn:active { filter:brightness(1.15); transform:scale(0.99); }
+.rh-start-btn:disabled { background:var(--kt-card-deep); color:var(--kt-text-muted); box-shadow:none; cursor:not-allowed; }
+
+/* ── Performance cards ── */
+.rh-perf-grid {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin:12px 16px 0;
+}
+@media(max-width:360px){
+  .rh-perf-grid { grid-template-columns:repeat(2,1fr); }
+}
+.rh-perf-card {
+  background:var(--kt-card);
+  border:1px solid var(--kt-border);
+  border-radius:14px;
+  padding:14px 6px 12px;
+  display:flex;flex-direction:column;
+  align-items:center;gap:6px;
+}
+.rh-perf-icon { width:24px;height:24px;flex-shrink:0; }
+.rh-perf-label {
+  font-family:'Montserrat',sans-serif;
+  font-size:12px;font-weight:800;
+  letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--kt-text-muted);
+  text-align:center;
+  line-height:1.2;
+}
+.rh-perf-value {
+  font-family:'Montserrat',sans-serif;
+  font-size:clamp(32px,9vw,43px);font-weight:900;
+  color:var(--kt-white);line-height:1;
+}
+
+/* ── Next Appointment card ── */
+.rh-appt-card {
+  margin:12px 16px 0;
+  background:var(--kt-card);
+  border:1px solid var(--kt-border);
+  border-radius:14px;
+  padding:14px 16px;
+  display:flex;align-items:center;gap:12px;
+  cursor:pointer;
+}
+.rh-appt-card:active { background:var(--kt-card-deep); }
+.rh-appt-section-label {
+  font-family:'Montserrat',sans-serif;
+  font-size:10px;font-weight:800;
+  letter-spacing:3px;text-transform:uppercase;
+  color:var(--kt-text-muted);
+  margin-bottom:4px;
+}
+.rh-appt-detail {
+  font-family:'Montserrat',sans-serif;
+  font-size:15px;font-weight:700;
+  color:var(--kt-white);
+}
+.rh-appt-chevron { color:var(--kt-text-muted); flex-shrink:0; margin-left:auto; }
+
+/* ── Daily Goal card ── */
+.rh-goal-card {
+  margin:12px 16px 0;
+  background:var(--kt-card);
+  border:1px solid var(--kt-border);
+  border-radius:14px;
+  padding:14px 16px;
+}
+.rh-goal-header {
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:12px;
+}
+.rh-goal-title {
+  font-family:'Montserrat',sans-serif;
+  font-size:11px;font-weight:800;
+  letter-spacing:3px;text-transform:uppercase;
+  color:var(--kt-text-muted);
+}
+.rh-goal-count {
+  font-family:'Montserrat',sans-serif;
+  font-size:13px;font-weight:800;
+  color:var(--kt-text-muted);
+}
+.rh-goal-count span { color:var(--kt-green);font-size:15px; }
+.rh-goal-bar-track {
+  height:8px;border-radius:99px;
+  background:var(--kt-progress-track);
+  overflow:hidden;
+}
+.rh-goal-bar-fill {
+  height:100%;border-radius:99px;
+  background:var(--kt-green);
+  transition:width 0.6s ease;
+  max-width:100%;
+}
+.rh-goal-footer {
+  display:flex;align-items:center;justify-content:space-between;
+  margin-top:8px;
+}
+.rh-goal-pct {
+  font-family:'Montserrat',sans-serif;
+  font-size:11px;font-weight:700;
+  color:var(--kt-text-muted);
+}
+.rh-goal-max {
+  font-family:'Montserrat',sans-serif;
+  font-size:11px;font-weight:700;
+  color:var(--kt-text-muted);
+}
+
+/* ── Tagline ── */
+.rh-tagline {
+  text-align:center;
+  padding:20px 20px 8px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.rh-tagline-text {
+  font-family:'Montserrat',sans-serif;
+  font-size:16px;font-weight:700;
+  font-style:italic;
+  color:var(--kt-white);
+}
+.rh-tagline-text .kt-green { color:var(--kt-green); }
+
+/* ── Rep Home Bottom Nav ── */
+#rh-nav {
+  position:fixed;
+  bottom:0;left:0;right:0;
+  height:calc(60px + env(safe-area-inset-bottom));
+  padding-bottom:env(safe-area-inset-bottom);
+  background:var(--kt-bg-secondary);
+  border-top:1px solid var(--kt-nav-divider);
+  display:none;
+  align-items:stretch;
+  z-index:4001;
+}
+.rh-nav-btn span {
+  font-family:'Montserrat',sans-serif;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:1px;
+  text-transform:uppercase;
+}
+.rh-nav-btn {
+  flex:1;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:3px;
+  background:none;border:none;cursor:pointer;
+  font-family:'Montserrat',sans-serif;
+  font-size:9px;font-weight:800;
+  letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--kt-text-muted);
+  padding:0;
+  -webkit-tap-highlight-color:transparent;
+}
+.rh-nav-btn svg { transition:color 0.15s; }
+.rh-nav-btn.rh-active {
+  color:var(--kt-green);
+  position:relative;
+}
+.rh-nav-btn.rh-active::after {
+  content:'';
+  position:absolute;
+  top:0;left:50%;transform:translateX(-50%);
+  width:32px;height:2px;border-radius:0 0 2px 2px;
+  background:var(--kt-green);
+}
+.rh-active-pill {
+  position:absolute;
+  inset:6px 4px auto;
+  height:30px;
+  border-radius:8px;
+  background:rgba(57,255,20,0.08);
+  pointer-events:none;
+}
+
+/* Loading skeleton */
+.rh-skeleton {
+  background:linear-gradient(90deg,var(--kt-card) 25%,var(--kt-card-deep) 50%,var(--kt-card) 75%);
+  background-size:200% 100%;
+  animation:rh-shimmer 1.5s infinite;
+  border-radius:8px;
+}
+@keyframes rh-shimmer {
+  0%{background-position:200% 0}
+  100%{background-position:-200% 0}
+}
+
+/* Offline banner */
+#rh-offline-banner {
+  display:none;
+  background:rgba(239,68,68,0.12);
+  border-bottom:1px solid rgba(239,68,68,0.3);
+  text-align:center;
+  font-family:'Montserrat',sans-serif;
+  font-size:10px;font-weight:800;
+  letter-spacing:2px;color:#f87171;
+  padding:6px;
+  text-transform:uppercase;
+}
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -1603,7 +2041,9 @@ async function loadKnocks() {
   const rows = await sbFetch('knocks?order=time.desc&limit=2000');
   if (rows) {
     knocks = rows.map(rowToKnock);
-    renderMarkers(); renderList(); updateStats();
+    renderMarkers(); renderList();
+  // Refresh rep home metrics if visible
+  if (typeof rhRefreshMetrics === 'function' && document.getElementById('rep-home-screen').style.display !== 'none') rhRefreshMetrics(); updateStats();
   }
   hideSyncStatus();
 }
@@ -8590,6 +9030,14 @@ function applySession(session) {
     document.querySelectorAll('.owner-only-csv').forEach(el => el.style.display = '');
   }
 
+  // ── Show Rep Home Screen for non-owner reps ──
+  if (!session.isOwner) {
+    // Show rep home screen instead of the dashboard or map
+    setTimeout(function() {
+      if (typeof showRepHome === 'function') showRepHome();
+    }, 100);
+  }
+
   // Set calCurrentRep for ALL users (owners and reps alike)
   // Everyone's calendar defaults to their own — owners can switch via button
   window.calCurrentRep = session.name;
@@ -8976,6 +9424,402 @@ window.toggleActivityFeed = function() {
 
 </script>
 
+<script>
+// ══════════════════════════════════════════════════════════════
+//  REP HOME SCREEN — JavaScript Controller
+// ══════════════════════════════════════════════════════════════
+
+let _rhMiniMap = null;
+let _rhMiniMapInited = false;
+let _rhCurrentNav = 'home';
+
+// ── Show / Hide rep home screen ──────────────────────────────
+window.showRepHome = function() {
+  // Hide all other screens
+  document.getElementById('map-shell').style.display = 'none';
+  document.getElementById('mobile-nav').style.display = 'none';
+  const dash = document.getElementById('dashboard');
+  if (dash) dash.style.display = 'none';
+
+  const screen = document.getElementById('rep-home-screen');
+  const nav    = document.getElementById('rh-nav');
+  screen.style.display = 'flex';
+  nav.style.display = 'flex';
+
+  // Populate all dynamic data
+  rhPopulate();
+  rhSetNav('home');
+
+  // Offline detection
+  rhCheckOffline();
+  window.addEventListener('online',  rhCheckOffline);
+  window.addEventListener('offline', rhCheckOffline);
+};
+
+window.hideRepHome = function() {
+  document.getElementById('rep-home-screen').style.display = 'none';
+  document.getElementById('rh-nav').style.display = 'none';
+  window.removeEventListener('online',  rhCheckOffline);
+  window.removeEventListener('offline', rhCheckOffline);
+};
+
+// ── Populate all data ─────────────────────────────────────────
+function rhPopulate() {
+  const session = window.currentSession;
+  if (!session) return;
+
+  rhPopulateHeader(session);
+  rhPopulateGreeting(session);
+  rhPopulateMission(session);
+  rhPopulateMetrics(session);
+  rhPopulateNextAppt(session);
+  rhPopulateDailyGoal(session);
+}
+
+// ── Header: avatar + bell ────────────────────────────────────
+function rhPopulateHeader(session) {
+  const avatar = document.getElementById('rh-avatar');
+  if (avatar) {
+    avatar.textContent = session.name.charAt(0).toUpperCase();
+    avatar.title = session.name;
+  }
+  // Bell: show dot if there are unread notifications
+  // We use a simple heuristic: if there are future appointments in the next hour
+  const now = Date.now();
+  const soon = getRepEvents(session.name, new Date(now), new Date(now + 3600000));
+  const bellDot = document.getElementById('rh-bell-dot');
+  if (bellDot) bellDot.style.display = soon.length > 0 ? 'block' : 'none';
+}
+
+// ── Greeting ─────────────────────────────────────────────────
+function rhPopulateGreeting(session) {
+  const h = new Date().getHours();
+  const greet = h < 12 ? 'GOOD MORNING,' : h < 17 ? 'GOOD AFTERNOON,' : 'GOOD EVENING,';
+  const firstName = session.name.split(' ')[0].toUpperCase();
+
+  const greetEl = document.getElementById('rh-greeting-text');
+  const nameEl  = document.getElementById('rh-rep-name');
+  const dateEl  = document.getElementById('rh-date');
+
+  if (greetEl) greetEl.textContent = greet;
+  if (nameEl)  nameEl.textContent  = firstName;
+  if (dateEl) {
+    const now = new Date();
+    dateEl.textContent = now.toLocaleDateString('en-US', {
+      weekday:'long', month:'long', day:'numeric'
+    });
+  }
+}
+
+// ── Mission: zone + door ring + mini map ─────────────────────
+function rhPopulateMission(session) {
+  // Find this rep's assigned zone
+  const myZone = (typeof zones !== 'undefined')
+    ? zones.find(z => z.assignedRep === session.name)
+    : null;
+
+  const zoneNameEl = document.getElementById('rh-zone-name');
+  if (zoneNameEl) {
+    zoneNameEl.textContent = myZone
+      ? (myZone.name || 'Assigned Zone').toUpperCase()
+      : 'NO TERRITORY ASSIGNED';
+  }
+
+  // Disable start button if no zone
+  const startBtn = document.getElementById('rh-start-btn');
+  if (startBtn) {
+    if (!myZone) {
+      startBtn.disabled = true;
+      startBtn.textContent = 'NO TERRITORY — CONTACT MANAGER';
+    } else {
+      startBtn.disabled = false;
+      startBtn.textContent = 'START KNOCKING';
+    }
+  }
+
+  // Door ring — today's doors for this rep
+  const today = new Date().toDateString();
+  const todayKnocks = (typeof knocks !== 'undefined')
+    ? knocks.filter(k => k.rep === session.name && new Date(k.time).toDateString() === today)
+    : [];
+  const doorsToday = todayKnocks.length;
+  const goal = rhGetGoal(session);
+
+  const ringNum  = document.getElementById('rh-ring-num');
+  const ringGoal = document.getElementById('rh-ring-goal');
+  const ringFill = document.getElementById('rh-ring-fill');
+
+  if (ringNum)  ringNum.textContent  = doorsToday;
+  if (ringGoal) ringGoal.textContent = '/ ' + goal;
+  if (ringFill) {
+    const circumference = 2 * Math.PI * 33; // r=33
+    const pct = goal > 0 ? Math.min(doorsToday / goal, 1) : 0;
+    ringFill.style.strokeDashoffset = circumference * (1 - pct);
+  }
+
+  // Mini map — init once
+  rhInitMiniMap(myZone);
+}
+
+// ── Get daily goal ────────────────────────────────────────────
+function rhGetGoal(session) {
+  // Check rep object for a goal field
+  const rep = (typeof reps !== 'undefined')
+    ? reps.find(r => r.name === session.name)
+    : null;
+  if (rep && rep.dailyGoal) return parseInt(rep.dailyGoal) || 75;
+  // Default goal
+  return 75;
+}
+
+// ── Mini map preview ─────────────────────────────────────────
+function rhInitMiniMap(myZone) {
+  if (_rhMiniMapInited) {
+    // Already initialized — just update zone overlay
+    rhUpdateMiniMapZone(myZone);
+    return;
+  }
+  // Use a static dark map style via Google Maps Static API (no duplicate initMap)
+  const container = document.getElementById('rh-mini-map');
+  if (!container) return;
+
+  if (typeof google === 'undefined' || !google.maps) {
+    // Maps API not loaded yet — show placeholder
+    container.style.background = '#031120';
+    return;
+  }
+
+  try {
+    _rhMiniMap = new google.maps.Map(container, {
+      center: myZone ? rhGetZoneCentroid(myZone) : { lat:39.5, lng:-98.35 },
+      zoom: myZone ? 15 : 5,
+      styles: rhMiniMapStyle(),
+      disableDefaultUI: true,
+      gestureHandling: 'none',
+      draggable: false,
+      zoomControl: false,
+      scrollwheel: false,
+      disableDoubleClickZoom: true,
+      keyboardShortcuts: false,
+      clickableIcons: false,
+    });
+    _rhMiniMapInited = true;
+
+    // Draw zone polygon
+    if (myZone) {
+      rhDrawMiniZone(myZone);
+    }
+  } catch(e) {
+    console.warn('[RepHome] mini map init failed', e);
+  }
+}
+
+function rhGetZoneCentroid(zone) {
+  if (!zone || !zone.path || !zone.path.length) return { lat:39.5, lng:-98.35 };
+  const pts = zone.path;
+  const lat = pts.reduce((s,p) => s + p.lat, 0) / pts.length;
+  const lng = pts.reduce((s,p) => s + p.lng, 0) / pts.length;
+  return { lat, lng };
+}
+
+function rhDrawMiniZone(zone) {
+  if (!_rhMiniMap || !zone || !zone.path) return;
+  new google.maps.Polygon({
+    paths: zone.path,
+    map: _rhMiniMap,
+    strokeColor: '#3FD4FF',
+    strokeWeight: 2.5,
+    fillColor: '#3FD4FF',
+    fillOpacity: 0.13,
+  });
+  // Center pin
+  const center = rhGetZoneCentroid(zone);
+  new google.maps.Marker({
+    position: center,
+    map: _rhMiniMap,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 6,
+      fillColor: '#39FF14',
+      fillOpacity: 1,
+      strokeColor: '#020D1D',
+      strokeWeight: 2,
+    }
+  });
+}
+
+function rhUpdateMiniMapZone(myZone) {
+  if (!_rhMiniMap) return;
+  if (myZone) {
+    _rhMiniMap.setCenter(rhGetZoneCentroid(myZone));
+    _rhMiniMap.setZoom(15);
+  }
+}
+
+function rhMiniMapStyle() {
+  return [
+    { elementType:'geometry', stylers:[{color:'#031120'}] },
+    { elementType:'labels.text.fill', stylers:[{color:'#3a5068'}] },
+    { elementType:'labels.text.stroke', stylers:[{color:'#031120'}] },
+    { featureType:'road', elementType:'geometry', stylers:[{color:'#0d2235'}] },
+    { featureType:'road', elementType:'geometry.stroke', stylers:[{color:'#16374F'}] },
+    { featureType:'water', elementType:'geometry', stylers:[{color:'#020d1d'}] },
+    { featureType:'poi', stylers:[{visibility:'off'}] },
+    { featureType:'transit', stylers:[{visibility:'off'}] },
+    { featureType:'administrative', elementType:'geometry', stylers:[{visibility:'off'}] },
+  ];
+}
+
+// ── Metrics ───────────────────────────────────────────────────
+function rhPopulateMetrics(session) {
+  const today = new Date().toDateString();
+  const todayData = (typeof knocks !== 'undefined')
+    ? knocks.filter(k => k.rep === session.name && new Date(k.time).toDateString() === today)
+    : [];
+
+  const metrics = (typeof calcMetrics === 'function') ? calcMetrics(todayData) : {
+    totalDoors: todayData.length,
+    interactions: todayData.filter(k => !['not-home','not-qualified','competitor','spanish'].includes(k.status)).length,
+    qualityLeads: todayData.filter(k => k.status === 'quality-lead').length,
+    leads: todayData.filter(k => k.status === 'lead').length,
+    appointments: todayData.filter(k => k.appointment).length,
+  };
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('rh-perf-doors',  metrics.totalDoors);
+  set('rh-perf-convos', metrics.interactions);
+  set('rh-perf-leads',  (metrics.qualityLeads || 0) + (metrics.leads || 0));
+  set('rh-perf-appts',  metrics.appointments);
+
+  // Also update door ring number
+  set('rh-perf-doors', metrics.totalDoors);
+}
+
+// ── Next Appointment ─────────────────────────────────────────
+function rhPopulateNextAppt(session) {
+  const now  = new Date();
+  const events = (typeof getRepEvents === 'function')
+    ? getRepEvents(session.name, now, new Date(now.getTime() + 30*24*60*60*1000))
+    : [];
+  const future = events.filter(e => new Date(e.datetime) > now);
+  future.sort((a,b) => new Date(a.datetime) - new Date(b.datetime));
+
+  const detail = document.getElementById('rh-appt-detail');
+  if (detail) {
+    if (future.length > 0) {
+      const next = future[0];
+      const dt   = new Date(next.datetime);
+      const time = dt.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+      const addr = next.title.replace('📍 ','').substring(0,30);
+      detail.textContent = time + ' · ' + addr;
+      detail.style.color = 'var(--kt-white)';
+    } else {
+      detail.textContent = 'No upcoming appointments';
+      detail.style.color = 'var(--kt-text-muted)';
+    }
+  }
+}
+
+// ── Daily Goal ────────────────────────────────────────────────
+function rhPopulateDailyGoal(session) {
+  const today      = new Date().toDateString();
+  const doorsToday = (typeof knocks !== 'undefined')
+    ? knocks.filter(k => k.rep === session.name && new Date(k.time).toDateString() === today).length
+    : 0;
+  const goal = rhGetGoal(session);
+  const pct  = goal > 0 ? Math.min((doorsToday / goal) * 100, 100) : 0;
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('rh-goal-done',  doorsToday);
+  set('rh-goal-total', goal);
+  set('rh-goal-pct',   Math.round(pct) + '%');
+  set('rh-goal-max',   'Goal: ' + goal);
+
+  const bar = document.getElementById('rh-goal-bar');
+  if (bar) bar.style.width = pct + '%';
+
+  const track = document.getElementById('rh-goal-bar-track');
+  if (track) { track.setAttribute('aria-valuenow', Math.round(pct)); track.setAttribute('aria-valuemax', 100); }
+}
+
+// ── Navigation ────────────────────────────────────────────────
+window.rhNav = function(tab) {
+  rhSetNav(tab);
+  if (tab === 'home') {
+    // Already on home — just refresh
+    rhPopulate();
+  } else if (tab === 'map') {
+    hideRepHome();
+    document.getElementById('map-shell').style.display = 'flex';
+    document.getElementById('mobile-nav').style.display = 'flex';
+    mobileNav('map');
+  } else if (tab === 'leads') {
+    hideRepHome();
+    document.getElementById('map-shell').style.display = 'flex';
+    document.getElementById('mobile-nav').style.display = 'flex';
+    mobileNav('knocks');
+  } else if (tab === 'rank') {
+    hideRepHome();
+    showDashboard();
+  } else if (tab === 'profile') {
+    // Show logout / profile info
+    showLogoutConfirm();
+    rhSetNav('profile');
+  }
+};
+
+function rhSetNav(tab) {
+  _rhCurrentNav = tab;
+  document.querySelectorAll('.rh-nav-btn').forEach(btn => btn.classList.remove('rh-active'));
+  const el = document.getElementById('rh-nav-' + tab);
+  if (el) el.classList.add('rh-active');
+}
+
+// ── Start Knocking ────────────────────────────────────────────
+window.rhStartKnocking = function() {
+  const btn = document.getElementById('rh-start-btn');
+  if (btn && btn.disabled) return;
+  // Debounce double tap
+  if (btn) { btn.disabled = true; setTimeout(() => { if(btn) btn.disabled = false; }, 1500); }
+  hideRepHome();
+  document.getElementById('map-shell').style.display = 'flex';
+  document.getElementById('mobile-nav').style.display = 'flex';
+  mobileNav('map');
+  // Start follow mode
+  if (typeof reenterFollowMode === 'function') reenterFollowMode();
+};
+
+// ── Utility ───────────────────────────────────────────────────
+function rhCheckOffline() {
+  const banner = document.getElementById('rh-offline-banner');
+  if (banner) banner.style.display = navigator.onLine ? 'none' : 'block';
+}
+
+window.rhOpenNotifications = function() {
+  showRepHome(); // just refresh for now
+};
+
+window.rhOpenProfile = function() {
+  showLogoutConfirm();
+};
+
+window.rhOpenCalendar = function() {
+  hideRepHome();
+  showDashboard();
+  setTimeout(() => { if(typeof switchDashTab === 'function') switchDashTab('calendar'); }, 100);
+};
+
+// ── Refresh when map is re-opened or knocks change ────────────
+// Called after a pin is dropped, to update metrics live
+window.rhRefreshMetrics = function() {
+  const session = window.currentSession;
+  if (!session) return;
+  rhPopulateMetrics(session);
+  rhPopulateDailyGoal(session);
+  rhPopulateMission(session);
+};
+</script>
+
 <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyS5-AK1G0rZNrn0vsdCn9_PkKzpxiV3A&libraries=places,drawing&callback=initMap"></script>
 
 <!-- ═══ LOGIN SCREEN ═══ -->
@@ -8993,7 +9837,7 @@ window.toggleActivityFeed = function() {
       <div style="font-family:'Michroma',sans-serif;font-size:clamp(32px,6vw,52px);letter-spacing:6px;line-height:1;font-weight:400">
         <span style="color:#22c55e">KNOCK</span><span style="color:#ffffff"> TRACK</span>
       </div>
-      <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:6px;color:rgba(255,255,255,0.55);margin-top:8px;text-transform:uppercase">Official Partner: Green Nova</div>
+
     </div>
 
     <!-- Green divider line — like screenshot -->
@@ -9034,7 +9878,7 @@ window.toggleActivityFeed = function() {
     <!-- Footer -->
     <div style="margin-top:36px;display:flex;flex-direction:column;align-items:center;gap:10px">
       <div style="font-family:'Outfit',sans-serif;font-size:9px;color:rgba(255,255,255,0.2);letter-spacing:4px;text-transform:uppercase">
-        KnockTrack · Official Partner: Green Nova
+        KnockTrack
       </div>
       <!-- Sign out link -->
       <button onclick="logout()" style="background:none;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:2px;text-transform:uppercase;padding:4px 8px;transition:color 0.15s" onmouseover="this.style.color='rgba(255,255,255,0.5)'" onmouseout="this.style.color='rgba(255,255,255,0.2)'">
@@ -9055,7 +9899,7 @@ window.toggleActivityFeed = function() {
       <div style="font-family:'Michroma',sans-serif;font-size:clamp(28px,6vw,44px);letter-spacing:6px;line-height:1;font-weight:400">
         <span style="color:#22c55e">KNOCK</span><span style="color:#ffffff"> TRACK</span>
       </div>
-      <div style="font-family:'Outfit',sans-serif;font-size:9px;font-weight:700;letter-spacing:5px;color:rgba(255,255,255,0.5);margin-top:8px;text-transform:uppercase">Official Partner: Green Nova</div>
+
       <div style="width:48px;height:2px;background:#22c55e;margin:10px auto 0;border-radius:2px"></div>
     </div>
 
@@ -9126,6 +9970,215 @@ window.toggleActivityFeed = function() {
     </div>
   </div>
 </div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     REP HOME SCREEN
+     ══════════════════════════════════════════════════════════ -->
+<div id="rep-home-screen">
+
+  <!-- Offline banner -->
+  <div id="rh-offline-banner">⚠ Offline — Changes will sync when connection returns</div>
+
+  <!-- Scrollable content -->
+  <div id="rh-scroll">
+
+    <!-- 1. Header -->
+    <header id="rh-header">
+      <div class="rh-logo">
+        <svg width="30" height="30" viewBox="0 0 44 44" fill="none" aria-hidden="true">
+          <circle cx="22" cy="22" r="22" fill="#020D1D"/>
+          <path d="M22 4C14.268 4 8 10.268 8 18c0 11 14 26 14 26S36 29 36 18C36 10.268 29.732 4 22 4z" fill="#39FF14"/>
+          <circle cx="22" cy="18" r="4" fill="white" opacity="0.9"/>
+        </svg>
+        <div class="rh-logo-text">
+          <span class="kt-green">KNOCK</span><span class="kt-white"> TRACK</span>
+        </div>
+      </div>
+      <div class="rh-header-right">
+        <!-- Notification bell -->
+        <button class="rh-bell-btn" onclick="rhOpenNotifications()" aria-label="Notifications">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span id="rh-bell-dot" class="rh-bell-dot" aria-hidden="true"></span>
+        </button>
+        <!-- Avatar -->
+        <div class="rh-avatar-wrap" id="rh-avatar" onclick="rhOpenProfile()" role="button" aria-label="Profile" tabindex="0">?</div>
+      </div>
+    </header>
+
+    <!-- 2. Greeting -->
+    <section id="rh-greeting" aria-labelledby="rh-greeting-text">
+      <div class="rh-greeting-line1" id="rh-greeting-text">GOOD MORNING,</div>
+      <div class="rh-name" id="rh-rep-name" aria-live="polite">—</div>
+      <div class="rh-date" id="rh-date" aria-live="polite"></div>
+    </section>
+
+    <!-- 3. Mission Card -->
+    <section id="rh-mission-card" aria-label="Today's Mission">
+      <div class="rh-mission-header">
+        <div>
+          <div class="rh-mission-label">Today's Mission</div>
+          <div class="rh-zone-name" id="rh-zone-name">Loading…</div>
+        </div>
+      </div>
+      <div class="rh-mission-body">
+        <!-- Door progress ring -->
+        <div class="rh-door-ring-wrap" aria-label="Door progress">
+          <div class="rh-door-ring" role="img" aria-labelledby="rh-ring-label">
+            <svg width="80" height="80" viewBox="0 0 80 80" aria-hidden="true">
+              <circle class="rh-door-ring-bg" cx="40" cy="40" r="33"/>
+              <circle class="rh-door-ring-fill" id="rh-ring-fill" cx="40" cy="40" r="33"
+                stroke-dasharray="207.3" stroke-dashoffset="207.3"/>
+            </svg>
+            <div class="rh-door-ring-text">
+              <div class="rh-door-ring-num" id="rh-ring-num">0</div>
+              <div class="rh-door-ring-goal" id="rh-ring-goal">/ 0</div>
+            </div>
+          </div>
+          <div class="rh-door-ring-label" id="rh-ring-label">DOORS</div>
+        </div>
+        <!-- Mini map preview -->
+        <div class="rh-map-preview" aria-label="Territory map preview">
+          <div id="rh-mini-map"></div>
+        </div>
+      </div>
+      <!-- Primary CTA -->
+      <button class="rh-start-btn" id="rh-start-btn" onclick="rhStartKnocking()" aria-label="Start Knocking">
+        START KNOCKING
+      </button>
+    </section>
+
+    <!-- 4. Performance Cards -->
+    <section aria-label="Today's performance metrics">
+      <div class="rh-perf-grid">
+        <!-- Doors -->
+        <div class="rh-perf-card">
+          <svg class="rh-perf-icon" viewBox="0 0 24 24" fill="none" stroke="#39FF14" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+          <div class="rh-perf-value" id="rh-perf-doors" aria-label="Doors knocked today">0</div>
+          <div class="rh-perf-label">Doors</div>
+        </div>
+        <!-- Conversations -->
+        <div class="rh-perf-card">
+          <svg class="rh-perf-icon" viewBox="0 0 24 24" fill="none" stroke="#3FD4FF" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <div class="rh-perf-value" id="rh-perf-convos" aria-label="Conversations today">0</div>
+          <div class="rh-perf-label">Convos</div>
+        </div>
+        <!-- Leads -->
+        <div class="rh-perf-card">
+          <svg class="rh-perf-icon" viewBox="0 0 24 24" fill="none" stroke="#39FF14" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <div class="rh-perf-value" id="rh-perf-leads" aria-label="Leads today">0</div>
+          <div class="rh-perf-label">Leads</div>
+        </div>
+        <!-- Appointments -->
+        <div class="rh-perf-card">
+          <svg class="rh-perf-icon" viewBox="0 0 24 24" fill="none" stroke="#3FD4FF" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <div class="rh-perf-value" id="rh-perf-appts" aria-label="Appointments today">0</div>
+          <div class="rh-perf-label">Appts</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Next Appointment -->
+    <section aria-label="Next appointment">
+      <div class="rh-appt-card" id="rh-appt-card" onclick="rhOpenCalendar()" role="button" tabindex="0" aria-label="Open calendar">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3FD4FF" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <div style="flex:1;min-width:0">
+          <div class="rh-appt-section-label">Next Appointment</div>
+          <div class="rh-appt-detail" id="rh-appt-detail">No upcoming appointments</div>
+        </div>
+        <svg class="rh-appt-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </div>
+    </section>
+
+    <!-- 6. Daily Goal -->
+    <section aria-label="Daily goal progress">
+      <div class="rh-goal-card">
+        <div class="rh-goal-header">
+          <div class="rh-goal-title">Daily Goal</div>
+          <div class="rh-goal-count"><span id="rh-goal-done">0</span> / <span id="rh-goal-total">0</span> Doors</div>
+        </div>
+        <div class="rh-goal-bar-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="rh-goal-bar-track">
+          <div class="rh-goal-bar-fill" id="rh-goal-bar" style="width:0%"></div>
+        </div>
+        <div class="rh-goal-footer">
+          <div class="rh-goal-pct" id="rh-goal-pct">0%</div>
+          <div class="rh-goal-max" id="rh-goal-max">Goal: 0</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Tagline -->
+    <div class="rh-tagline" aria-label="Own the next door">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#39FF14" aria-hidden="true">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+      </svg>
+      <div class="rh-tagline-text">
+        <em>Own the </em><em class="kt-green">next</em><em> door.</em>
+      </div>
+    </div>
+
+    <!-- Bottom padding for nav -->
+    <div style="height:16px"></div>
+  </div><!-- end #rh-scroll -->
+</div><!-- end #rep-home-screen -->
+
+<!-- Rep Home Bottom Nav (separate from map nav) -->
+<nav id="rh-nav" aria-label="Main navigation">
+  <button class="rh-nav-btn rh-active" onclick="rhNav('home')" aria-label="Home" aria-current="page" id="rh-nav-home">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+    <span>HOME</span>
+  </button>
+  <button class="rh-nav-btn" onclick="rhNav('map')" aria-label="Map" id="rh-nav-map">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+    </svg>
+    <span>MAP</span>
+  </button>
+  <button class="rh-nav-btn" onclick="rhNav('leads')" aria-label="Leads" id="rh-nav-leads">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+    </svg>
+    <span>LEADS</span>
+  </button>
+  <button class="rh-nav-btn" onclick="rhNav('rank')" aria-label="Rank" id="rh-nav-rank">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <line x1="18" y1="20" x2="18" y2="10"/>
+      <line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="14"/>
+    </svg>
+    <span>RANK</span>
+  </button>
+  <button class="rh-nav-btn" onclick="rhNav('profile')" aria-label="Profile" id="rh-nav-profile">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+    </svg>
+    <span>PROFILE</span>
+  </button>
+</nav>
 
 </body>
 </html>
