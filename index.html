@@ -1382,6 +1382,11 @@ a { color: var(--green); text-decoration: none; }
   text-decoration: none;
   transition: all 0.15s;
   cursor: pointer;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
 }
 .od-nav-item svg { flex-shrink: 0; }
 .od-nav-item:hover { background: var(--od-bg-2); color: var(--od-text); }
@@ -1848,6 +1853,17 @@ a { color: var(--green); text-decoration: none; }
 }
 .od-table tr:hover td { background:var(--od-bg-2); }
 .od-page-h1{font-size:24px;font-weight:800;color:var(--od-text);margin:4px 0 20px;}
+.od-action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px;}
+.od-action-card{background:#fff;border:1px solid var(--od-border);border-radius:12px;padding:18px;box-shadow:0 1px 2px rgba(15,23,42,.04);}
+.od-action-title{font-size:14px;font-weight:800;color:var(--od-text);margin-bottom:6px;}
+.od-action-copy{font-size:12px;line-height:1.55;color:var(--od-text-3);}
+.od-primary-action{margin-top:14px;border:0;border-radius:8px;background:var(--od-green);color:#fff;padding:9px 13px;font-weight:800;cursor:pointer;}
+.od-secondary-action{margin-top:14px;border:1px solid var(--od-border);border-radius:8px;background:#fff;color:var(--od-text);padding:9px 13px;font-weight:700;cursor:pointer;}
+.od-section-card{background:#fff;border:1px solid var(--od-border);border-radius:12px;padding:20px;margin-top:16px;}
+.od-insight-list{display:flex;flex-direction:column;gap:10px;margin-top:12px;}
+.od-insight-row{display:flex;align-items:flex-start;gap:12px;border:1px solid var(--od-border);border-radius:10px;padding:14px;}
+.od-insight-dot{width:10px;height:10px;border-radius:50%;background:var(--od-green);margin-top:5px;flex:0 0 auto;}
+@media (max-width:900px){.od-action-grid{grid-template-columns:1fr;}}
 
 /* ── SETTINGS ── */
 .od-settings-row {
@@ -4759,13 +4775,17 @@ function odMapStyle() {
 
 // ── Navigation ────────────────────────────────────────────────
 function odNav(page) {
+  const pageEl = document.getElementById('odpage-' + page);
+  if (!pageEl) {
+    showToast('That section is not available yet');
+    return;
+  }
   _odPage = page;
   document.querySelectorAll('.od-nav-item').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.od-page').forEach(el => el.classList.remove('active'));
   const navEl  = document.getElementById('odnav-' + page);
-  const pageEl = document.getElementById('odpage-' + page);
   if (navEl)  navEl.classList.add('active');
-  if (pageEl) pageEl.classList.add('active');
+  pageEl.classList.add('active');
 
   // Page-specific init
   if (page === 'overview') odRenderOverview();
@@ -4773,6 +4793,102 @@ function odNav(page) {
   if (page === 'team')   odRenderTeamFull();
   if (page === 'leads')  odRenderLeadsFull();
   if (page === 'territories') odRenderTerritoriesFull();
+  if (page === 'ai') odRenderAIPage();
+  if (page === 'reports') odRenderReports();
+  if (page === 'support') odRenderSupport();
+}
+
+function odRepStats() {
+  const stats = {};
+  _allKnocks.forEach(k => {
+    const name = k.rep || 'Unassigned';
+    if (!stats[name]) stats[name] = { name, doors:0, leads:0, appointments:0, sales:0 };
+    const row = stats[name];
+    row.doors++;
+    if (statusCountsAs(k.status, 'creates_lead', ['lead','quality-lead'])) row.leads++;
+    if (k.appointment || statusCountsAs(k.status, 'creates_appointment', ['appointment'])) row.appointments++;
+    if (statusCountsAs(k.status, 'counts_as_sale', ['sold','enrolled','closed'])) row.sales++;
+  });
+  return Object.values(stats).sort((a,b) => b.sales-a.sales || b.leads-a.leads || b.doors-a.doors);
+}
+
+function odRenderAIPage() {
+  const el = document.getElementById('od-ai-full');
+  if (!el) return;
+  const rows = odRepStats();
+  if (!rows.length) {
+    el.innerHTML = '<div class="od-section-card">No activity is available for this period.</div>';
+    return;
+  }
+  const top = rows[0];
+  const lowest = [...rows].sort((a,b)=>a.doors-b.doors)[0];
+  const unfollowed = _allKnocks.filter(k =>
+    statusCountsAs(k.status, 'creates_lead', ['lead','quality-lead']) &&
+    (Date.now() - new Date(k.time).getTime()) > 86400000
+  ).length;
+  const insights = [
+    `<strong>${top.name}</strong> leads this period with ${top.sales} sale${top.sales===1?'':'s'}, ${top.leads} leads and ${top.doors} doors.`,
+    unfollowed ? `<strong>${unfollowed} lead${unfollowed===1?'':'s'}</strong> are more than 24 hours old and should be reviewed.` : 'No leads older than 24 hours require attention.',
+    rows.length > 1 ? `<strong>${lowest.name}</strong> has the lowest activity at ${lowest.doors} doors. Check territory, schedule and coaching needs.` : 'Add more representatives to unlock team comparisons.'
+  ];
+  el.innerHTML = `
+    <div class="od-action-grid">
+      <div class="od-action-card"><div class="od-action-title">Top opportunity</div><div class="od-action-copy">Follow up with every qualified lead before the next field shift.</div><button class="od-primary-action" type="button" onclick="odNav('leads')">Review leads</button></div>
+      <div class="od-action-card"><div class="od-action-title">Coaching focus</div><div class="od-action-copy">Compare doors, leads and closes to find whether the gap is effort or conversion.</div><button class="od-secondary-action" type="button" onclick="odNav('reports')">Open reports</button></div>
+      <div class="od-action-card"><div class="od-action-title">Territory check</div><div class="od-action-copy">Confirm every active rep has clear turf and no overlapping assignments.</div><button class="od-secondary-action" type="button" onclick="odNav('territories')">View territories</button></div>
+    </div>
+    <div class="od-section-card"><div class="od-card-title">CURRENT INSIGHTS</div><div class="od-insight-list">${insights.map(i=>`<div class="od-insight-row"><span class="od-insight-dot"></span><div class="od-action-copy">${i}</div></div>`).join('')}</div></div>`;
+}
+
+function odRenderReports() {
+  const el = document.getElementById('od-reports-full');
+  if (!el) return;
+  const rows = odRepStats();
+  const body = rows.map(r => {
+    const leadRate = r.doors ? ((r.leads/r.doors)*100).toFixed(1)+'%' : '0%';
+    const closeRate = r.leads ? ((r.sales/r.leads)*100).toFixed(1)+'%' : '0%';
+    return `<tr><td>${r.name}</td><td>${r.doors}</td><td>${r.leads}</td><td>${r.appointments}</td><td>${r.sales}</td><td>${leadRate}</td><td>${closeRate}</td></tr>`;
+  }).join('');
+  el.innerHTML = `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="od-primary-action" type="button" onclick="odExportReport()">Export CSV</button></div>
+    <div class="od-table-wrap"><table class="od-table"><thead><tr><th>Representative</th><th>Doors</th><th>Leads</th><th>Appointments</th><th>Sales</th><th>Lead rate</th><th>Close rate</th></tr></thead><tbody>${body || '<tr><td colspan="7">No activity in this period.</td></tr>'}</tbody></table></div>`;
+}
+
+function odExportReport() {
+  const rows = odRepStats();
+  const csv = [
+    ['Representative','Doors','Leads','Appointments','Sales','Lead Rate','Close Rate'],
+    ...rows.map(r => [r.name,r.doors,r.leads,r.appointments,r.sales,r.doors?((r.leads/r.doors)*100).toFixed(1)+'%':'0%',r.leads?((r.sales/r.leads)*100).toFixed(1)+'%':'0%'])
+  ].map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `knock-track-${_odFilter}-report.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+function odRenderSupport() {
+  const el = document.getElementById('od-support-full');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="od-action-grid">
+      <div class="od-action-card"><div class="od-action-title">Map not updating?</div><div class="od-action-copy">Confirm location permission is enabled, then refresh the page and reopen Live Map.</div><button class="od-secondary-action" type="button" onclick="odNav('map')">Open map</button></div>
+      <div class="od-action-card"><div class="od-action-title">Missing team activity?</div><div class="od-action-copy">Check the selected date range and confirm the representative belongs to this workspace.</div><button class="od-secondary-action" type="button" onclick="odNav('team')">Check team</button></div>
+      <div class="od-action-card"><div class="od-action-title">Need diagnostics?</div><div class="od-action-copy">Copy safe workspace details to include in a support request. Customer data is excluded.</div><button class="od-primary-action" type="button" onclick="odCopyDiagnostics()">Copy diagnostics</button></div>
+    </div>`;
+}
+
+async function odCopyDiagnostics() {
+  const details = `Knock Track diagnostics\nCompany: ${_company?.name || 'Unknown'}\nWorkspace: ${_membership?.company_id || 'Unknown'}\nRole: ${_membership?.role || 'Unknown'}\nFilter: ${_odFilter}\nKnocks loaded: ${_allKnocks.length}\nMembers loaded: ${_allMembers.length}\nZones loaded: ${(window._zones || []).length}`;
+  try {
+    await navigator.clipboard.writeText(details);
+    showToast('Diagnostics copied');
+  } catch (e) {
+    showToast('Could not copy diagnostics');
+  }
 }
 
 // Full map (owner view)
@@ -4862,45 +4978,45 @@ function fmtNum(n) {
     </div>
 
     <nav class="od-nav" aria-label="Owner navigation">
-      <a class="od-nav-item active" id="odnav-overview" onclick="odNav('overview')" href="#">
+      <button type="button" class="od-nav-item active" id="odnav-overview" onclick="odNav('overview')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Overview
-      </a>
-      <a class="od-nav-item" id="odnav-map" onclick="odNav('map')" href="#">
+      </button>
+      <button type="button" class="od-nav-item" id="odnav-map" onclick="odNav('map')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
         Live Map
-      </a>
-      <a class="od-nav-item" id="odnav-team" onclick="odNav('team')" href="#">
+      </button>
+      <button type="button" class="od-nav-item" id="odnav-team" onclick="odNav('team')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Team
-      </a>
-      <a class="od-nav-item" id="odnav-leads" onclick="odNav('leads')" href="#">
+      </button>
+      <button type="button" class="od-nav-item" id="odnav-leads" onclick="odNav('leads')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         Leads
-      </a>
-      <a class="od-nav-item" id="odnav-territories" onclick="odNav('territories')" href="#">
+      </button>
+      <button type="button" class="od-nav-item" id="odnav-territories" onclick="odNav('territories')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
         Territories
-      </a>
-      <a class="od-nav-item" id="odnav-ai" onclick="odNav('ai')" href="#">
+      </button>
+      <button type="button" class="od-nav-item" id="odnav-ai" onclick="odNav('ai')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
         AI Coach
-      </a>
-      <a class="od-nav-item" id="odnav-reports" onclick="odNav('reports')" href="#">
+      </button>
+      <button type="button" class="od-nav-item" id="odnav-reports" onclick="odNav('reports')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         Reports
-      </a>
-      <a class="od-nav-item" id="odnav-settings" onclick="odNav('settings')" href="#">
+      </button>
+      <button type="button" class="od-nav-item" id="odnav-settings" onclick="odNav('settings')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         Settings
-      </a>
+      </button>
     </nav>
 
     <div class="od-sidebar-bottom">
-      <a class="od-nav-item" href="#" onclick="showToast('Help center coming soon')">
+      <button type="button" class="od-nav-item" id="odnav-support" onclick="odNav('support')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         Help &amp; Support
-      </a>
+      </button>
     </div>
   </aside>
 
@@ -5025,7 +5141,7 @@ function fmtNum(n) {
                 <div class="od-ai-empty">Analyzing your team data…</div>
               </div>
               <div class="od-card-footer">
-                <button class="od-link-btn" onclick="showToast('AI Coach coming soon')">View all insights →</button>
+                <button class="od-link-btn" onclick="odNav('ai')">View all insights →</button>
               </div>
             </div>
 
@@ -5042,7 +5158,7 @@ function fmtNum(n) {
                 <div class="od-mini-loading">Loading…</div>
               </div>
             </div>
-            <div class="od-card od-expandable" onclick="showToast('Funnel coming soon')">
+            <div class="od-card od-expandable" onclick="odNav('reports')">
               <div class="od-card-header">
                 <div class="od-card-title">FUNNEL</div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -5108,7 +5224,8 @@ function fmtNum(n) {
         <div class="od-page-scroll" style="padding:32px">
           <div class="od-page-eyebrow">INTELLIGENCE</div>
           <h1 class="od-page-h1">AI Coach</h1>
-          <p style="color:#6B7280;margin-top:8px">Intelligent insights about your team's performance. Coming soon.</p>
+          <p style="color:#6B7280;margin-top:-12px">Actionable coaching signals calculated from your current field activity.</p>
+          <div id="od-ai-full"><div class="od-mini-loading">Analyzing team performance…</div></div>
         </div>
       </div>
 
@@ -5117,7 +5234,8 @@ function fmtNum(n) {
         <div class="od-page-scroll" style="padding:32px">
           <div class="od-page-eyebrow">ANALYTICS</div>
           <h1 class="od-page-h1">Reports</h1>
-          <p style="color:#6B7280;margin-top:8px">Detailed reporting and exports. Coming soon.</p>
+          <p style="color:#6B7280;margin-top:-12px">Rep performance for the selected Today, Week or Month range.</p>
+          <div id="od-reports-full"><div class="od-mini-loading">Building report…</div></div>
         </div>
       </div>
 
@@ -5147,6 +5265,16 @@ function fmtNum(n) {
             </div>
             <button class="od-btn-danger" onclick="doSignOut()">Sign Out</button>
           </div>
+        </div>
+      </div>
+
+      <!-- SUPPORT PAGE -->
+      <div class="od-page" id="odpage-support">
+        <div class="od-page-scroll" style="padding:32px">
+          <div class="od-page-eyebrow">HELP CENTER</div>
+          <h1 class="od-page-h1">Help &amp; Support</h1>
+          <p style="color:#6B7280;margin-top:-12px">Quick fixes and safe diagnostics for your Knock Track workspace.</p>
+          <div id="od-support-full"></div>
         </div>
       </div>
 
