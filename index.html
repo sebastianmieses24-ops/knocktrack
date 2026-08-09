@@ -3944,16 +3944,27 @@ async function wizFinish() {
 
   try {
     const cid = _membership?.company_id;
-    if (!cid) throw new Error('No company found');
+    if (!cid) throw new Error('No company found — please sign in again');
+
+    // Ensure template was loaded (user may have skipped step 4)
+    if (!_wiz.statuses?.length && _wiz.industryKey) {
+      loadTemplateIntoWizard(_wiz.industryKey);
+    }
+    // Absolute fallback — use general template
+    if (!_wiz.statuses?.length) {
+      loadTemplateIntoWizard('general');
+    }
 
     // 1. Apply template statuses, fields, metrics via RPC
+    // p_statuses and p_fields must be JSON arrays (not stringified strings)
+    // p_metrics must be a plain JS array (Supabase serialises it to TEXT[])
     const tmplResult = await sbRpc('apply_industry_template', {
       p_company_id: cid,
-      p_statuses:   JSON.stringify(_wiz.statuses),
-      p_fields:     JSON.stringify(_wiz.fields),
-      p_metrics:    _wiz.metrics
+      p_statuses:   _wiz.statuses  || [],
+      p_fields:     _wiz.fields    || [],
+      p_metrics:    (_wiz.metrics  && _wiz.metrics.length) ? _wiz.metrics : ['active_reps','doors','leads','appointments','sales']
     });
-    if (!tmplResult?.success) throw new Error('Failed to apply template');
+    if (!tmplResult?.success) throw new Error(tmplResult?.error || 'Failed to apply template — check Supabase logs');
 
     // 2. Save automations
     const autoEntries = Object.entries(_wiz.automations).filter(([,v])=>v);
