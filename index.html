@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="knocktrack-build" content="2026.08.09-map-v3">
+<meta name="knocktrack-build" content="2026.08.09-map-v4-fallback">
 <title>Knock Track</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -881,6 +881,80 @@ a { color: var(--green); text-decoration: none; }
   width: 100%;
   height: 100%;
 }
+.rep-map-toolbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: none;
+}
+.rep-map-instruction,
+.rep-map-layer-btn,
+.rep-map-location-btn {
+  background: rgba(255,255,255,.96);
+  color: #111827;
+  border: 1px solid rgba(17,24,39,.10);
+  box-shadow: 0 5px 18px rgba(0,0,0,.18);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.rep-map-instruction {
+  min-width: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  pointer-events: none;
+}
+.rep-map-instruction strong {
+  display: block;
+  font-size: 12px;
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: .7px;
+  text-transform: uppercase;
+}
+.rep-map-instruction span {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.25;
+  font-weight: 600;
+  color: #4B5563;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rep-map-layer-btn {
+  min-width: 88px;
+  min-height: 46px;
+  border-radius: 14px;
+  padding: 0 12px;
+  pointer-events: auto;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.rep-map-location-btn {
+  position: absolute;
+  right: 16px;
+  bottom: 84px;
+  z-index: 12;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.rep-map-location-btn svg { width: 22px; height: 22px; }
+.rep-map-location-btn:active,
+.rep-map-layer-btn:active { transform: scale(.96); }
 .map-fab {
   position: absolute;
   bottom: 16px;
@@ -897,6 +971,26 @@ a { color: var(--green); text-decoration: none; }
   box-shadow: 0 4px 20px var(--green-glow);
   cursor: pointer;
   z-index: 10;
+}
+.map-fab::after {
+  content: 'CENTER';
+  position: absolute;
+  bottom: -13px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #FFFFFF;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .8px;
+  text-shadow: 0 1px 4px rgba(0,0,0,.8);
+}
+.rep-map-tap-pulse {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #22C55E;
+  border-radius: 50%;
+  background: rgba(34,197,94,.18);
+  box-shadow: 0 0 0 6px rgba(34,197,94,.15), 0 2px 12px rgba(0,0,0,.3);
 }
 
 /* ─────────────────────────────────────────────
@@ -1869,6 +1963,8 @@ a { color: var(--green); text-decoration: none; }
 .od-map-legend{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
 .od-map-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--od-text-3);}
 .od-map-legend-dot{width:8px;height:8px;border-radius:50%;}
+.kt-zone-label{background:rgba(255,255,255,.92)!important;border:1px solid #D1D5DB!important;border-radius:5px!important;color:#111827!important;font:700 10px Montserrat,Arial,sans-serif!important;box-shadow:0 1px 4px rgba(0,0,0,.15)!important;padding:3px 6px!important;}
+.kt-zone-label:before{display:none!important;}
 .od-insight-list{display:flex;flex-direction:column;gap:10px;margin-top:12px;}
 .od-insight-row{display:flex;align-items:flex-start;gap:12px;border:1px solid var(--od-border);border-radius:10px;padding:14px;}
 .od-insight-dot{width:10px;height:10px;border-radius:50%;background:var(--od-green);margin-top:5px;flex:0 0 auto;}
@@ -2500,7 +2596,21 @@ a { color: var(--green); text-decoration: none; }
     <!-- MAP -->
     <div id="page-map" class="page-view">
       <div id="main-map"></div>
-      <button class="map-fab" onclick="openPinSheet()" aria-label="Drop pin">+</button>
+      <div class="rep-map-toolbar" aria-hidden="false">
+        <div class="rep-map-instruction">
+          <strong>Knock Map</strong>
+          <span>Tap the exact house to log an outcome</span>
+        </div>
+        <button class="rep-map-layer-btn" id="rep-map-layer-btn" onclick="toggleRepMapLayer()" aria-label="Change map layer">Satellite</button>
+      </div>
+      <button class="rep-map-location-btn" onclick="centerRepMapOnUser()" aria-label="Center on my location">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle><circle cx="12" cy="12" r="8"></circle>
+          <line x1="12" y1="2" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="22"></line>
+          <line x1="2" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="22" y2="12"></line>
+        </svg>
+      </button>
+      <button class="map-fab" onclick="openPinSheet()" aria-label="Drop pin at map center">+</button>
     </div>
 
     <!-- LEADS -->
@@ -2624,7 +2734,7 @@ a { color: var(--green); text-decoration: none; }
 <!-- Pin drop sheet -->
 <div class="sheet" id="pin-sheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-title">Log Knock</div>
+  <div class="sheet-title">Log This Door</div>
   <div id="pin-sheet-addr" style="font-size:13px;color:var(--secondary);text-align:center;margin-bottom:16px;min-height:18px"></div>
   <div class="status-grid" id="status-grid"></div>
   <div class="form-group" style="margin-bottom:12px">
@@ -2636,7 +2746,7 @@ a { color: var(--green); text-decoration: none; }
 </div>
 
 <script>
-const KNOCKTRACK_BUILD = '2026.08.09-map-v3';
+const KNOCKTRACK_BUILD = '2026.08.09-map-v5-house-tap';
 // ═══════════════════════════════════════════════════════════════
 // KNOCK TRACK — APPLICATION CORE
 // Multi-tenant, Supabase Auth, RLS-enforced
@@ -2658,11 +2768,25 @@ let _repPinBuf   = '';
 let _repSelected = null;
 let _miniMapObj  = null;
 let _mainMapObj  = null;
+let _miniLeafletMap = null;
+let _mainLeafletMap = null;
+let _mainLeafletLayers = null;
 let _miniMapInited = false;
 let _currentPage = 'home';
 let _pendingLat  = null;
 let _pendingLng  = null;
 let _pendingAddr = '';
+let _pendingGoogleMarker = null;
+let _pendingLeafletMarker = null;
+let _repGoogleUserMarker = null;
+let _repLeafletUserMarker = null;
+let _repLastKnownLocation = null;
+let _repGeoWatchId = null;
+let _repHasAutoCentered = false;
+let _repMapType = 'hybrid';
+let _repStreetTileLayer = null;
+let _repSatelliteTileLayer = null;
+let _repMapZoneOverlays = [];
 
 // ── Supabase REST helper ───────────────────────────────────────
 async function sbFetch(path, opts = {}) {
@@ -2998,6 +3122,13 @@ function showAuthScreen() {
 // ── SIGN OUT ─────────────────────────────────────────────────
 async function doSignOut() {
   await sbSignOut();
+  if (_repGeoWatchId !== null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(_repGeoWatchId);
+    _repGeoWatchId = null;
+  }
+  clearPendingDoorMarker();
+  _repLastKnownLocation = null;
+  _repHasAutoCentered = false;
   _session = null; _profile = null; _membership = null; _company = null;
   _knocks = []; _zones = [];
   localStorage.removeItem('kt_session');
@@ -3168,7 +3299,7 @@ function populateHomePage() {
   setText('home-date', dateStr);
 
   // Zone
-  const myZone = _zones.find(z => z.assigned_rep === _session?.user?.id || z.assigned_rep === firstName);
+  const myZone = getRepAssignedZone();
   setText('home-zone', myZone ? (myZone.name || 'ASSIGNED ZONE').toUpperCase() : 'NO TERRITORY ASSIGNED');
 
   // Metrics
@@ -3263,6 +3394,22 @@ function initMiniMap(zone) {
   if (!container) return;
   document.getElementById('mini-map-placeholder').style.display = 'none';
   const center = zone ? getZoneCentroid(zone) : { lat:39.5, lng:-98.35 };
+  if (typeof google === 'undefined' || !google.maps) {
+    odLoadLeafletFallback().then(() => {
+      _miniLeafletMap = odCreateLeafletMap(container);
+      _miniLeafletMap.setView([center.lat,center.lng],zone?15:5);
+      const path = normalizeZonePath(zone);
+      if (path.length >= 3) {
+        const polygon = L.polygon(path.map(p=>[p.lat,p.lng]),{color:'#3FD4FF',weight:2.5,fillColor:'#3FD4FF',fillOpacity:.15}).addTo(_miniLeafletMap);
+        _miniLeafletMap.fitBounds(polygon.getBounds(),{padding:[8,8]});
+      }
+      setTimeout(()=>_miniLeafletMap?.invalidateSize(),50);
+    }).catch(error => {
+      console.error('Mini map fallback error:',error);
+      _miniMapInited = false;
+    });
+    return;
+  }
   _miniMapObj = new google.maps.Map(container, {
     center, zoom: zone ? 15 : 5,
     styles: miniMapStyle(),
@@ -3288,12 +3435,25 @@ function initMiniMap(zone) {
 // ── MAIN MAP ──────────────────────────────────────────────────
 let _mapClickListener = null;
 function initMainMap() {
-  if (_mainMapObj) { google.maps.event.trigger(_mainMapObj, 'resize'); return; }
+  if (_mainMapObj && typeof google !== 'undefined' && google.maps) {
+    google.maps.event.trigger(_mainMapObj, 'resize');
+    startRepGeolocation();
+    return;
+  }
+  if (_mainLeafletMap) { setTimeout(()=>_mainLeafletMap.invalidateSize(),25); return; }
   const container = document.getElementById('main-map');
-  if (!container || typeof google === 'undefined') return;
+  if (!container) return;
+  if (typeof google === 'undefined' || !google.maps) {
+    initMainLeafletMap();
+    return;
+  }
+  const assignedZone = getRepAssignedZone();
+  const center = assignedZone ? getZoneCentroid(assignedZone) : { lat:39.5, lng:-98.35 };
   _mainMapObj = new google.maps.Map(container, {
-    center: { lat:39.5, lng:-98.35 }, zoom: 5,
-    styles: darkMapStyle(),
+    center,
+    zoom: assignedZone ? 18 : 5,
+    mapTypeId: google.maps.MapTypeId.HYBRID,
+    tilt: 0,
     disableDefaultUI: false,
     zoomControl: true,
     mapTypeControl: false,
@@ -3301,40 +3461,244 @@ function initMainMap() {
     fullscreenControl: false,
     gestureHandling: 'greedy'
   });
-  // GPS
-  if (navigator.geolocation) {
-    navigator.geolocation.watchPosition(pos => {
-      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      _mainMapObj.setCenter(loc);
-      _mainMapObj.setZoom(17);
-    }, null, { enableHighAccuracy: true });
-  }
+  _repMapType = 'hybrid';
+  updateRepMapLayerButton();
+  drawRepAssignedZoneGoogle();
+  _mapClickListener = _mainMapObj.addListener('click', event => {
+    openPinSheet(event.latLng.lat(), event.latLng.lng());
+  });
+  startRepGeolocation();
   // Render existing knocks
   renderMapMarkers();
 }
 
+function getRepAssignedZone() {
+  const uid = _session?.user?.id;
+  const names = [
+    _profile?.display_name,
+    _profile?.full_name,
+    (_profile?.display_name || _profile?.full_name || '').split(' ')[0]
+  ].filter(Boolean).map(value => String(value).trim().toLowerCase());
+  return _zones.find(zone => {
+    const candidates = [zone.assigned_rep, zone.assigned_rep_id, zone.assigned_to, zone.user_id, zone.rep_id]
+      .filter(value => value !== null && value !== undefined);
+    return candidates.some(value => value === uid || names.includes(String(value).trim().toLowerCase()));
+  }) || null;
+}
+
+function drawRepAssignedZoneGoogle() {
+  _repMapZoneOverlays.forEach(overlay => overlay?.setMap?.(null));
+  _repMapZoneOverlays = [];
+  if (!_mainMapObj || typeof google === 'undefined' || !google.maps) return;
+  const zone = getRepAssignedZone();
+  const path = normalizeZonePath(zone);
+  if (path.length < 3) return;
+  const polygon = new google.maps.Polygon({
+    paths:path,
+    map:_mainMapObj,
+    strokeColor:'#39FF14',
+    strokeOpacity:.95,
+    strokeWeight:3,
+    fillColor:'#39FF14',
+    fillOpacity:.07,
+    clickable:false,
+    zIndex:1
+  });
+  _repMapZoneOverlays.push(polygon);
+  if (!_repLastKnownLocation) {
+    const bounds = new google.maps.LatLngBounds();
+    path.forEach(point => bounds.extend(point));
+    _mainMapObj.fitBounds(bounds, 42);
+  }
+}
+
+function startRepGeolocation() {
+  if (!navigator.geolocation || _repGeoWatchId !== null) return;
+  _repGeoWatchId = navigator.geolocation.watchPosition(position => {
+    const location = {lat:position.coords.latitude, lng:position.coords.longitude};
+    _repLastKnownLocation = location;
+    if (_mainMapObj && typeof google !== 'undefined' && google.maps) {
+      if (!_repGoogleUserMarker) {
+        _repGoogleUserMarker = new google.maps.Marker({
+          position:location,
+          map:_mainMapObj,
+          title:'Your location',
+          zIndex:999,
+          icon:{
+            path:google.maps.SymbolPath.CIRCLE,
+            scale:8,
+            fillColor:'#2563EB',
+            fillOpacity:1,
+            strokeColor:'#FFFFFF',
+            strokeWeight:3
+          }
+        });
+      } else {
+        _repGoogleUserMarker.setPosition(location);
+      }
+    }
+    if (_mainLeafletMap && window.L) {
+      if (!_repLeafletUserMarker) {
+        _repLeafletUserMarker = L.circleMarker([location.lat,location.lng],{
+          radius:8,color:'#FFFFFF',weight:3,fillColor:'#2563EB',fillOpacity:1
+        }).bindTooltip('Your location').addTo(_mainLeafletMap);
+      } else {
+        _repLeafletUserMarker.setLatLng([location.lat,location.lng]);
+      }
+    }
+    if (!_repHasAutoCentered) {
+      _repHasAutoCentered = true;
+      if (_mainMapObj) {
+        _mainMapObj.panTo(location);
+        _mainMapObj.setZoom(20);
+      } else if (_mainLeafletMap) {
+        _mainLeafletMap.setView([location.lat,location.lng],19);
+      }
+    }
+  }, error => {
+    console.warn('Location unavailable:',error?.message || error);
+  }, {enableHighAccuracy:true, maximumAge:5000, timeout:12000});
+}
+
+function centerRepMapOnUser() {
+  if (_repLastKnownLocation) {
+    if (_mainMapObj) {
+      _mainMapObj.panTo(_repLastKnownLocation);
+      _mainMapObj.setZoom(20);
+    } else if (_mainLeafletMap) {
+      _mainLeafletMap.setView([_repLastKnownLocation.lat,_repLastKnownLocation.lng],19);
+    }
+    return;
+  }
+  startRepGeolocation();
+  showToast('Finding your location…');
+}
+
+function updateRepMapLayerButton() {
+  const button = document.getElementById('rep-map-layer-btn');
+  if (button) button.textContent = _repMapType === 'hybrid' ? 'Satellite' : 'Street';
+}
+
+function toggleRepMapLayer() {
+  _repMapType = _repMapType === 'hybrid' ? 'roadmap' : 'hybrid';
+  if (_mainMapObj && typeof google !== 'undefined' && google.maps) {
+    _mainMapObj.setMapTypeId(
+      _repMapType === 'hybrid' ? google.maps.MapTypeId.HYBRID : google.maps.MapTypeId.ROADMAP
+    );
+  }
+  if (_mainLeafletMap && _repStreetTileLayer && _repSatelliteTileLayer) {
+    if (_repMapType === 'hybrid') {
+      _mainLeafletMap.removeLayer(_repStreetTileLayer);
+      _repSatelliteTileLayer.addTo(_mainLeafletMap);
+    } else {
+      _mainLeafletMap.removeLayer(_repSatelliteTileLayer);
+      _repStreetTileLayer.addTo(_mainLeafletMap);
+    }
+  }
+  updateRepMapLayerButton();
+}
+
+function createRepLeafletMap(container) {
+  container.innerHTML = '';
+  const map = L.map(container,{zoomControl:true,preferCanvas:true}).setView([39.5,-98.35],5);
+  _repStreetTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:20,
+    attribution:'&copy; OpenStreetMap contributors'
+  });
+  _repSatelliteTileLayer = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom:20, attribution:'Tiles &copy; Esri'}
+  );
+  (_repMapType === 'hybrid' ? _repSatelliteTileLayer : _repStreetTileLayer).addTo(map);
+  return map;
+}
+
+function makeLeafletStatusIcon(status, isPreview = false) {
+  const color = status?.color || '#22C55E';
+  const iconPath = status?.svgPath || '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>';
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:${isPreview?50:42}px;height:${isPreview?50:42}px;border-radius:50%;display:grid;place-items:center;background:${color};border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.38);${isPreview?'animation:pulse 1s ease-in-out infinite alternate;':''}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">${iconPath}</svg></div>`,
+    iconSize:[isPreview?50:42,isPreview?50:42],
+    iconAnchor:[isPreview?25:21,isPreview?25:21]
+  });
+}
+
+async function initMainLeafletMap() {
+  const container = document.getElementById('main-map');
+  if (!container) return;
+  try {
+    await odLoadLeafletFallback();
+    if (!_mainLeafletMap) {
+      _mainLeafletMap = createRepLeafletMap(container);
+      _mainLeafletMap.on('click', event => openPinSheet(event.latlng.lat,event.latlng.lng));
+    }
+    if (_mainLeafletLayers) _mainLeafletLayers.remove();
+    _mainLeafletLayers = L.layerGroup().addTo(_mainLeafletMap);
+    const bounds = [];
+    const zone = getRepAssignedZone();
+    const zonePath = normalizeZonePath(zone);
+    if (zonePath.length >= 3) {
+      const polygon = L.polygon(zonePath.map(point=>[point.lat,point.lng]),{
+        color:'#39FF14',weight:3,opacity:.95,fillColor:'#39FF14',fillOpacity:.07,interactive:false
+      }).addTo(_mainLeafletLayers);
+      polygon.getLatLngs()[0].forEach(point => bounds.push([point.lat,point.lng]));
+    }
+    _knocks.forEach(k => {
+      const lat=Number(k.lat),lng=Number(k.lng);
+      if (!Number.isFinite(lat)||!Number.isFinite(lng)) return;
+      const status=statusDefinition(k.status);
+      L.marker([lat,lng],{icon:makeLeafletStatusIcon(status)})
+        .bindPopup(`<strong>${odSafeText(k.address||'House')}</strong><br>${odSafeText(status?.label||k.status||'Outcome')}`)
+        .addTo(_mainLeafletLayers);
+      bounds.push([lat,lng]);
+    });
+    if (bounds.length && !_repLastKnownLocation) _mainLeafletMap.fitBounds(bounds,{padding:[30,30],maxZoom:19});
+    updateRepMapLayerButton();
+    startRepGeolocation();
+    setTimeout(()=>_mainLeafletMap?.invalidateSize(),50);
+  } catch(error) {
+    console.error('Rep map fallback error:',error);
+    container.innerHTML='<div style="display:grid;place-items:center;height:100%;padding:24px;text-align:center;color:#FCA5A5">Map unavailable. Check your internet connection.</div>';
+  }
+}
+
 function renderMapMarkers() {
-  if (!_mainMapObj) return;
+  if (!_mainMapObj) {
+    if (_mainLeafletMap) initMainLeafletMap();
+    return;
+  }
   _knocks.forEach(k => {
     if (!k.lat || !k.lng) return;
     const statuses = getActiveStatuses();
     const s = statuses.find(x => x.key === k.status) || statuses[0];
-    new google.maps.Marker({
-      position: { lat: k.lat, lng: k.lng },
+    const marker = new google.maps.Marker({
+      position: { lat: Number(k.lat), lng: Number(k.lng) },
       map: _mainMapObj,
-      icon: makeMarkerSvg(s.color)
+      title:`${k.address || 'House'} — ${s?.label || k.status || 'Outcome'}`,
+      icon: makeMarkerSvg(s.color, s.svgPath)
     });
+    const info = new google.maps.InfoWindow({
+      content:`<div style="font:13px Arial;padding:3px"><strong>${odSafeText(k.address || 'House')}</strong><br>${odSafeText(s?.label || k.status || 'Outcome')}</div>`
+    });
+    marker.addListener('click', () => info.open({map:_mainMapObj,anchor:marker}));
   });
 }
 
 // ── PIN DROP SHEET ─────────────────────────────────────────────
-function openPinSheet() {
-  if (!_mainMapObj) return;
-  // Geocode current map center
-  const center = _mainMapObj.getCenter();
-  _pendingLat = center.lat();
-  _pendingLng = center.lng();
+function openPinSheet(lat = null, lng = null) {
+  if (!_mainMapObj && !_mainLeafletMap) return;
+  // A map tap supplies the exact roof coordinate. The + button uses map center.
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
+    const center = _mainMapObj ? _mainMapObj.getCenter() : _mainLeafletMap.getCenter();
+    lat = _mainMapObj ? center.lat() : center.lat;
+    lng = _mainMapObj ? center.lng() : center.lng;
+  }
+  _pendingLat = Number(lat);
+  _pendingLng = Number(lng);
   _pendingAddr = '';
+  _selectedStatus = null;
+  showPendingDoorMarker();
   setText('pin-sheet-addr', 'Loading address…');
 
   // Build status grid
@@ -3349,11 +3713,18 @@ function openPinSheet() {
       </button>`).join('');
   }
   document.getElementById('knock-notes').value = '';
+  const saveButton = document.getElementById('save-knock-btn');
+  if (saveButton) {
+    saveButton.disabled = true;
+    saveButton.textContent = 'Choose an outcome';
+  }
 
   // Geocode
-  if (typeof google !== 'undefined') {
+  if (_mainMapObj && typeof google !== 'undefined' && google.maps) {
     const gc = new google.maps.Geocoder();
-    gc.geocode({ location: center }, (results, status) => {
+    const selectedLocation = {lat:_pendingLat,lng:_pendingLng};
+    gc.geocode({ location:selectedLocation }, (results, status) => {
+      if (_pendingLat !== selectedLocation.lat || _pendingLng !== selectedLocation.lng) return;
       if (status === 'OK' && results[0]) {
         _pendingAddr = results[0].formatted_address;
         setText('pin-sheet-addr', _pendingAddr);
@@ -3362,12 +3733,63 @@ function openPinSheet() {
         setText('pin-sheet-addr', _pendingAddr);
       }
     });
+  } else {
+    const selectedLat = _pendingLat;
+    const selectedLng = _pendingLng;
+    reverseGeocodeFallback(selectedLat,selectedLng).then(address => {
+      if (_pendingLat !== selectedLat || _pendingLng !== selectedLng) return;
+      _pendingAddr = address || `${_pendingLat.toFixed(5)}, ${_pendingLng.toFixed(5)}`;
+      setText('pin-sheet-addr',_pendingAddr);
+    });
   }
 
   openSheet();
 }
 
-let _selectedStatus = 'not-home';
+function showPendingDoorMarker() {
+  clearPendingDoorMarker();
+  const position = {lat:_pendingLat,lng:_pendingLng};
+  if (_mainMapObj && typeof google !== 'undefined' && google.maps) {
+    _pendingGoogleMarker = new google.maps.Marker({
+      position,
+      map:_mainMapObj,
+      zIndex:1000,
+      animation:google.maps.Animation.DROP,
+      icon:makeMarkerSvg('#39FF14')
+    });
+  } else if (_mainLeafletMap && window.L) {
+    _pendingLeafletMarker = L.marker([position.lat,position.lng],{
+      icon:makeLeafletStatusIcon({color:'#39FF14'},true),
+      zIndexOffset:1000
+    }).addTo(_mainLeafletMap);
+  }
+}
+
+function clearPendingDoorMarker() {
+  if (_pendingGoogleMarker) {
+    _pendingGoogleMarker.setMap(null);
+    _pendingGoogleMarker = null;
+  }
+  if (_pendingLeafletMarker && _mainLeafletMap) {
+    _mainLeafletMap.removeLayer(_pendingLeafletMarker);
+    _pendingLeafletMarker = null;
+  }
+}
+
+async function reverseGeocodeFallback(lat,lng) {
+  try {
+    const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&zoom=18`;
+    const response=await fetch(url,{headers:{'Accept':'application/json'}});
+    if (!response.ok) throw new Error(`Reverse geocode ${response.status}`);
+    const data=await response.json();
+    return data.display_name || null;
+  } catch(error) {
+    console.warn('Reverse geocode fallback:',error);
+    return null;
+  }
+}
+
+let _selectedStatus = null;
 function selectStatus(key) {
   _selectedStatus = key;
   document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('selected'));
@@ -3377,13 +3799,22 @@ function selectStatus(key) {
     btn.classList.add('selected');
     btn.style.borderColor = s?.color || '#fff';
   }
+  const saveButton = document.getElementById('save-knock-btn');
+  if (saveButton) {
+    saveButton.disabled = false;
+    saveButton.textContent = 'Save Door';
+  }
+  const status = statusDefinition(key);
+  if (_pendingGoogleMarker && status) _pendingGoogleMarker.setIcon(makeMarkerSvg(status.color,status.svgPath));
+  if (_pendingLeafletMarker && status) _pendingLeafletMarker.setIcon(makeLeafletStatusIcon(status,true));
 }
 
 async function saveKnock() {
   if (!_membership?.company_id || !_session?.user?.id) {
     showToast('Not authenticated'); return;
   }
-  if (!_pendingLat || !_pendingLng) { showToast('No location selected'); return; }
+  if (!Number.isFinite(_pendingLat) || !Number.isFinite(_pendingLng)) { showToast('No house selected'); return; }
+  if (!_selectedStatus) { showToast('Choose an outcome first'); return; }
 
   const btn = document.getElementById('save-knock-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
@@ -3395,7 +3826,7 @@ async function saveKnock() {
       lat: _pendingLat,
       lng: _pendingLng,
       address: _pendingAddr,
-      status: _selectedStatus || 'not-home',
+      status: _selectedStatus,
       notes: document.getElementById('knock-notes').value.trim() || null,
       rep: _profile?.display_name || _profile?.full_name || '',
       time: new Date().toISOString(),
@@ -3417,9 +3848,14 @@ async function saveKnock() {
         new google.maps.Marker({
           position: { lat: knock.lat, lng: knock.lng },
           map: _mainMapObj,
-          icon: makeMarkerSvg(s.color),
+          icon: makeMarkerSvg(s.color,s.svgPath),
           animation: google.maps.Animation.DROP
         });
+      } else if (_mainLeafletMap) {
+        const status=statusDefinition(knock.status);
+        const marker=L.marker([knock.lat,knock.lng],{icon:makeLeafletStatusIcon(status)})
+          .bindPopup(`<strong>${odSafeText(knock.address||'House')}</strong><br>${odSafeText(status?.label||knock.status||'Outcome')}`);
+        if (_mainLeafletLayers) marker.addTo(_mainLeafletLayers); else marker.addTo(_mainLeafletMap);
       }
       populateHomePage();
       closeSheet();
@@ -3429,7 +3865,10 @@ async function saveKnock() {
     console.error('saveKnock error:', e);
     showToast('Save failed — check connection');
   } finally {
-    btn.disabled = false; btn.textContent = 'Save Knock';
+    if (_selectedStatus) {
+      btn.disabled = false;
+      btn.textContent = 'Save Door';
+    }
   }
 }
 
@@ -3508,6 +3947,11 @@ function openSheet() {
 function closeSheet() {
   document.getElementById('sheet-overlay').classList.remove('open');
   document.getElementById('pin-sheet').classList.remove('open');
+  clearPendingDoorMarker();
+  _pendingLat = null;
+  _pendingLng = null;
+  _pendingAddr = '';
+  _selectedStatus = null;
 }
 
 // ── TOAST ────────────────────────────────────────────────────
@@ -3526,8 +3970,8 @@ function setText(id, val) {
   if (el) el.textContent = val;
 }
 function getZoneCentroid(zone) {
-  if (!zone?.path?.length) return { lat:39.5, lng:-98.35 };
-  const pts = zone.path;
+  const pts = normalizeZonePath(zone);
+  if (!pts.length) return { lat:39.5, lng:-98.35 };
   return {
     lat: pts.reduce((s,p) => s+p.lat, 0) / pts.length,
     lng: pts.reduce((s,p) => s+p.lng, 0) / pts.length
@@ -4318,14 +4762,18 @@ const STATUSES = [
 ];
 
 // ── SVG MARKER ────────────────────────────────────────────────
-function makeMarkerSvg(color) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
-    <circle cx="22" cy="22" r="20" fill="${color}" stroke="white" stroke-width="2"/>
+function makeMarkerSvg(color, svgPath = '') {
+  const markerColor = /^#[0-9A-F]{6}$/i.test(String(color || '')) ? color : '#22C55E';
+  const glyph = svgPath || '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" viewBox="0 0 46 46">
+    <defs><filter id="s" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity=".38"/></filter></defs>
+    <circle cx="23" cy="23" r="20" fill="${markerColor}" stroke="white" stroke-width="3" filter="url(#s)"/>
+    <g transform="translate(11 11)" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${glyph}</g>
   </svg>`;
   return {
     url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
-    scaledSize: new google.maps.Size(44, 44),
-    anchor: new google.maps.Point(22, 22)
+    scaledSize: new google.maps.Size(46, 46),
+    anchor: new google.maps.Point(23, 23)
   };
 }
 
@@ -4372,12 +4820,24 @@ window.initMap = function() {
 
 window.gm_authFailure = function() {
   _odLiveMapOk = false;
-  odSetMapMessage('Google Maps could not load. Check API billing and website restrictions.', true);
-  const fullMap = document.getElementById('od-full-map');
-  if (fullMap) fullMap.innerHTML = '<div style="display:grid;place-items:center;height:100%;padding:24px;text-align:center;color:#DC2626">Google Maps authorization failed. Add this deployed domain to the API key website restrictions and confirm Maps JavaScript API billing is enabled.</div>';
+  _odLiveMap = null;
+  _odFullMap = null;
+  _mainMapObj = null;
+  _miniMapObj = null;
+  _miniMapInited = false;
+  odStartMapFallback('Google Maps authorization failed');
+  const repScreen=document.getElementById('screen-app');
+  if (repScreen?.classList.contains('active') && _currentPage==='map') initMainLeafletMap();
 };
 
 document.addEventListener('DOMContentLoaded', boot);
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (typeof google === 'undefined' || !google.maps) {
+      odStartMapFallback('Google Maps startup watchdog timed out');
+    }
+  }, 5000);
+});
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -4390,6 +4850,11 @@ let _odLiveMap    = null;
 let _odLiveMapOk  = false;
 let _odLiveOverlays = [];
 let _odFullOverlays = [];
+let _leafletPromise = null;
+let _odLeafletLive = null;
+let _odLeafletFull = null;
+let _odLeafletLiveLayers = null;
+let _odLeafletFullLayers = null;
 let _allKnocks    = [];        // all company knocks for current filter
 let _allMembers   = [];        // all company_members rows
 let _allProfiles  = {};        // user_id → profile
@@ -4742,13 +5207,130 @@ function odRenderLeadsFull() {
 }
 
 // ── Live Map ──────────────────────────────────────────────────
+function odLoadLeafletFallback() {
+  if (window.L) return Promise.resolve(window.L);
+  if (_leafletPromise) return _leafletPromise;
+  _leafletPromise = new Promise((resolve, reject) => {
+    if (!document.querySelector('link[data-kt-leaflet]')) {
+      const css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
+      css.crossOrigin = 'anonymous';
+      css.dataset.ktLeaflet = 'true';
+      document.head.appendChild(css);
+    }
+    const existing = document.querySelector('script[data-kt-leaflet]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(window.L), {once:true});
+      existing.addEventListener('error', () => reject(new Error('Backup map failed to load')), {once:true});
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
+    script.crossOrigin = 'anonymous';
+    script.dataset.ktLeaflet = 'true';
+    script.onload = () => window.L ? resolve(window.L) : reject(new Error('Backup map unavailable'));
+    script.onerror = () => reject(new Error('Backup map failed to load'));
+    document.head.appendChild(script);
+  });
+  return _leafletPromise;
+}
+
+function odSafeText(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, char => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'
+  })[char]);
+}
+
+function odCreateLeafletMap(container) {
+  container.innerHTML = '';
+  const map = L.map(container, {zoomControl:true, preferCanvas:true}).setView([39.5,-98.35], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom:19,
+    attribution:'&copy; OpenStreetMap contributors'
+  }).addTo(map);
+  return map;
+}
+
+function odRenderLeafletLayers(map, currentLayer, isFullMap) {
+  if (currentLayer) currentLayer.remove();
+  const group = L.layerGroup().addTo(map);
+  const bounds = [];
+  const zones = window._zones || [];
+  zones.forEach((zone,index) => {
+    const path = normalizeZonePath(zone);
+    if (path.length < 3) return;
+    const latLngs = path.map(point => [point.lat,point.lng]);
+    const label = zone.name || `Territory ${index+1}`;
+    const assigned = zone.assigned_rep_name || zone.assignedRep || zone.assigned_rep || 'Unassigned';
+    L.polygon(latLngs, {
+      color:odZoneColor(index),weight:3,opacity:.95,
+      fillColor:odZoneColor(index),fillOpacity:.11
+    }).bindPopup(`<strong>${odSafeText(label)}</strong><br>Assigned: ${odSafeText(assigned)}`).addTo(group);
+    const center = path.reduce((acc,p)=>[acc[0]+p.lat/path.length,acc[1]+p.lng/path.length],[0,0]);
+    L.tooltip({permanent:true,direction:'center',className:'kt-zone-label'})
+      .setLatLng(center).setContent(odSafeText(label)).addTo(group);
+    bounds.push(...latLngs);
+  });
+  _allKnocks.forEach(k => {
+    const lat = Number(k.lat), lng = Number(k.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const status = statusDefinition(k.status);
+    const popup = `<strong>${odSafeText(k.address || 'House')}</strong><br>${odSafeText(status?.label || k.status || 'Outcome')}<br>Rep: ${odSafeText(k.rep || 'Unassigned')}${k.notes ? `<br>Notes: ${odSafeText(k.notes)}` : ''}`;
+    L.circleMarker([lat,lng], {
+      radius:isFullMap?5:3.5,
+      color:'#FFFFFF',weight:1,
+      fillColor:status?.color || '#22C55E',fillOpacity:.95
+    }).bindPopup(popup).addTo(group);
+    bounds.push([lat,lng]);
+  });
+  if (bounds.length) map.fitBounds(bounds, {padding:[30,30],maxZoom:17});
+  return group;
+}
+
+async function odInitLeafletLive() {
+  await odLoadLeafletFallback();
+  const container = document.getElementById('od-live-map');
+  if (!container) return;
+  const placeholder = document.getElementById('od-map-ph');
+  if (placeholder) placeholder.style.display = 'none';
+  if (!_odLeafletLive) _odLeafletLive = odCreateLeafletMap(container);
+  _odLeafletLiveLayers = odRenderLeafletLayers(_odLeafletLive,_odLeafletLiveLayers,false);
+  setTimeout(()=>_odLeafletLive?.invalidateSize(),50);
+}
+
+async function odInitLeafletFull() {
+  await odLoadLeafletFallback();
+  const container = document.getElementById('od-full-map');
+  if (!container) return;
+  odRenderMapLegend();
+  if (!_odLeafletFull) _odLeafletFull = odCreateLeafletMap(container);
+  _odLeafletFullLayers = odRenderLeafletLayers(_odLeafletFull,_odLeafletFullLayers,true);
+  setTimeout(()=>_odLeafletFull?.invalidateSize(),50);
+}
+
+function odStartMapFallback(reason = 'Google Maps unavailable') {
+  console.warn(`${reason}; switching to OpenStreetMap fallback.`);
+  odSetMapMessage('Switching to backup map…');
+  odLoadLeafletFallback().then(() => {
+    const ownerScreen = document.getElementById('screen-owner');
+    if (ownerScreen?.classList.contains('active')) {
+      odInitLeafletLive();
+      if (_odPage === 'map') odInitLeafletFull();
+    }
+  }).catch(error => {
+    console.error('Map fallback error:', error);
+    odSetMapMessage('Both map providers are unavailable. Check your connection.', true);
+  });
+}
+
 function odInitLiveMap() {
   if (_odLiveMapOk) {
     odUpdateLiveMapMarkers();
     return;
   }
   if (typeof google === 'undefined' || !google.maps) {
-    odSetMapMessage('Waiting for Google Maps…');
+    odStartMapFallback('Google Maps did not initialize');
     return;
   }
   const container = document.getElementById('od-live-map');
@@ -4835,7 +5417,12 @@ function odDrawZones(map, overlayStore) {
 }
 
 function odUpdateLiveMapMarkers() {
-  if (!_odLiveMap) return;
+  if (!_odLiveMap) {
+    if (_odLeafletLive) {
+      _odLeafletLiveLayers = odRenderLeafletLayers(_odLeafletLive,_odLeafletLiveLayers,false);
+    }
+    return;
+  }
   _odLiveOverlays.forEach(item => { if (item?.setMap) item.setMap(null); if (item?.close) item.close(); });
   _odLiveOverlays = [];
   odDrawZones(_odLiveMap, _odLiveOverlays);
@@ -5018,8 +5605,11 @@ function odRenderMapLegend() {
 
 function odInitFullMap() {
   if (typeof google === 'undefined' || !google.maps) {
-    const container = document.getElementById('od-full-map');
-    if (container) container.innerHTML = '<div style="display:grid;place-items:center;height:100%;color:#6B7280">Waiting for Google Maps…</div>';
+    odInitLeafletFull().catch(error => {
+      console.error('Full map fallback error:', error);
+      const container = document.getElementById('od-full-map');
+      if (container) container.innerHTML = '<div style="display:grid;place-items:center;height:100%;color:#DC2626">Map providers unavailable. Check your connection.</div>';
+    });
     return;
   }
   const container = document.getElementById('od-full-map');
@@ -5103,7 +5693,7 @@ function fmtNum(n) {
 
 <!-- Google Maps -->
 <script async defer
-  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyS5-AK1G0rZNrn0vsdCn9_PkKzpxiV3A&libraries=places,drawing&callback=initMap">
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyS5-AK1G0rZNrn0vsdCn9_PkKzpxiV3A&libraries=places,drawing&callback=initMap&loading=async">
 </script>
 
 
