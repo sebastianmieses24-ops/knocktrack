@@ -1280,6 +1280,597 @@ a { color: var(--green); text-decoration: none; }
 .mt-4  { margin-top: 4px; }
 .mt-8  { margin-top: 8px; }
 .mt-16 { margin-top: 16px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   OWNER DASHBOARD — Light professional SaaS
+   Reference: Knock Track dashboard screenshot
+═══════════════════════════════════════════════════════════════ */
+
+/* Root overrides for owner context */
+#screen-owner {
+  --od-green:      #22C55E;
+  --od-green-light:#DCFCE7;
+  --od-gold:       #F59E0B;
+  --od-gold-light: #FEF3C7;
+  --od-red:        #EF4444;
+  --od-red-light:  #FEE2E2;
+  --od-text:       #111827;
+  --od-text-2:     #374151;
+  --od-text-3:     #6B7280;
+  --od-text-4:     #9CA3AF;
+  --od-border:     #E5E7EB;
+  --od-border-2:   #F3F4F6;
+  --od-bg:         #FFFFFF;
+  --od-bg-2:       #F9FAFB;
+  --od-sidebar-w:  220px;
+  --od-header-h:   56px;
+}
+
+.od-root {
+  flex-direction: row;
+  background: var(--od-bg);
+  color: var(--od-text);
+  font-family: 'Montserrat', -apple-system, sans-serif;
+}
+
+/* ── SIDEBAR ── */
+.od-sidebar {
+  width: var(--od-sidebar-w);
+  background: #FFFFFF;
+  border-right: 1px solid var(--od-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+}
+
+.od-sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--od-border);
+}
+
+.od-logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+.od-logo-knock {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--od-green);
+  letter-spacing: 0.1em;
+}
+.od-logo-track {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--od-text);
+  letter-spacing: 0.1em;
+}
+.od-logo-line {
+  height: 2px;
+  background: linear-gradient(to right, var(--od-green), var(--od-gold));
+  border-radius: 1px;
+  margin-top: 3px;
+  width: 100%;
+}
+
+.od-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 10px;
+  flex: 1;
+  gap: 2px;
+}
+
+.od-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--od-text-3);
+  text-decoration: none;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.od-nav-item svg { flex-shrink: 0; }
+.od-nav-item:hover { background: var(--od-bg-2); color: var(--od-text); }
+.od-nav-item.active { background: var(--od-green-light); color: var(--od-green); }
+.od-nav-item.active svg { stroke: var(--od-green); }
+
+.od-sidebar-bottom {
+  padding: 10px;
+  border-top: 1px solid var(--od-border);
+}
+
+/* ── MAIN ── */
+.od-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+.od-header {
+  height: var(--od-header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--od-border);
+  background: #FFFFFF;
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.od-workspace-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--od-text);
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--od-border);
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.od-workspace-selector:hover { background: var(--od-bg-2); }
+
+.od-time-filters {
+  display: flex;
+  background: var(--od-bg-2);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--od-border);
+}
+.od-tf {
+  padding: 5px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--od-text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.od-tf.active {
+  background: #FFFFFF;
+  color: var(--od-text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.od-header-left  { display: flex; align-items: center; }
+.od-header-center{ display: flex; align-items: center; }
+.od-header-right { display: flex; align-items: center; gap: 12px; }
+
+.od-live-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--od-green);
+  background: var(--od-green-light);
+  padding: 4px 12px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+}
+.od-live-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--od-green);
+  animation: livePulse 2s ease-in-out infinite;
+}
+@keyframes livePulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50% { opacity:0.6; transform:scale(1.3); }
+}
+.od-notif-dot {
+  position: absolute;
+  top: 2px; right: 2px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--od-red);
+  border: 1.5px solid #fff;
+}
+
+.od-icon-btn {
+  position: relative;
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--od-border);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--od-text-3);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.od-icon-btn:hover { background: var(--od-bg-2); }
+
+.od-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--od-green);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: 'Orbitron', sans-serif;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.od-avatar img { width:100%;height:100%;object-fit:cover;border-radius:50%; }
+
+/* ── CONTENT AREA ── */
+.od-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.od-page {
+  display: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.od-page.active { display: flex; flex-direction: column; }
+
+.od-page-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 32px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── PAGE HEADER ── */
+.od-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.od-page-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: var(--od-text-4);
+  margin-bottom: 4px;
+}
+.od-greeting {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--od-text);
+  margin: 0 0 4px;
+  line-height: 1.2;
+}
+.od-greeting-sub {
+  font-size: 14px;
+  color: var(--od-text-3);
+  margin: 0;
+}
+.od-last-updated {
+  font-size: 12px;
+  color: var(--od-text-4);
+  white-space: nowrap;
+  padding-top: 4px;
+}
+
+/* ── SECTION LABEL ── */
+.od-section-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  color: var(--od-text-4);
+  margin-bottom: 12px;
+  margin-top: 4px;
+}
+
+/* ── KPI GRID ── */
+.od-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+@media (max-width: 1100px) { .od-kpi-grid { grid-template-columns: repeat(3,1fr); } }
+@media (max-width: 700px)  { .od-kpi-grid { grid-template-columns: repeat(2,1fr); } }
+
+.od-kpi-card {
+  background: #FFFFFF;
+  border: 1px solid var(--od-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  min-width: 0;
+}
+.od-kpi-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--od-text-4);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.od-kpi-value {
+  font-size: clamp(28px, 3.5vw, 40px);
+  font-weight: 800;
+  color: var(--od-text);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.od-kpi-value.green { color: var(--od-green); }
+.od-kpi-sub {
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.od-kpi-sub.green { color: var(--od-green); }
+.od-kpi-sub.muted { color: var(--od-text-3); }
+.od-kpi-sub2 { font-size: 12px; color: var(--od-text-4); margin-top: 2px; }
+.od-green-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--od-green); flex-shrink: 0;
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+/* ── TWO-COL ── */
+.od-two-col {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media (max-width: 1000px) { .od-two-col { grid-template-columns: 1fr; } }
+
+/* ── THREE-COL ── */
+.od-three-col {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 16px;
+}
+@media (max-width: 900px) { .od-three-col { grid-template-columns: 1fr; } }
+
+/* ── CARDS ── */
+.od-card {
+  background: #FFFFFF;
+  border: 1px solid var(--od-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.od-expandable { cursor: pointer; transition: box-shadow 0.15s; }
+.od-expandable:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+.od-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--od-border);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.od-card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.od-card-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--od-text-3);
+  text-transform: uppercase;
+}
+.od-card-footer {
+  padding: 12px 18px;
+  border-top: 1px solid var(--od-border);
+}
+
+/* Badges */
+.od-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.od-badge.green { background: var(--od-green-light); color: var(--od-green); }
+.od-badge.muted { background: var(--od-bg-2); color: var(--od-text-3); }
+.od-badge.gold  { background: var(--od-gold-light); color: var(--od-gold); min-width:24px; text-align:center; }
+
+/* Link button */
+.od-link-btn {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--od-green);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+.od-link-btn:hover { text-decoration: underline; }
+
+.od-icon-btn-sm {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--od-border);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--od-text-3);
+  cursor: pointer;
+}
+
+/* ── LIVE MAP ── */
+.od-map-card { display: flex; flex-direction: column; }
+.od-live-map-wrap {
+  flex: 1;
+  min-height: 280px;
+  position: relative;
+  background: var(--od-bg-2);
+}
+#od-live-map { width:100%; height:100%; min-height:280px; }
+.od-map-placeholder {
+  position: absolute; inset:0;
+  display: flex; flex-direction:column;
+  align-items: center; justify-content: center;
+  gap:8px; color: var(--od-text-4); font-size:12px;
+}
+.od-map-footer {
+  padding: 10px 18px;
+  border-top: 1px solid var(--od-border);
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--od-text-3);
+  font-weight: 600;
+}
+.od-map-footer span { white-space: nowrap; }
+.od-map-footer span:first-child { color: var(--od-green); }
+
+/* ── AI / NEEDS ATTENTION ── */
+.od-ai-card { display: flex; flex-direction: column; }
+.od-ai-list { flex:1; overflow-y:auto; }
+.od-ai-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--od-border-2);
+  transition: background 0.15s;
+}
+.od-ai-item:last-child { border-bottom: none; }
+.od-ai-item:hover { background: var(--od-bg-2); }
+.od-ai-icon {
+  width: 36px; height:36px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.od-ai-icon.warn { background: var(--od-gold-light); color: var(--od-gold); }
+.od-ai-icon.down { background: var(--od-red-light); color: var(--od-red); }
+.od-ai-icon.up   { background: var(--od-green-light); color: var(--od-green); }
+.od-ai-body { flex:1; min-width:0; }
+.od-ai-title { font-size:13px; font-weight:700; color:var(--od-text); line-height:1.3; }
+.od-ai-sub   { font-size:11px; color:var(--od-text-3); margin-top:2px; }
+.od-ai-action {
+  font-size:11px; font-weight:700; color:var(--od-green);
+  white-space:nowrap; flex-shrink:0; padding-top:2px;
+}
+.od-ai-empty { padding:24px 18px; text-align:center; font-size:13px; color:var(--od-text-4); }
+
+/* ── TEAM MINI / FUNNEL / TERRITORY ── */
+.od-mini-loading { padding:20px; text-align:center; font-size:13px; color:var(--od-text-4); }
+
+.od-team-row {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 18px;
+  border-bottom:1px solid var(--od-border-2);
+  font-size:13px;
+}
+.od-team-row:last-child { border-bottom:none; }
+.od-team-av {
+  width:28px;height:28px;border-radius:50%;
+  background:var(--od-green-light);color:var(--od-green);
+  font-size:11px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.od-team-name { flex:1; font-weight:600; color:var(--od-text); white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.od-team-doors { font-weight:800; color:var(--od-text); }
+
+.od-funnel-row {
+  display:flex;align-items:center;gap:10px;
+  padding:10px 18px;
+  border-bottom:1px solid var(--od-border-2);
+  font-size:13px;
+}
+.od-funnel-row:last-child{border-bottom:none;}
+.od-funnel-label{flex:1;color:var(--od-text-3);font-weight:600;}
+.od-funnel-count{font-weight:800;color:var(--od-text);}
+.od-funnel-rate{font-size:11px;color:var(--od-text-4);min-width:50px;text-align:right;}
+
+.od-terr-row {
+  display:flex;align-items:center;gap:10px;
+  padding:10px 18px;
+  border-bottom:1px solid var(--od-border-2);
+  font-size:13px;
+}
+.od-terr-row:last-child{border-bottom:none;}
+.od-terr-dot{width:8px;height:8px;border-radius:50%;background:var(--od-green);flex-shrink:0;}
+.od-terr-name{flex:1;font-weight:600;color:var(--od-text);}
+.od-terr-doors{font-weight:800;color:var(--od-text);}
+
+/* ── TEAM FULL TABLE ── */
+.od-table-wrap { overflow-x:auto; }
+.od-table {
+  width:100%;border-collapse:collapse;
+  font-size:13px;white-space:nowrap;
+}
+.od-table th {
+  text-align:left;padding:10px 14px;
+  font-size:10px;font-weight:800;letter-spacing:1.5px;
+  color:var(--od-text-4);text-transform:uppercase;
+  border-bottom:1px solid var(--od-border);
+  background:var(--od-bg-2);
+}
+.od-table td {
+  padding:12px 14px;
+  border-bottom:1px solid var(--od-border-2);
+  color:var(--od-text);
+}
+.od-table tr:hover td { background:var(--od-bg-2); }
+.od-page-h1{font-size:24px;font-weight:800;color:var(--od-text);margin:4px 0 20px;}
+
+/* ── SETTINGS ── */
+.od-settings-row {
+  background:#fff;border:1px solid var(--od-border);border-radius:10px;
+  padding:14px 18px;
+}
+.od-settings-label{font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--od-text-4);margin-bottom:4px;}
+.od-settings-value{font-size:14px;font-weight:600;color:var(--od-text);}
+.od-btn-danger{
+  padding:12px 20px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);
+  border-radius:10px;color:#EF4444;font-size:13px;font-weight:800;letter-spacing:1px;
+  text-transform:uppercase;cursor:pointer;transition:all 0.15s;
+}
+.od-btn-danger:hover{background:rgba(239,68,68,0.15);}
+
+/* ── RESPONSIVE SIDEBAR ── */
+@media (max-width: 768px) {
+  .od-sidebar { display: none; }
+  .od-header { padding: 0 16px; }
+  .od-page-scroll { padding: 16px; }
+  .od-greeting { font-size: 22px; }
+}
+
 </style>
 </head>
 <body>
@@ -1961,9 +2552,8 @@ async function loadUserContext() {
     // Load today's knocks
     await refreshKnocks();
 
-    // Show app
-    showScreen('app');
-    populateApp();
+    // Route by role: owners → dashboard, reps → mobile app
+    routeByRole();
 
   } catch (e) {
     console.error('loadUserContext error:', e);
@@ -2249,7 +2839,7 @@ async function validateRepPin() {
       _membership = { ..._membership, role: 'rep', user_id: result.user_id,
                       daily_goal: result.daily_goal || 75 };
       showScreen('app');
-      populateApp();
+      populateApp(); // Reps always get mobile app
     } else {
       document.getElementById('pin-error').textContent = result?.error || 'Invalid PIN';
       _repPinBuf = '';
@@ -2716,12 +3306,810 @@ window.initMap = function() {
 };
 
 document.addEventListener('DOMContentLoaded', boot);
+
+
+// ═══════════════════════════════════════════════════════════════
+// OWNER DASHBOARD — Data & Routing
+// ═══════════════════════════════════════════════════════════════
+
+let _odFilter     = 'today';  // 'today' | 'week' | 'month'
+let _odPage       = 'overview';
+let _odLiveMap    = null;
+let _odLiveMapOk  = false;
+let _allKnocks    = [];        // all company knocks for current filter
+let _allMembers   = [];        // all company_members rows
+let _allProfiles  = {};        // user_id → profile
+let _odRefreshTimer = null;
+
+// Route to owner dashboard vs rep mobile app
+function routeByRole() {
+  const role = _membership?.role || 'rep';
+  if (['owner', 'admin'].includes(role)) {
+    showScreen('owner');
+    odBoot();
+  } else {
+    showScreen('app');
+    populateApp();
+  }
+}
+
+// ── Boot owner dashboard ──────────────────────────────────────
+async function odBoot() {
+  odPopulateHeader();
+  odSetGreeting();
+  await odLoadData();
+  odRenderOverview();
+  // Auto-refresh every 60s
+  clearInterval(_odRefreshTimer);
+  _odRefreshTimer = setInterval(async () => {
+    await odLoadData();
+    if (_odPage === 'overview') odRenderOverview();
+  }, 60000);
+  // Init live map after a tick (Google Maps needs DOM)
+  setTimeout(odInitLiveMap, 400);
+}
+
+function odPopulateHeader() {
+  const name    = _profile?.full_name || _profile?.display_name || 'User';
+  const company = _company?.name || 'Knock Track';
+  const el = document.getElementById('od-avatar');
+  if (el) el.textContent = name.charAt(0).toUpperCase();
+  const cn = document.getElementById('od-company-name');
+  if (cn) cn.textContent = company;
+  const cp = document.getElementById('od-company-pulse');
+  if (cp) cp.textContent = company;
+  const sc = document.getElementById('od-settings-company');
+  if (sc) sc.textContent = company;
+  const se = document.getElementById('od-settings-email');
+  if (se) se.textContent = _session?.user?.email || '—';
+  const sr = document.getElementById('od-settings-role');
+  if (sr) sr.textContent = (_membership?.role || 'owner').charAt(0).toUpperCase() + (_membership?.role || 'owner').slice(1);
+}
+
+function odSetGreeting() {
+  const h = new Date().getHours();
+  const tod = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+  const first = (_profile?.full_name || _profile?.display_name || 'there').split(' ')[0];
+  const el = document.getElementById('od-greeting');
+  if (el) el.textContent = `Good ${tod}, ${first}.`;
+  odUpdateTimestamp();
+}
+
+function odUpdateTimestamp() {
+  const el = document.getElementById('od-last-updated');
+  if (el) el.textContent = 'just now';
+}
+
+// ── Load all company data ─────────────────────────────────────
+async function odLoadData() {
+  if (!_membership?.company_id) return;
+  const cid = _membership.company_id;
+
+  // Date range for filter
+  const { start } = odFilterRange();
+
+  try {
+    // All knocks in filter period
+    const rows = await sbFetch(
+      `knocks?company_id=eq.${cid}&time=gte.${start.toISOString()}&order=time.desc&limit=5000`
+    );
+    _allKnocks = rows || [];
+
+    // All members
+    const members = await sbFetch(
+      `company_members?company_id=eq.${cid}&status=eq.active`
+    );
+    _allMembers = members || [];
+
+    // Profiles for all members (batch)
+    const uids = _allMembers.map(m => m.user_id).join(',');
+    if (uids) {
+      const profs = await sbFetch(`profiles?id=in.(${uids})`);
+      _allProfiles = {};
+      (profs || []).forEach(p => { _allProfiles[p.id] = p; });
+    }
+
+    odUpdateTimestamp();
+  } catch (e) {
+    console.error('odLoadData error:', e);
+  }
+}
+
+function odFilterRange() {
+  const now   = new Date();
+  const start = new Date();
+  if (_odFilter === 'today') {
+    start.setHours(0, 0, 0, 0);
+  } else if (_odFilter === 'week') {
+    start.setDate(now.getDate() - 7);
+    start.setHours(0, 0, 0, 0);
+  } else {
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+  }
+  return { start, end: now };
+}
+
+// ── Render overview ───────────────────────────────────────────
+function odRenderOverview() {
+  const knocks = _allKnocks;
+  const total  = _allMembers.length;
+
+  // KPIs
+  const doors  = knocks.length;
+  const leads  = knocks.filter(k => ['lead','quality-lead'].includes(k.status)).length;
+  const appts  = knocks.filter(k => k.appointment).length;
+  const sales  = knocks.filter(k => k.status === 'enrolled').length;
+  const reps   = total;
+  const closeRate = doors > 0 ? ((sales / doors) * 100).toFixed(1) : '0.0';
+  const leadRate  = doors > 0 ? ((leads / doors) * 100).toFixed(1) : '0.0';
+
+  setText('kpi-active-reps', `${reps} / ${reps}`);
+  setText('kpi-reps-live', '● Live now');
+  setText('kpi-reps-status', `${reps} on team`);
+  setText('kpi-doors',  fmtNum(doors));
+  setText('kpi-doors-delta', doors > 0 ? `+${fmtNum(doors)} this ${_odFilter}` : 'No data yet');
+  setText('kpi-leads',  fmtNum(leads));
+  setText('kpi-leads-rate', `${leadRate}% of doors`);
+  setText('kpi-appts',  fmtNum(appts));
+  setText('kpi-appts-rate', leads > 0 ? `${leads > 0 ? ((appts/leads)*100).toFixed(0) : 0}% of leads` : '—');
+  setText('kpi-sales',  fmtNum(sales));
+  setText('kpi-close-rate', `${closeRate}% close rate`);
+
+  // Map footer
+  setText('od-map-doors', `${fmtNum(doors)} doors`);
+  setText('od-map-leads', `${fmtNum(leads)} leads`);
+  setText('od-map-sales', `${fmtNum(sales)} sales today`);
+
+  // Badges
+  const repNames = [...new Set(knocks.map(k => k.rep).filter(Boolean))];
+  setText('od-reps-active-badge', `${repNames.length} reps active`);
+  const zones = window._zones || [];
+  setText('od-territories-badge', `${zones.length} ${zones.length === 1 ? 'territory' : 'territories'}`);
+
+  // AI Insights
+  odRenderInsights(knocks, doors, leads, sales);
+
+  // Mini panels
+  odRenderTeamMini(knocks);
+  odRenderFunnelMini(knocks, doors, leads, appts, sales);
+  odRenderTerritoryMini(knocks);
+
+  // Render map markers
+  odUpdateLiveMapMarkers();
+}
+
+// ── AI Insights ───────────────────────────────────────────────
+function odRenderInsights(knocks, doors, leads, sales) {
+  const list = document.getElementById('od-ai-list');
+  if (!list) return;
+  const insights = [];
+
+  // Stale leads: reps with leads but no follow-up in 48h
+  const repLeads = {};
+  knocks.filter(k => ['lead','quality-lead'].includes(k.status)).forEach(k => {
+    if (!repLeads[k.rep]) repLeads[k.rep] = { count:0, oldest: k.time };
+    repLeads[k.rep].count++;
+    if (new Date(k.time) < new Date(repLeads[k.rep].oldest)) repLeads[k.rep].oldest = k.time;
+  });
+  Object.entries(repLeads).forEach(([rep, data]) => {
+    const daysOld = Math.floor((Date.now() - new Date(data.oldest)) / 86400000);
+    if (daysOld >= 1) {
+      insights.push({
+        type:'warn',
+        icon:'⚠',
+        title:`${rep} has ${data.count} lead${data.count>1?'s':''} with no follow-up`,
+        sub:`Oldest: ${daysOld} day${daysOld>1?'s':''}`,
+        action:'Review →'
+      });
+    }
+  });
+
+  // Top performer
+  const repDoors = {};
+  knocks.forEach(k => { if(k.rep) repDoors[k.rep] = (repDoors[k.rep]||0)+1; });
+  const sorted = Object.entries(repDoors).sort((a,b)=>b[1]-a[1]);
+  if (sorted.length > 1) {
+    const [topRep, topDoors] = sorted[0];
+    const avg = Math.round(knocks.length / sorted.length);
+    if (topDoors > avg * 1.2) {
+      insights.push({
+        type:'up',
+        icon:'↑',
+        title:`${topRep} is outperforming the team`,
+        sub:`${topDoors} doors vs ${avg} avg`,
+        action:'See why →'
+      });
+    }
+  }
+
+  // Low activity
+  if (sorted.length > 0) {
+    const [lowRep, lowDoors] = sorted[sorted.length - 1];
+    if (sorted.length > 2 && lowDoors < 5) {
+      insights.push({
+        type:'down',
+        icon:'↓',
+        title:`${lowRep} has low activity`,
+        sub:`Only ${lowDoors} door${lowDoors!==1?'s':''} this ${_odFilter}`,
+        action:'Check in →'
+      });
+    }
+  }
+
+  document.getElementById('od-ai-count').textContent = insights.length;
+
+  if (!insights.length) {
+    list.innerHTML = '<div class="od-ai-empty">✓ No issues detected — team is performing well</div>';
+    return;
+  }
+
+  list.innerHTML = insights.map(i => `
+    <div class="od-ai-item">
+      <div class="od-ai-icon ${i.type}">
+        <span style="font-size:16px">${i.icon}</span>
+      </div>
+      <div class="od-ai-body">
+        <div class="od-ai-title">${i.title}</div>
+        <div class="od-ai-sub">${i.sub}</div>
+      </div>
+      <div class="od-ai-action">${i.action}</div>
+    </div>`).join('');
+}
+
+// ── Mini panels ───────────────────────────────────────────────
+function odRenderTeamMini(knocks) {
+  const el = document.getElementById('od-team-mini');
+  if (!el) return;
+  const repDoors = {};
+  knocks.forEach(k => { if(k.rep) repDoors[k.rep] = (repDoors[k.rep]||0)+1; });
+  const sorted = Object.entries(repDoors).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  if (!sorted.length) { el.innerHTML = '<div class="od-mini-loading">No activity yet</div>'; return; }
+  el.innerHTML = sorted.map(([name, doors]) =>
+    `<div class="od-team-row">
+      <div class="od-team-av">${name.charAt(0).toUpperCase()}</div>
+      <div class="od-team-name">${name}</div>
+      <div class="od-team-doors">${doors}</div>
+    </div>`).join('');
+}
+
+function odRenderFunnelMini(knocks, doors, leads, appts, sales) {
+  const el = document.getElementById('od-funnel-mini');
+  if (!el) return;
+  const stages = [
+    { label:'Doors', count: doors, rate: '100%' },
+    { label:'Conversations', count: knocks.filter(k=>!['not-home','unvisited'].includes(k.status)).length,
+      rate: doors>0?((knocks.filter(k=>!['not-home','unvisited'].includes(k.status)).length/doors)*100).toFixed(0)+'%':'—' },
+    { label:'Leads', count: leads, rate: doors>0?((leads/doors)*100).toFixed(1)+'%':'—' },
+    { label:'Sales', count: sales, rate: leads>0?((sales/leads)*100).toFixed(1)+'%':'—' },
+  ];
+  el.innerHTML = stages.map(s =>
+    `<div class="od-funnel-row">
+      <div class="od-funnel-label">${s.label}</div>
+      <div class="od-funnel-count">${fmtNum(s.count)}</div>
+      <div class="od-funnel-rate">${s.rate}</div>
+    </div>`).join('');
+}
+
+function odRenderTerritoryMini(knocks) {
+  const el = document.getElementById('od-territory-mini');
+  if (!el) return;
+  const zones = window._zones || [];
+  if (!zones.length) { el.innerHTML = '<div class="od-mini-loading">No territories</div>'; return; }
+  const zoneKnocks = {};
+  zones.forEach(z => { zoneKnocks[z.name] = 0; });
+  knocks.forEach(k => {
+    // Match knock to zone by assigned rep
+    const zone = zones.find(z => z.assignedRep === k.rep || z.assigned_rep === k.rep);
+    if (zone) zoneKnocks[zone.name] = (zoneKnocks[zone.name]||0) + 1;
+  });
+  const sorted = Object.entries(zoneKnocks).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  el.innerHTML = sorted.map(([name, doors]) =>
+    `<div class="od-terr-row">
+      <div class="od-terr-dot"></div>
+      <div class="od-terr-name">${name}</div>
+      <div class="od-terr-doors">${doors}</div>
+    </div>`).join('');
+}
+
+// ── Full Team page ─────────────────────────────────────────────
+function odRenderTeamFull() {
+  const el = document.getElementById('od-team-full');
+  if (!el) return;
+  if (!_allMembers.length) { el.innerHTML = '<p style="color:#9CA3AF;padding:20px">No team members found.</p>'; return; }
+  const repDoors = {};
+  _allKnocks.forEach(k => { if(k.rep) repDoors[k.rep] = (repDoors[k.rep]||0)+1; });
+  const rows = _allMembers.map(m => {
+    const p = _allProfiles[m.user_id] || {};
+    const name = p.full_name || p.display_name || m.user_id;
+    const doors = repDoors[name] || 0;
+    return `<tr>
+      <td>${name}</td>
+      <td>${m.role.charAt(0).toUpperCase()+m.role.slice(1)}</td>
+      <td>${fmtNum(doors)}</td>
+      <td><span style="background:#DCFCE7;color:#22C55E;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${m.status.toUpperCase()}</span></td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `<table class="od-table">
+    <thead><tr><th>Name</th><th>Role</th><th>Doors</th><th>Status</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ── Full Leads page ───────────────────────────────────────────
+function odRenderLeadsFull() {
+  const el = document.getElementById('od-leads-full');
+  if (!el) return;
+  const leads = _allKnocks.filter(k => ['lead','quality-lead'].includes(k.status));
+  if (!leads.length) { el.innerHTML = '<p style="color:#9CA3AF;padding:20px">No leads in this period.</p>'; return; }
+  const rows = leads.slice(0,100).map(k => {
+    const t = new Date(k.time).toLocaleDateString();
+    const s = STATUSES.find(x=>x.key===k.status);
+    return `<tr>
+      <td>${k.address || '—'}</td>
+      <td>${k.rep || '—'}</td>
+      <td><span style="background:${s?.color}20;color:${s?.color};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${s?.label||k.status}</span></td>
+      <td>${t}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `<table class="od-table">
+    <thead><tr><th>Address</th><th>Rep</th><th>Status</th><th>Date</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ── Live Map ──────────────────────────────────────────────────
+function odInitLiveMap() {
+  if (_odLiveMapOk || typeof google === 'undefined') return;
+  const container = document.getElementById('od-live-map');
+  if (!container) return;
+  _odLiveMapOk = true;
+  document.getElementById('od-map-ph').style.display = 'none';
+  _odLiveMap = new google.maps.Map(container, {
+    center: { lat:39.5, lng:-98.35 },
+    zoom: 5,
+    styles: odMapStyle(),
+    disableDefaultUI: true,
+    gestureHandling: 'cooperative',
+    zoomControl: true
+  });
+  odUpdateLiveMapMarkers();
+}
+
+function odUpdateLiveMapMarkers() {
+  if (!_odLiveMap) return;
+  // Clear existing markers (simple approach — recreate)
+  _allKnocks.forEach(k => {
+    if (!k.lat || !k.lng) return;
+    const s = STATUSES.find(x=>x.key===k.status);
+    new google.maps.Circle({
+      center: { lat: k.lat, lng: k.lng },
+      radius: 20,
+      map: _odLiveMap,
+      fillColor: s?.color || '#22C55E',
+      fillOpacity: 0.8,
+      strokeWeight: 0
+    });
+  });
+  // Fit bounds if we have knocks
+  if (_allKnocks.length) {
+    const bounds = new google.maps.LatLngBounds();
+    _allKnocks.filter(k=>k.lat&&k.lng).forEach(k => bounds.extend({lat:k.lat,lng:k.lng}));
+    if (!bounds.isEmpty()) _odLiveMap.fitBounds(bounds, 40);
+  }
+}
+
+function odMapStyle() {
+  return [
+    {elementType:'geometry',stylers:[{color:'#F9FAFB'}]},
+    {elementType:'labels.text.fill',stylers:[{color:'#9CA3AF'}]},
+    {elementType:'labels.text.stroke',stylers:[{color:'#FFFFFF'}]},
+    {featureType:'road',elementType:'geometry',stylers:[{color:'#FFFFFF'}]},
+    {featureType:'road',elementType:'geometry.stroke',stylers:[{color:'#E5E7EB'}]},
+    {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#F3F4F6'}]},
+    {featureType:'water',elementType:'geometry',stylers:[{color:'#DBEAFE'}]},
+    {featureType:'poi',stylers:[{visibility:'off'}]},
+    {featureType:'transit',stylers:[{visibility:'off'}]},
+    {featureType:'administrative',elementType:'geometry',stylers:[{color:'#E5E7EB'}]},
+  ];
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function odNav(page) {
+  _odPage = page;
+  document.querySelectorAll('.od-nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.od-page').forEach(el => el.classList.remove('active'));
+  const navEl  = document.getElementById('odnav-' + page);
+  const pageEl = document.getElementById('odpage-' + page);
+  if (navEl)  navEl.classList.add('active');
+  if (pageEl) pageEl.classList.add('active');
+
+  // Page-specific init
+  if (page === 'overview') odRenderOverview();
+  if (page === 'map') { setTimeout(odInitFullMap, 100); }
+  if (page === 'team')   odRenderTeamFull();
+  if (page === 'leads')  odRenderLeadsFull();
+  if (page === 'territories') odRenderTerritoriesFull();
+}
+
+// Full map (owner view)
+let _odFullMap = null;
+function odInitFullMap() {
+  if (typeof google === 'undefined') return;
+  const container = document.getElementById('od-full-map');
+  if (!container) return;
+  if (_odFullMap) { google.maps.event.trigger(_odFullMap,'resize'); return; }
+  _odFullMap = new google.maps.Map(container, {
+    center: { lat:39.5, lng:-98.35 }, zoom:5,
+    styles: odMapStyle(),
+    disableDefaultUI: false,
+    gestureHandling: 'greedy',
+    zoomControl: true, mapTypeControl: true
+  });
+  _allKnocks.forEach(k => {
+    if (!k.lat||!k.lng) return;
+    const s = STATUSES.find(x=>x.key===k.status);
+    new google.maps.Marker({
+      position:{lat:k.lat,lng:k.lng},
+      map:_odFullMap,
+      icon: makeMarkerSvg(s?.color||'#22C55E')
+    });
+  });
+}
+
+function odRenderTerritoriesFull() {
+  const el = document.getElementById('od-territories-full');
+  if (!el) return;
+  const zones = window._zones || [];
+  if (!zones.length) { el.innerHTML='<p style="color:#9CA3AF;padding:20px">No territories assigned yet.</p>'; return; }
+  const rows = zones.map(z=>
+    `<tr>
+      <td>${z.name||'—'}</td>
+      <td>${z.assignedRep||z.assigned_rep||'Unassigned'}</td>
+      <td>${z.drawnBy||z.drawn_by||'—'}</td>
+    </tr>`).join('');
+  el.innerHTML=`<table class="od-table">
+    <thead><tr><th>Territory</th><th>Assigned Rep</th><th>Created By</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ── Time filter ───────────────────────────────────────────────
+async function odSetFilter(f) {
+  _odFilter = f;
+  document.querySelectorAll('.od-tf').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('tf-' + f);
+  if (btn) btn.classList.add('active');
+  await odLoadData();
+  odRenderOverview();
+}
+
+// ── Utility ───────────────────────────────────────────────────
+function fmtNum(n) {
+  if (n === undefined || n === null) return '—';
+  return n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'') + 'K' : String(n);
+}
+
 </script>
 
 <!-- Google Maps -->
 <script async defer
   src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyS5-AK1G0rZNrn0vsdCn9_PkKzpxiV3A&libraries=places,drawing&callback=initMap">
 </script>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     OWNER DASHBOARD SCREEN
+════════════════════════════════════════════════════════════════ -->
+<div id="screen-owner" class="screen od-root">
+
+  <!-- ── Sidebar ── -->
+  <aside class="od-sidebar">
+    <div class="od-sidebar-logo">
+      <div class="od-logo-mark">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <rect x="2" y="2" width="28" height="28" rx="6" stroke="#22C55E" stroke-width="2.5" fill="none"/>
+          <path d="M8 10 L16 6 L24 10 L24 22 L8 22 Z" fill="none" stroke="#22C55E" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="od-logo-text">
+        <span class="od-logo-knock">KNOCK</span><span class="od-logo-track"> TRACK</span>
+        <div class="od-logo-line"></div>
+      </div>
+    </div>
+
+    <nav class="od-nav" aria-label="Owner navigation">
+      <a class="od-nav-item active" id="odnav-overview" onclick="odNav('overview')" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Overview
+      </a>
+      <a class="od-nav-item" id="odnav-map" onclick="odNav('map')" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+        Live Map
+      </a>
+      <a class="od-nav-item" id="odnav-team" onclick="odNav('team')" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Team
+      </a>
+      <a class="od-nav-item" id="odnav-leads" onclick="odNav('leads')" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Leads
+      </a>
+      <a class="od-nav-item" id="odnav-territories" onclick="odNav('territories')" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        Territories
+      </a>
+      <a class="od-nav-item" id="odnav-ai" onclick="odNav('ai')" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        AI Coach
+      </a>
+      <a class="od-nav-item" id="odnav-reports" onclick="odNav('reports')" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Reports
+      </a>
+      <a class="od-nav-item" id="odnav-settings" onclick="odNav('settings')" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        Settings
+      </a>
+    </nav>
+
+    <div class="od-sidebar-bottom">
+      <a class="od-nav-item" href="#" onclick="showToast('Help center coming soon')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Help &amp; Support
+      </a>
+    </div>
+  </aside>
+
+  <!-- ── Main content ── -->
+  <div class="od-main">
+
+    <!-- Header -->
+    <header class="od-header">
+      <div class="od-header-left">
+        <div class="od-workspace-selector" id="od-workspace-selector">
+          <span id="od-company-name">Loading…</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+      <div class="od-header-center">
+        <div class="od-time-filters" role="group" aria-label="Time range">
+          <button class="od-tf active" id="tf-today" onclick="odSetFilter('today')">Today</button>
+          <button class="od-tf" id="tf-week" onclick="odSetFilter('week')">Week</button>
+          <button class="od-tf" id="tf-month" onclick="odSetFilter('month')">Month</button>
+        </div>
+      </div>
+      <div class="od-header-right">
+        <div class="od-live-badge" id="od-live-badge">
+          <span class="od-live-dot"></span> LIVE
+        </div>
+        <button class="od-icon-btn" onclick="showToast('Notifications coming soon')" aria-label="Notifications">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="od-notif-dot hidden" id="od-notif-dot"></span>
+        </button>
+        <div class="od-avatar" id="od-avatar" onclick="odNav('settings')" role="button" tabindex="0">S</div>
+      </div>
+    </header>
+
+    <!-- ── PAGE VIEWS ── -->
+    <div class="od-content">
+
+      <!-- OVERVIEW PAGE -->
+      <div class="od-page active" id="odpage-overview">
+        <div class="od-page-scroll">
+
+          <!-- Page header -->
+          <div class="od-page-header">
+            <div>
+              <div class="od-page-eyebrow">OVERVIEW</div>
+              <h1 class="od-greeting" id="od-greeting">Good morning, Sebastian.</h1>
+              <p class="od-greeting-sub" id="od-greeting-sub">Here's the pulse of <span id="od-company-pulse">your company</span> today.</p>
+            </div>
+            <div class="od-last-updated">Last updated <span id="od-last-updated">just now</span></div>
+          </div>
+
+          <!-- TODAY AT A GLANCE -->
+          <div class="od-section-label">TODAY AT A GLANCE</div>
+          <div class="od-kpi-grid">
+            <div class="od-kpi-card">
+              <div class="od-kpi-label">ACTIVE REPS</div>
+              <div class="od-kpi-value" id="kpi-active-reps">—</div>
+              <div class="od-kpi-sub green" id="kpi-reps-live">
+                <span class="od-green-dot"></span> Live now
+              </div>
+              <div class="od-kpi-sub2" id="kpi-reps-status">Loading…</div>
+            </div>
+            <div class="od-kpi-card">
+              <div class="od-kpi-label">DOORS</div>
+              <div class="od-kpi-value" id="kpi-doors">—</div>
+              <div class="od-kpi-sub green" id="kpi-doors-delta">—</div>
+            </div>
+            <div class="od-kpi-card">
+              <div class="od-kpi-label">LEADS</div>
+              <div class="od-kpi-value" id="kpi-leads">—</div>
+              <div class="od-kpi-sub muted" id="kpi-leads-rate">—</div>
+            </div>
+            <div class="od-kpi-card">
+              <div class="od-kpi-label">APPOINTMENTS</div>
+              <div class="od-kpi-value" id="kpi-appts">—</div>
+              <div class="od-kpi-sub muted" id="kpi-appts-rate">—</div>
+            </div>
+            <div class="od-kpi-card">
+              <div class="od-kpi-label">SALES</div>
+              <div class="od-kpi-value green" id="kpi-sales">—</div>
+              <div class="od-kpi-sub muted" id="kpi-close-rate">—</div>
+            </div>
+          </div>
+
+          <!-- TWO-COLUMN: Live Field + Needs Attention -->
+          <div class="od-two-col">
+
+            <!-- Live Field map -->
+            <div class="od-card od-map-card">
+              <div class="od-card-header">
+                <div class="od-card-title">LIVE FIELD</div>
+                <div class="od-card-header-right">
+                  <span class="od-badge green" id="od-reps-active-badge">0 reps active</span>
+                  <span class="od-badge muted" id="od-territories-badge">0 territories</span>
+                  <button class="od-link-btn" onclick="odNav('map')">Open Live Map ↗</button>
+                  <button class="od-icon-btn-sm" aria-label="Filter"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></button>
+                </div>
+              </div>
+              <div class="od-live-map-wrap">
+                <div id="od-live-map"></div>
+                <div class="od-map-placeholder" id="od-map-ph">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
+                  <span>Loading live map…</span>
+                </div>
+              </div>
+              <div class="od-map-footer" id="od-map-footer">
+                <span id="od-map-doors">—</span>
+                <span id="od-map-leads">—</span>
+                <span id="od-map-sales">—</span>
+              </div>
+            </div>
+
+            <!-- Needs Attention / AI panel -->
+            <div class="od-card od-ai-card">
+              <div class="od-card-header">
+                <div class="od-card-title">NEEDS ATTENTION</div>
+                <div class="od-card-header-right">
+                  <span style="font-size:11px;color:#6B7280;font-weight:600">Knock Track AI</span>
+                  <span class="od-badge gold" id="od-ai-count">0</span>
+                </div>
+              </div>
+              <div class="od-ai-list" id="od-ai-list">
+                <div class="od-ai-empty">Analyzing your team data…</div>
+              </div>
+              <div class="od-card-footer">
+                <button class="od-link-btn" onclick="showToast('AI Coach coming soon')">View all insights →</button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- THREE-COLUMN: Team / Funnel / Territory -->
+          <div class="od-three-col">
+            <div class="od-card od-expandable" onclick="odNav('team')">
+              <div class="od-card-header">
+                <div class="od-card-title">TEAM PERFORMANCE</div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+              <div class="od-team-mini" id="od-team-mini">
+                <div class="od-mini-loading">Loading…</div>
+              </div>
+            </div>
+            <div class="od-card od-expandable" onclick="showToast('Funnel coming soon')">
+              <div class="od-card-header">
+                <div class="od-card-title">FUNNEL</div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+              <div class="od-funnel-mini" id="od-funnel-mini">
+                <div class="od-mini-loading">Loading…</div>
+              </div>
+            </div>
+            <div class="od-card od-expandable" onclick="odNav('territories')">
+              <div class="od-card-header">
+                <div class="od-card-title">TERRITORY PERFORMANCE</div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+              <div class="od-territory-mini" id="od-territory-mini">
+                <div class="od-mini-loading">Loading…</div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /od-page-scroll -->
+      </div><!-- /odpage-overview -->
+
+      <!-- MAP PAGE (owner full map) -->
+      <div class="od-page" id="odpage-map">
+        <div id="od-full-map" style="width:100%;height:100%"></div>
+      </div>
+
+      <!-- TEAM PAGE -->
+      <div class="od-page" id="odpage-team">
+        <div class="od-page-scroll" style="padding:32px">
+          <div class="od-page-eyebrow">COMPANY</div>
+          <h1 class="od-page-h1">Team</h1>
+          <div id="od-team-full" class="od-table-wrap">
+            <div class="od-mini-loading">Loading team…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LEADS PAGE -->
+      <div class="od-page" id="odpage-leads">
+        <div class="od-page-scroll" style="padding:32px">
+          <div class="od-page-eyebrow">COMPANY</div>
+          <h1 class="od-page-h1">Leads</h1>
+          <div id="od-leads-full" class="od-table-wrap">
+            <div class="od-mini-loading">Loading leads…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TERRITORIES PAGE -->
+      <div class="od-page" id="odpage-territories">
+        <div class="od-page-scroll" style="padding:32px">
+          <div class="od-page-eyebrow">COMPANY</div>
+          <h1 class="od-page-h1">Territories</h1>
+          <div id="od-territories-full" class="od-table-wrap">
+            <div class="od-mini-loading">Loading territories…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI COACH PAGE -->
+      <div class="od-page" id="odpage-ai">
+        <div class="od-page-scroll" style="padding:32px">
+          <div class="od-page-eyebrow">INTELLIGENCE</div>
+          <h1 class="od-page-h1">AI Coach</h1>
+          <p style="color:#6B7280;margin-top:8px">Intelligent insights about your team's performance. Coming soon.</p>
+        </div>
+      </div>
+
+      <!-- REPORTS PAGE -->
+      <div class="od-page" id="odpage-reports">
+        <div class="od-page-scroll" style="padding:32px">
+          <div class="od-page-eyebrow">ANALYTICS</div>
+          <h1 class="od-page-h1">Reports</h1>
+          <p style="color:#6B7280;margin-top:8px">Detailed reporting and exports. Coming soon.</p>
+        </div>
+      </div>
+
+      <!-- SETTINGS PAGE -->
+      <div class="od-page" id="odpage-settings">
+        <div class="od-page-scroll" style="padding:32px">
+          <div class="od-page-eyebrow">CONFIGURATION</div>
+          <h1 class="od-page-h1">Settings</h1>
+          <div style="margin-top:24px;display:flex;flex-direction:column;gap:12px;max-width:480px">
+            <div class="od-settings-row">
+              <div>
+                <div class="od-settings-label">Company Name</div>
+                <div class="od-settings-value" id="od-settings-company">—</div>
+              </div>
+            </div>
+            <div class="od-settings-row">
+              <div>
+                <div class="od-settings-label">Your Account</div>
+                <div class="od-settings-value" id="od-settings-email">—</div>
+              </div>
+            </div>
+            <div class="od-settings-row">
+              <div>
+                <div class="od-settings-label">Role</div>
+                <div class="od-settings-value" id="od-settings-role">Owner</div>
+              </div>
+            </div>
+            <button class="od-btn-danger" onclick="doSignOut()">Sign Out</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /od-content -->
+  </div><!-- /od-main -->
+</div><!-- /screen-owner -->
 
 </body>
 </html>
