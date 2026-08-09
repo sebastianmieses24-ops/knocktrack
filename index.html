@@ -1871,6 +1871,239 @@ a { color: var(--green); text-decoration: none; }
   .od-greeting { font-size: 22px; }
 }
 
+
+/* ═══════════════════════════════════════════════════════════════
+   ONBOARDING WIZARD — screen-wizard
+═══════════════════════════════════════════════════════════════ */
+#screen-wizard {
+  align-items: center;
+  justify-content: flex-start;
+  overflow-y: auto;
+  padding: 0;
+  background: linear-gradient(135deg, #020D1D 0%, #061426 100%);
+}
+
+.wiz-wrap {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+/* Progress bar */
+.wiz-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 36px;
+}
+.wiz-progress-step {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.1);
+  transition: background 0.3s;
+}
+.wiz-progress-step.done    { background: var(--green); }
+.wiz-progress-step.current { background: rgba(0,204,0,0.5); }
+
+.wiz-step-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.wiz-step-count {
+  font-size: 11px;
+  color: var(--green);
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+/* Step container */
+.wiz-step { display: none; }
+.wiz-step.active { display: block; }
+
+.wiz-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(32px, 7vw, 48px);
+  color: var(--white);
+  letter-spacing: 3px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.wiz-subtitle {
+  font-size: 14px;
+  color: var(--secondary);
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+/* Choice grids */
+.wiz-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+.wiz-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+@media (max-width: 500px) {
+  .wiz-grid-2 { grid-template-columns: 1fr; }
+  .wiz-grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+.wiz-card {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wiz-card:hover  { border-color: var(--green); background: rgba(0,204,0,0.05); }
+.wiz-card.active { border-color: var(--green); background: rgba(0,204,0,0.08); box-shadow: 0 0 0 2px rgba(0,204,0,0.2); }
+.wiz-card.multi-active { border-color: var(--cyan); background: rgba(63,212,255,0.06); }
+
+.wiz-card-icon  { font-size: 24px; }
+.wiz-card-title { font-size: 14px; font-weight: 800; color: var(--white); }
+.wiz-card-sub   { font-size: 12px; color: var(--secondary); line-height: 1.4; }
+
+/* Checkbox cards */
+.wiz-check-grid { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+.wiz-check-card {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.15s;
+}
+.wiz-check-card:hover  { border-color: var(--border-soft); }
+.wiz-check-card.active { border-color: var(--cyan); background: rgba(63,212,255,0.05); }
+.wiz-check-box {
+  width: 20px; height: 20px;
+  border-radius: 6px;
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: white;
+  font-size: 11px;
+  transition: all 0.15s;
+}
+.wiz-check-card.active .wiz-check-box { background: var(--cyan); border-color: var(--cyan); }
+.wiz-check-info { flex: 1; }
+.wiz-check-title { font-size: 14px; font-weight: 700; color: var(--white); }
+.wiz-check-desc  { font-size: 12px; color: var(--secondary); margin-top: 2px; }
+
+/* Status preview list */
+.wiz-status-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.wiz-status-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+.wiz-status-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.wiz-status-name { flex: 1; font-size: 13px; font-weight: 700; color: var(--white); }
+.wiz-status-meaning { font-size: 11px; color: var(--muted); }
+
+/* Field preview list */
+.wiz-field-list  { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.wiz-field-item {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px;
+}
+.wiz-field-icon { color: var(--cyan); }
+.wiz-field-label { flex: 1; font-size: 13px; font-weight: 700; color: var(--white); }
+.wiz-field-type  { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+/* Form inputs in wizard */
+.wiz-form { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+.wiz-row  { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 500px) { .wiz-row { grid-template-columns: 1fr; } }
+
+.wiz-field-group { display: flex; flex-direction: column; }
+.wiz-field-group .form-label { color: var(--secondary); }
+.wiz-field-group input, .wiz-field-group select {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--white);
+}
+.wiz-field-group input:focus, .wiz-field-group select:focus { border-color: var(--green); }
+
+/* Metric toggle grid */
+.wiz-metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 24px; }
+.wiz-metric-card {
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 14px;
+  cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.wiz-metric-card.active { border-color: var(--green); background: rgba(0,204,0,0.06); }
+.wiz-metric-cb {
+  width: 18px; height: 18px; border-radius: 5px; border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  margin-top: 1px; font-size: 11px; color: white; transition: all 0.15s;
+}
+.wiz-metric-card.active .wiz-metric-cb { background: var(--green); border-color: var(--green); }
+.wiz-metric-name { font-size: 13px; font-weight: 700; color: var(--white); }
+.wiz-metric-desc { font-size: 11px; color: var(--secondary); margin-top: 2px; line-height: 1.4; }
+
+/* Review step */
+.wiz-review-section { margin-bottom: 20px; }
+.wiz-review-label {
+  font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.wiz-review-edit { font-size: 11px; color: var(--green); cursor: pointer; font-weight: 700; letter-spacing: 0; }
+.wiz-review-val {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px;
+}
+.wiz-review-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; padding: 4px 0; border-bottom: 1px solid var(--border-soft);
+}
+.wiz-review-row:last-child { border-bottom: none; }
+.wiz-review-key   { color: var(--secondary); font-weight: 600; }
+.wiz-review-value { color: var(--white); font-weight: 700; text-align: right; max-width: 60%; }
+
+/* Wiz footer */
+.wiz-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-top: 8px;
+}
+.wiz-btn-back {
+  padding: 13px 20px; background: transparent;
+  border: 1px solid var(--border); border-radius: 12px;
+  font-size: 13px; font-weight: 700; color: var(--secondary);
+  cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+}
+.wiz-btn-back:hover { border-color: var(--white); color: var(--white); }
+.wiz-btn-next {
+  flex: 1; padding: 15px; background: var(--green);
+  color: #020D1D; font-size: 13px; font-weight: 900;
+  letter-spacing: 2px; text-transform: uppercase;
+  border: none; border-radius: 12px;
+  box-shadow: 0 0 24px var(--green-glow);
+  cursor: pointer; transition: all 0.15s;
+}
+.wiz-btn-next:active  { filter: brightness(1.1); }
+.wiz-btn-next:disabled { background: var(--card); color: var(--muted); box-shadow: none; cursor: not-allowed; }
+.wiz-skip { font-size: 12px; color: var(--muted); cursor: pointer; text-align: center; margin-top: 12px; }
+.wiz-skip:hover { color: var(--secondary); }
+.wiz-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius:10px; padding:10px 14px; font-size:12px; color:#FCA5A5; margin-bottom:12px; display:none; }
+.wiz-error.show { display:block; }
+
 </style>
 </head>
 <body>
@@ -2520,9 +2753,8 @@ async function boot() {
   await loadUserContext();
 }
 
-async function loadUserContext() {
+async function loadUserContext(launchWizard = false) {
   try {
-    // Guard: ensure session and user exist
     if (!_session?.user?.id) {
       console.error('loadUserContext: no valid session');
       showScreen('auth');
@@ -2532,14 +2764,13 @@ async function loadUserContext() {
     const profiles = await sbFetch(`profiles?id=eq.${_session.user.id}&limit=1`);
     _profile = profiles?.[0] || null;
 
-    // Load membership (may belong to multiple companies — get first active)
+    // Load membership
     const memberships = await sbFetch(
       `company_members?user_id=eq.${_session.user.id}&status=eq.active&limit=1`
     );
     _membership = memberships?.[0] || null;
 
     if (!_membership) {
-      // No company — go to onboarding
       showScreen('onboard');
       obStep('choose');
       return;
@@ -2552,8 +2783,33 @@ async function loadUserContext() {
     // Load today's knocks
     await refreshKnocks();
 
-    // Route by role: owners → dashboard, reps → mobile app
-    routeByRole();
+    // Load company statuses for rep pin sheet
+    await loadCompanyStatuses();
+
+    // ── Route decision ───────────────────────────────────────
+    const role = _membership?.role || 'rep';
+    if (['owner','admin'].includes(role)) {
+      // Check onboarding status
+      const settings = await sbFetch(
+        `company_settings?company_id=eq.${_membership.company_id}&limit=1`
+      );
+      const s = settings?.[0];
+
+      if (launchWizard || !s || s.onboarding_status === 'not_started') {
+        // Fresh company — start wizard
+        startWizard();
+      } else if (s.onboarding_status === 'in_progress') {
+        // Resume where they left off
+        resumeWizard(s);
+      } else {
+        // Completed or skipped — go straight to dashboard
+        showScreen('owner');
+        odBoot();
+      }
+    } else {
+      showScreen('app');
+      populateApp();
+    }
 
   } catch (e) {
     console.error('loadUserContext error:', e);
@@ -2731,7 +2987,8 @@ async function doCreateCompany() {
   try {
     const result = await sbRpc('create_company_with_owner', { p_name: name });
     if (!result?.success) throw new Error(result?.message || 'Failed to create company');
-    await loadUserContext();
+    // Load context to get membership, THEN launch wizard (not dashboard)
+    await loadUserContext(/* launchWizard= */ true);
   } catch (e) {
     err.textContent = e.message; err.classList.add('show');
   } finally {
@@ -3237,6 +3494,714 @@ function getZoneCentroid(zone) {
   };
 }
 
+
+
+// ═══════════════════════════════════════════════════════════════
+// ONBOARDING WIZARD — State machine + Supabase persistence
+// ═══════════════════════════════════════════════════════════════
+
+const WIZ_TOTAL = 7;  // 7 config steps + 1 review step
+
+// Wizard state — built up as user progresses
+let _wiz = {
+  step:         1,
+  completedSteps: [],
+  industryKey:  null,
+  industryLabel: null,
+  industryOtherName: null,
+  industryOtherDesc: null,
+  primaryGoal:  null,
+  website:      null,
+  phone:        null,
+  region:       null,
+  companySize:  null,
+  officeCount:  1,
+  statuses:     [],
+  fields:       [],
+  metrics:      [],
+  automations:  {},
+};
+
+const INDUSTRIES = [
+  { key:'roofing',        label:'Roofing',            icon:'🏠' },
+  { key:'solar',          label:'Solar',              icon:'☀️' },
+  { key:'community_solar',label:'Community Solar',    icon:'⚡' },
+  { key:'pest_control',   label:'Pest Control',       icon:'🐛' },
+  { key:'telecom',        label:'Telecom / Internet', icon:'📡' },
+  { key:'general',        label:'General Field Sales', icon:'💼' },
+  { key:'other',          label:'Other',              icon:'🔧' },
+];
+
+const GOALS = [
+  { key:'close-door',   label:'Close sales at the door',     icon:'🏆', desc:'Close deals in person during the visit' },
+  { key:'appointments', label:'Schedule appointments',        icon:'📅', desc:'Book meetings for closers or specialists' },
+  { key:'leads',        label:'Generate qualified leads',     icon:'⭐', desc:'Collect contacts for follow-up' },
+  { key:'enrollments',  label:'Complete enrollments',         icon:'✅', desc:'Sign customers up on the spot' },
+  { key:'awareness',    label:'Brand awareness & canvassing', icon:'📢', desc:'Build presence and gather data' },
+];
+
+
+// Skip entire wizard (owner can set up later from Settings)
+async function wizSkipAll() {
+  if (!_membership?.company_id) { showScreen('owner'); odBoot(); return; }
+  try {
+    await sbRpc('save_onboarding_step', {
+      p_company_id: _membership.company_id,
+      p_step: 1,
+      p_status: 'skipped',
+      p_data: JSON.stringify({})
+    });
+  } catch(e) { /* silent */ }
+  showScreen('owner');
+  odBoot();
+}
+
+// ── Launch wizard ─────────────────────────────────────────────
+function startWizard() {
+  _wiz = {
+    step:1, completedSteps:[],
+    industryKey:null, industryLabel:null,
+    industryOtherName:null, industryOtherDesc:null,
+    primaryGoal:null, website:null, phone:null,
+    region:null, companySize:null, officeCount:1,
+    statuses:[], fields:[], metrics:[], automations:{},
+  };
+  showScreen('wizard');
+  wizBuildIndustryGrid();
+  wizBuildGoalsGrid();
+  wizBuildMetricGrid();
+  wizBuildAutoGrid();
+  wizGoTo(1);
+}
+
+// Resume from existing settings
+function resumeWizard(settings) {
+  if (settings) {
+    _wiz.step            = Math.min((settings.onboarding_step||1), 8);
+    _wiz.completedSteps  = settings.completed_steps || [];
+    _wiz.industryKey     = settings.industry_key;
+    _wiz.industryLabel   = settings.industry_label;
+    _wiz.primaryGoal     = settings.primary_goal;
+    _wiz.website         = settings.company_website;
+    _wiz.phone           = settings.company_phone;
+    _wiz.region          = settings.primary_region;
+    _wiz.companySize     = settings.company_size;
+    _wiz.officeCount     = settings.office_count || 1;
+    // Re-apply template to restore statuses/fields
+    if (_wiz.industryKey) loadTemplateIntoWizard(_wiz.industryKey);
+    _wiz.metrics   = settings.metrics || _wiz.metrics;
+  }
+  showScreen('wizard');
+  wizBuildIndustryGrid();
+  wizBuildGoalsGrid();
+  wizBuildMetricGrid();
+  wizBuildAutoGrid();
+  wizGoTo(_wiz.step);
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function wizGoTo(step) {
+  _wiz.step = step;
+  document.querySelectorAll('.wiz-step').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('wiz-step-' + step);
+  if (el) el.classList.add('active');
+  // Update progress bar
+  for (let i=1; i<=WIZ_TOTAL; i++) {
+    const ps = document.getElementById('wiz-ps-' + i);
+    if (!ps) continue;
+    ps.className = 'wiz-progress-step ' + (i < step ? 'done' : i === step ? 'current' : '');
+  }
+  const lbl = document.getElementById('wiz-step-label');
+  if (lbl) {
+    if (step === 8) lbl.textContent = 'REVIEW';
+    else lbl.textContent = `STEP ${step} OF ${WIZ_TOTAL}`;
+  }
+  // Clear error
+  const err = document.getElementById('wiz-error');
+  if (err) { err.textContent = ''; err.classList.remove('show'); }
+  // Populate dynamic content
+  if (step === 4) wizRenderStatusPreview();
+  if (step === 5) wizRenderFieldPreview();
+  if (step === 6) wizSyncMetricGrid();
+  if (step === 7) wizSyncAutoGrid();
+  if (step === 8) wizRenderReview();
+  // Scroll to top
+  const wrap = document.querySelector('#screen-wizard');
+  if (wrap) wrap.scrollTop = 0;
+  // Persist progress
+  wizSavePending();
+}
+
+async function wizNext(fromStep) {
+  if (!wizValidate(fromStep)) return;
+  // Collect data from step
+  wizCollect(fromStep);
+  // Mark step done
+  if (!_wiz.completedSteps.includes(fromStep)) _wiz.completedSteps.push(fromStep);
+  // Apply template after industry selection (step 1)
+  if (fromStep === 1 && _wiz.industryKey) loadTemplateIntoWizard(_wiz.industryKey);
+  wizGoTo(fromStep + 1);
+}
+
+function wizBack(fromStep) {
+  wizCollect(fromStep);
+  wizGoTo(Math.max(1, fromStep - 1));
+}
+
+function wizSkip(fromStep) {
+  if (!_wiz.completedSteps.includes(fromStep)) _wiz.completedSteps.push(fromStep);
+  wizGoTo(fromStep + 1);
+}
+
+// ── Validation ────────────────────────────────────────────────
+function wizValidate(step) {
+  const err = document.getElementById('wiz-error');
+  const show = (msg) => { if(err){ err.textContent=msg; err.classList.add('show'); } return false; };
+  if (step === 1) {
+    if (!_wiz.industryKey) return show('Please select your industry to continue.');
+    if (_wiz.industryKey === 'other') {
+      const n = document.getElementById('wiz-other-name').value.trim();
+      if (!n) return show('Please enter your industry name.');
+      _wiz.industryOtherName = n;
+      _wiz.industryOtherDesc = document.getElementById('wiz-other-desc').value.trim();
+      _wiz.industryLabel = n;
+    }
+  }
+  if (step === 2 && !_wiz.primaryGoal) return show('Please select your primary goal.');
+  return true;
+}
+
+// ── Data collection ───────────────────────────────────────────
+function wizCollect(step) {
+  if (step === 3) {
+    _wiz.website     = document.getElementById('wiz-website').value.trim() || null;
+    _wiz.phone       = document.getElementById('wiz-phone').value.trim()   || null;
+    _wiz.region      = document.getElementById('wiz-region').value.trim()  || null;
+    _wiz.companySize = document.getElementById('wiz-size').value    || null;
+    _wiz.officeCount = parseInt(document.getElementById('wiz-offices').value) || 1;
+  }
+  if (step === 6) {
+    // Already synced via toggle clicks
+  }
+  if (step === 7) {
+    // Already synced via toggle clicks
+  }
+}
+
+// ── BUILD STEP GRIDS ─────────────────────────────────────────
+function wizBuildIndustryGrid() {
+  const grid = document.getElementById('wiz-industry-grid');
+  if (!grid) return;
+  grid.innerHTML = INDUSTRIES.map(ind => `
+    <button class="wiz-card ${_wiz.industryKey === ind.key ? 'active' : ''}" 
+            id="wiz-ind-${ind.key}" onclick="wizSelectIndustry('${ind.key}')">
+      <div class="wiz-card-icon">${ind.icon}</div>
+      <div class="wiz-card-title">${ind.label}</div>
+    </button>`).join('');
+}
+
+function wizSelectIndustry(key) {
+  _wiz.industryKey = key;
+  const tmpl = INDUSTRY_TEMPLATES[key];
+  _wiz.industryLabel = tmpl?.label || key;
+  // Highlight selected
+  document.querySelectorAll('[id^="wiz-ind-"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('wiz-ind-' + key);
+  if (btn) btn.classList.add('active');
+  // Show/hide other fields
+  const otherFields = document.getElementById('wiz-other-fields');
+  if (otherFields) otherFields.style.display = key === 'other' ? 'block' : 'none';
+}
+
+function wizBuildGoalsGrid() {
+  const grid = document.getElementById('wiz-goals-grid');
+  if (!grid) return;
+  grid.innerHTML = GOALS.map(g => `
+    <button class="wiz-card ${_wiz.primaryGoal === g.key ? 'active' : ''}"
+            id="wiz-goal-${g.key}" onclick="wizSelectGoal('${g.key}')">
+      <div class="wiz-card-icon">${g.icon}</div>
+      <div class="wiz-card-title">${g.label}</div>
+      <div class="wiz-card-sub">${g.desc}</div>
+    </button>`).join('');
+}
+
+function wizSelectGoal(key) {
+  _wiz.primaryGoal = key;
+  document.querySelectorAll('[id^="wiz-goal-"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('wiz-goal-' + key);
+  if (btn) btn.classList.add('active');
+}
+
+function wizRenderStatusPreview() {
+  const list = document.getElementById('wiz-status-list');
+  if (!list || !_wiz.statuses.length) return;
+  const meanings = s => [
+    s.counts_as_conversation ? 'Conversation' : null,
+    s.creates_lead           ? 'Creates Lead' : null,
+    s.creates_appointment    ? 'Creates Appt' : null,
+    s.counts_as_sale         ? 'Sale' : null,
+  ].filter(Boolean).join(' · ') || 'Logged outcome';
+  list.innerHTML = _wiz.statuses.map(s => `
+    <div class="wiz-status-item">
+      <div class="wiz-status-dot" style="background:${s.color}"></div>
+      <div class="wiz-status-name">${s.label}</div>
+      <div class="wiz-status-meaning">${meanings(s)}</div>
+    </div>`).join('');
+}
+
+function wizRenderFieldPreview() {
+  const list = document.getElementById('wiz-field-list');
+  if (!list || !_wiz.fields.length) return;
+  const icons = { text:'T', textarea:'¶', number:'#', currency:'$', date:'📅', dropdown:'▼', checkbox:'☑' };
+  list.innerHTML = _wiz.fields.map(f => `
+    <div class="wiz-field-item">
+      <div class="wiz-field-icon" style="font-size:14px">${icons[f.field_type]||'T'}</div>
+      <div class="wiz-field-label">${f.label}${f.is_required ? ' *' : ''}</div>
+      <div class="wiz-field-type">${f.field_type}</div>
+    </div>`).join('');
+}
+
+function wizBuildMetricGrid() {
+  const grid = document.getElementById('wiz-metric-grid');
+  if (!grid) return;
+  grid.innerHTML = Object.entries(METRIC_DEFS).map(([key, def]) => `
+    <div class="wiz-metric-card ${(_wiz.metrics||[]).includes(key) ? 'active' : ''}"
+         id="wiz-met-${key}" onclick="wizToggleMetric('${key}')">
+      <div class="wiz-metric-cb">${(_wiz.metrics||[]).includes(key) ? '✓' : ''}</div>
+      <div>
+        <div class="wiz-metric-name">${def.label}</div>
+        <div class="wiz-metric-desc">${def.description}</div>
+      </div>
+    </div>`).join('');
+}
+
+function wizSyncMetricGrid() {
+  Object.keys(METRIC_DEFS).forEach(key => {
+    const card = document.getElementById('wiz-met-' + key);
+    if (!card) return;
+    const active = (_wiz.metrics||[]).includes(key);
+    card.classList.toggle('active', active);
+    const cb = card.querySelector('.wiz-metric-cb');
+    if (cb) cb.textContent = active ? '✓' : '';
+  });
+}
+
+function wizToggleMetric(key) {
+  if (!_wiz.metrics) _wiz.metrics = [];
+  const idx = _wiz.metrics.indexOf(key);
+  if (idx >= 0) {
+    if (_wiz.metrics.length <= 1) return; // keep at least 1
+    _wiz.metrics.splice(idx, 1);
+  } else {
+    if (_wiz.metrics.length >= 6) return; // max 6
+    _wiz.metrics.push(key);
+  }
+  wizSyncMetricGrid();
+}
+
+function wizBuildAutoGrid() {
+  const grid = document.getElementById('wiz-auto-grid');
+  if (!grid) return;
+  grid.innerHTML = AUTOMATION_DEFS.map(a => `
+    <div class="wiz-check-card ${_wiz.automations[a.key] ? 'active' : ''}"
+         id="wiz-auto-${a.key}" onclick="wizToggleAuto('${a.key}')">
+      <div class="wiz-check-box">${_wiz.automations[a.key] ? '✓' : ''}</div>
+      <div class="wiz-check-info">
+        <div class="wiz-check-title">${a.label}</div>
+        <div class="wiz-check-desc">${a.desc}</div>
+      </div>
+    </div>`).join('');
+}
+
+function wizSyncAutoGrid() {
+  AUTOMATION_DEFS.forEach(a => {
+    const card = document.getElementById('wiz-auto-' + a.key);
+    if (!card) return;
+    const active = !!_wiz.automations[a.key];
+    card.classList.toggle('active', active);
+    const cb = card.querySelector('.wiz-check-box');
+    if (cb) cb.textContent = active ? '✓' : '';
+  });
+}
+
+function wizToggleAuto(key) {
+  _wiz.automations[key] = !_wiz.automations[key];
+  wizSyncAutoGrid();
+}
+
+// ── Review step ───────────────────────────────────────────────
+function wizRenderReview() {
+  const body = document.getElementById('wiz-review-body');
+  if (!body) return;
+  const tmpl = INDUSTRY_TEMPLATES[_wiz.industryKey] || {};
+  const metricLabels = (_wiz.metrics||[]).map(k => METRIC_DEFS[k]?.label || k).join(', ');
+  const autoCount = Object.values(_wiz.automations).filter(Boolean).length;
+
+  body.innerHTML = `
+    <div class="wiz-review-section">
+      <div class="wiz-review-label">
+        Industry &amp; Goal
+        <span class="wiz-review-edit" onclick="wizGoTo(1)">Edit</span>
+      </div>
+      <div class="wiz-review-val">
+        <div class="wiz-review-row">
+          <span class="wiz-review-key">Industry</span>
+          <span class="wiz-review-value">${_wiz.industryLabel || '—'}</span>
+        </div>
+        <div class="wiz-review-row">
+          <span class="wiz-review-key">Primary goal</span>
+          <span class="wiz-review-value">${GOALS.find(g=>g.key===_wiz.primaryGoal)?.label || '—'}</span>
+        </div>
+      </div>
+    </div>
+    ${_wiz.region || _wiz.companySize ? `
+    <div class="wiz-review-section">
+      <div class="wiz-review-label">
+        Company Profile
+        <span class="wiz-review-edit" onclick="wizGoTo(3)">Edit</span>
+      </div>
+      <div class="wiz-review-val">
+        ${_wiz.region ? `<div class="wiz-review-row"><span class="wiz-review-key">Market</span><span class="wiz-review-value">${_wiz.region}</span></div>` : ''}
+        ${_wiz.companySize ? `<div class="wiz-review-row"><span class="wiz-review-key">Size</span><span class="wiz-review-value">${_wiz.companySize}</span></div>` : ''}
+      </div>
+    </div>` : ''}
+    <div class="wiz-review-section">
+      <div class="wiz-review-label">
+        Knock Outcomes
+        <span class="wiz-review-edit" onclick="wizGoTo(4)">Edit</span>
+      </div>
+      <div class="wiz-review-val">
+        <div class="wiz-review-row">
+          <span class="wiz-review-key">Statuses configured</span>
+          <span class="wiz-review-value">${_wiz.statuses.length} statuses</span>
+        </div>
+        <div class="wiz-review-row">
+          <span class="wiz-review-key">Lead fields</span>
+          <span class="wiz-review-value">${_wiz.fields.length} fields</span>
+        </div>
+      </div>
+    </div>
+    <div class="wiz-review-section">
+      <div class="wiz-review-label">
+        Dashboard Metrics
+        <span class="wiz-review-edit" onclick="wizGoTo(6)">Edit</span>
+      </div>
+      <div class="wiz-review-val">
+        <div class="wiz-review-row">
+          <span class="wiz-review-key">Tracking</span>
+          <span class="wiz-review-value">${metricLabels || '—'}</span>
+        </div>
+      </div>
+    </div>
+    <div class="wiz-review-section">
+      <div class="wiz-review-label">
+        Automations
+        <span class="wiz-review-edit" onclick="wizGoTo(7)">Edit</span>
+      </div>
+      <div class="wiz-review-val">
+        <div class="wiz-review-row">
+          <span class="wiz-review-key">Enabled</span>
+          <span class="wiz-review-value">${autoCount} automation${autoCount!==1?'s':''}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Persist in-progress ───────────────────────────────────────
+let _wizSaveDebounce;
+function wizSavePending() {
+  clearTimeout(_wizSaveDebounce);
+  _wizSaveDebounce = setTimeout(async () => {
+    if (!_membership?.company_id || !_session?.user?.id) return;
+    try {
+      await sbRpc('save_onboarding_step', {
+        p_company_id: _membership.company_id,
+        p_step:       _wiz.step,
+        p_status:     'in_progress',
+        p_data: JSON.stringify({
+          industry_key:        _wiz.industryKey,
+          industry_label:      _wiz.industryLabel,
+          industry_other_name: _wiz.industryOtherName,
+          industry_other_desc: _wiz.industryOtherDesc,
+          primary_goal:        _wiz.primaryGoal,
+          company_website:     _wiz.website,
+          company_phone:       _wiz.phone,
+          primary_region:      _wiz.region,
+          company_size:        _wiz.companySize,
+          office_count:        _wiz.officeCount,
+          completed_steps:     _wiz.completedSteps,
+        })
+      });
+    } catch(e) { /* silent — don't block UX */ }
+  }, 1500);
+}
+
+// ── Finish ───────────────────────────────────────────────────
+async function wizFinish() {
+  const btn = document.getElementById('wiz-finish-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Applying setup…'; }
+  const err = document.getElementById('wiz-error');
+
+  try {
+    const cid = _membership?.company_id;
+    if (!cid) throw new Error('No company found');
+
+    // 1. Apply template statuses, fields, metrics via RPC
+    const tmplResult = await sbRpc('apply_industry_template', {
+      p_company_id: cid,
+      p_statuses:   JSON.stringify(_wiz.statuses),
+      p_fields:     JSON.stringify(_wiz.fields),
+      p_metrics:    _wiz.metrics
+    });
+    if (!tmplResult?.success) throw new Error('Failed to apply template');
+
+    // 2. Save automations
+    const autoEntries = Object.entries(_wiz.automations).filter(([,v])=>v);
+    for (const [key] of autoEntries) {
+      await sbFetch('company_automations', {
+        method: 'POST',
+        headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ company_id: cid, automation_key: key, is_enabled: true, setup_status: 'active' })
+      });
+    }
+
+    // 3. Mark onboarding complete
+    await sbRpc('save_onboarding_step', {
+      p_company_id: cid,
+      p_step:       8,
+      p_status:     'completed',
+      p_data: JSON.stringify({
+        industry_key:    _wiz.industryKey,
+        industry_label:  _wiz.industryLabel,
+        primary_goal:    _wiz.primaryGoal,
+        company_website: _wiz.website,
+        company_phone:   _wiz.phone,
+        primary_region:  _wiz.region,
+        company_size:    _wiz.companySize,
+        office_count:    _wiz.officeCount,
+        template_applied: _wiz.industryKey,
+        completed_steps: [1,2,3,4,5,6,7],
+      })
+    });
+
+    // 4. Load company statuses into app state for use by rep pin sheet
+    await loadCompanyStatuses();
+
+    // 5. Launch dashboard
+    showScreen('owner');
+    odBoot();
+
+  } catch(e) {
+    console.error('wizFinish error:', e);
+    if (err) { err.textContent = e.message || 'Setup failed — please try again'; err.classList.add('show'); }
+    if (btn) { btn.disabled = false; btn.textContent = '🚀 Launch Dashboard'; }
+  }
+}
+
+// ── Load company statuses into app state ──────────────────────
+// Used by rep pin sheet so it shows company-specific outcomes
+async function loadCompanyStatuses() {
+  if (!_membership?.company_id) return;
+  try {
+    const rows = await sbFetch(
+      `company_statuses?company_id=eq.${_membership.company_id}&is_active=eq.true&order=sort_order.asc`
+    );
+    if (rows?.length) {
+      // Override STATUSES const with company-specific values
+      // (STATUSES is used by pin sheet and markers)
+      window._companyStatuses = rows;
+    }
+  } catch(e) { /* use defaults */ }
+}
+
+// Get effective statuses (company-specific or defaults)
+function getActiveStatuses() {
+  return window._companyStatuses || STATUSES;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INDUSTRY TEMPLATE ENGINE
+// One universal platform. Templates configure, not fork.
+// ═══════════════════════════════════════════════════════════════
+
+const INDUSTRY_TEMPLATES = {
+  roofing: {
+    label: 'Roofing',
+    primaryGoal: 'Schedule appointments',
+    statuses: [
+      { key:'not-home',    label:'Not Home',           color:'#6B7280', sort_order:0, counts_as_door:true },
+      { key:'not-interested', label:'Not Interested',  color:'#EF4444', sort_order:1, counts_as_door:true },
+      { key:'come-back',   label:'Come Back',          color:'#F59E0B', sort_order:2, counts_as_door:true },
+      { key:'contact',     label:'Contact Made',       color:'#3B82F6', sort_order:3, counts_as_conversation:true, counts_as_door:true },
+      { key:'lead',        label:'Qualified Lead',     color:'#8B5CF6', sort_order:4, creates_lead:true, counts_as_conversation:true, counts_as_door:true },
+      { key:'appointment', label:'Appointment Set',    color:'#06B6D4', sort_order:5, creates_appointment:true, counts_as_door:true },
+      { key:'inspection',  label:'Inspection Scheduled',color:'#10B981',sort_order:6, counts_as_door:true },
+      { key:'sold',        label:'Sold',               color:'#22C55E', sort_order:7, counts_as_sale:true, counts_as_door:true },
+    ],
+    fields: [
+      { key:'customer_name', label:'Customer Name',     field_type:'text',     is_required:true,  sort_order:0 },
+      { key:'phone',         label:'Phone Number',      field_type:'text',     is_required:false, sort_order:1 },
+      { key:'email',         label:'Email',             field_type:'text',     is_required:false, sort_order:2 },
+      { key:'property_address', label:'Property Address', field_type:'text',   is_required:false, sort_order:3 },
+      { key:'roof_condition',label:'Roof Condition',    field_type:'dropdown', is_required:false, sort_order:4 },
+      { key:'notes',         label:'Notes',             field_type:'textarea', is_required:false, sort_order:5 },
+    ],
+    metrics: ['active_reps','doors','leads','appointments','sales'],
+    automations: ['come-back-reminders','stale-lead-warnings','appointment-reminders'],
+  },
+  solar: {
+    label: 'Solar',
+    primaryGoal: 'Complete customer enrollments',
+    statuses: [
+      { key:'not-home',    label:'Not Home',           color:'#6B7280', sort_order:0, counts_as_door:true },
+      { key:'not-interested', label:'Not Interested',  color:'#EF4444', sort_order:1, counts_as_door:true },
+      { key:'come-back',   label:'Come Back',          color:'#F59E0B', sort_order:2, counts_as_door:true },
+      { key:'contact',     label:'Contact Made',       color:'#3B82F6', sort_order:3, counts_as_conversation:true, counts_as_door:true },
+      { key:'lead',        label:'Qualified Lead',     color:'#8B5CF6', sort_order:4, creates_lead:true, counts_as_conversation:true, counts_as_door:true },
+      { key:'appointment', label:'Appointment Set',    color:'#06B6D4', sort_order:5, creates_appointment:true, counts_as_door:true },
+      { key:'enrolled',    label:'Enrolled',           color:'#22C55E', sort_order:6, counts_as_sale:true, counts_as_door:true },
+    ],
+    fields: [
+      { key:'customer_name',  label:'Customer Name',    field_type:'text',     is_required:true,  sort_order:0 },
+      { key:'phone',          label:'Phone Number',     field_type:'text',     is_required:false, sort_order:1 },
+      { key:'email',          label:'Email',            field_type:'text',     is_required:false, sort_order:2 },
+      { key:'utility_provider', label:'Utility Provider', field_type:'text',   is_required:false, sort_order:3 },
+      { key:'monthly_bill',   label:'Monthly Bill',     field_type:'currency', is_required:false, sort_order:4 },
+      { key:'annual_kwh',     label:'Annual kWh',       field_type:'number',   is_required:false, sort_order:5 },
+      { key:'notes',          label:'Notes',            field_type:'textarea', is_required:false, sort_order:6 },
+    ],
+    metrics: ['active_reps','doors','leads','appointments','enrollments'],
+    automations: ['come-back-reminders','stale-lead-warnings','appointment-reminders'],
+  },
+  community_solar: {
+    label: 'Community Solar',
+    primaryGoal: 'Complete customer enrollments',
+    statuses: [
+      { key:'not-home',    label:'Not Home',           color:'#6B7280', sort_order:0, counts_as_door:true },
+      { key:'not-interested', label:'Not Interested',  color:'#EF4444', sort_order:1, counts_as_door:true },
+      { key:'come-back',   label:'Come Back',          color:'#F59E0B', sort_order:2, counts_as_door:true },
+      { key:'contact',     label:'Contact Made',       color:'#3B82F6', sort_order:3, counts_as_conversation:true, counts_as_door:true },
+      { key:'lead',        label:'Qualified Lead',     color:'#8B5CF6', sort_order:4, creates_lead:true, counts_as_conversation:true, counts_as_door:true },
+      { key:'enrolled',    label:'Enrolled',           color:'#22C55E', sort_order:5, counts_as_sale:true, counts_as_door:true },
+    ],
+    fields: [
+      { key:'customer_name',  label:'Customer Name',    field_type:'text',     is_required:true,  sort_order:0 },
+      { key:'phone',          label:'Phone Number',     field_type:'text',     is_required:false, sort_order:1 },
+      { key:'utility_provider', label:'Utility Provider', field_type:'text',   is_required:false, sort_order:2 },
+      { key:'monthly_bill',   label:'Monthly Bill',     field_type:'currency', is_required:false, sort_order:3 },
+      { key:'notes',          label:'Notes',            field_type:'textarea', is_required:false, sort_order:4 },
+    ],
+    metrics: ['active_reps','doors','conversations','leads','enrollments'],
+    automations: ['come-back-reminders','appointment-reminders'],
+  },
+  pest_control: {
+    label: 'Pest Control',
+    primaryGoal: 'Close sales at the door',
+    statuses: [
+      { key:'not-home',    label:'Not Home',           color:'#6B7280', sort_order:0, counts_as_door:true },
+      { key:'not-interested', label:'Not Interested',  color:'#EF4444', sort_order:1, counts_as_door:true },
+      { key:'come-back',   label:'Come Back',          color:'#F59E0B', sort_order:2, counts_as_door:true },
+      { key:'contact',     label:'Contact Made',       color:'#3B82F6', sort_order:3, counts_as_conversation:true, counts_as_door:true },
+      { key:'lead',        label:'Interested',         color:'#8B5CF6', sort_order:4, creates_lead:true, counts_as_conversation:true, counts_as_door:true },
+      { key:'appointment', label:'Service Scheduled',  color:'#06B6D4', sort_order:5, creates_appointment:true, counts_as_door:true },
+      { key:'sold',        label:'Sold',               color:'#22C55E', sort_order:6, counts_as_sale:true, counts_as_door:true },
+    ],
+    fields: [
+      { key:'customer_name', label:'Customer Name',    field_type:'text',     is_required:true,  sort_order:0 },
+      { key:'phone',         label:'Phone Number',     field_type:'text',     is_required:false, sort_order:1 },
+      { key:'email',         label:'Email',            field_type:'text',     is_required:false, sort_order:2 },
+      { key:'pest_type',     label:'Pest Type',        field_type:'dropdown', is_required:false, sort_order:3 },
+      { key:'property_type', label:'Property Type',    field_type:'dropdown', is_required:false, sort_order:4 },
+      { key:'notes',         label:'Notes',            field_type:'textarea', is_required:false, sort_order:5 },
+    ],
+    metrics: ['active_reps','doors','leads','appointments','sales'],
+    automations: ['come-back-reminders','appointment-reminders','stale-lead-warnings'],
+  },
+  telecom: {
+    label: 'Telecom',
+    primaryGoal: 'Close sales at the door',
+    statuses: [
+      { key:'not-home',    label:'Not Home',           color:'#6B7280', sort_order:0, counts_as_door:true },
+      { key:'not-interested', label:'Not Interested',  color:'#EF4444', sort_order:1, counts_as_door:true },
+      { key:'come-back',   label:'Come Back',          color:'#F59E0B', sort_order:2, counts_as_door:true },
+      { key:'contact',     label:'Contact Made',       color:'#3B82F6', sort_order:3, counts_as_conversation:true, counts_as_door:true },
+      { key:'lead',        label:'Qualified Lead',     color:'#8B5CF6', sort_order:4, creates_lead:true, counts_as_conversation:true, counts_as_door:true },
+      { key:'sold',        label:'Enrolled',           color:'#22C55E', sort_order:5, counts_as_sale:true, counts_as_door:true },
+    ],
+    fields: [
+      { key:'customer_name',    label:'Customer Name',     field_type:'text',     is_required:true,  sort_order:0 },
+      { key:'phone',            label:'Phone Number',      field_type:'text',     is_required:false, sort_order:1 },
+      { key:'current_provider', label:'Current Provider',  field_type:'text',     is_required:false, sort_order:2 },
+      { key:'notes',            label:'Notes',             field_type:'textarea', is_required:false, sort_order:3 },
+    ],
+    metrics: ['active_reps','doors','conversations','sales','close_rate'],
+    automations: ['come-back-reminders','stale-lead-warnings'],
+  },
+  general: {
+    label: 'General Field Sales',
+    primaryGoal: 'Generate qualified leads',
+    statuses: [
+      { key:'not-home',    label:'Not Home',           color:'#6B7280', sort_order:0, counts_as_door:true },
+      { key:'not-interested', label:'Not Interested',  color:'#EF4444', sort_order:1, counts_as_door:true },
+      { key:'come-back',   label:'Come Back',          color:'#F59E0B', sort_order:2, counts_as_door:true },
+      { key:'contact',     label:'Contact Made',       color:'#3B82F6', sort_order:3, counts_as_conversation:true, counts_as_door:true },
+      { key:'lead',        label:'Qualified Lead',     color:'#8B5CF6', sort_order:4, creates_lead:true, counts_as_conversation:true, counts_as_door:true },
+      { key:'appointment', label:'Appointment Set',    color:'#06B6D4', sort_order:5, creates_appointment:true, counts_as_door:true },
+      { key:'sold',        label:'Closed',             color:'#22C55E', sort_order:6, counts_as_sale:true, counts_as_door:true },
+    ],
+    fields: [
+      { key:'customer_name', label:'Customer Name',    field_type:'text',     is_required:true,  sort_order:0 },
+      { key:'phone',         label:'Phone Number',     field_type:'text',     is_required:false, sort_order:1 },
+      { key:'email',         label:'Email',            field_type:'text',     is_required:false, sort_order:2 },
+      { key:'notes',         label:'Notes',            field_type:'textarea', is_required:false, sort_order:3 },
+    ],
+    metrics: ['active_reps','doors','leads','appointments','sales'],
+    automations: ['come-back-reminders','stale-lead-warnings'],
+  },
+};
+
+// Get template by key; fall back to general
+function getTemplate(key) {
+  return INDUSTRY_TEMPLATES[key] || INDUSTRY_TEMPLATES.general;
+}
+
+// Apply template to wizard state (does not write to DB — done on finish)
+function loadTemplateIntoWizard(key) {
+  const tmpl = getTemplate(key);
+  _wiz.statuses  = tmpl.statuses.map(s => ({...s}));
+  _wiz.fields    = tmpl.fields.map(f => ({...f}));
+  _wiz.metrics   = [...(tmpl.metrics || ['active_reps','doors','leads','appointments','sales'])];
+  _wiz.automations = (tmpl.automations || []).reduce((acc, k) => {
+    acc[k] = true; return acc;
+  }, {});
+}
+
+// METRIC DEFINITIONS — one place, no duplication per industry
+const METRIC_DEFS = {
+  active_reps:    { label:'Active Reps',     description:'Team members active today' },
+  doors:          { label:'Doors',           description:'Total outcomes logged' },
+  conversations:  { label:'Conversations',   description:'Meaningful contacts made' },
+  leads:          { label:'Leads',           description:'Qualified leads generated' },
+  appointments:   { label:'Appointments',    description:'Appointments scheduled' },
+  inspections:    { label:'Inspections',     description:'Inspections scheduled' },
+  estimates:      { label:'Estimates',       description:'Estimates sent' },
+  proposals:      { label:'Proposals',       description:'Proposals submitted' },
+  enrollments:    { label:'Enrollments',     description:'Customers enrolled' },
+  sales:          { label:'Sales',           description:'Closed deals' },
+  revenue:        { label:'Revenue',         description:'Total revenue generated' },
+  close_rate:     { label:'Close Rate',      description:'Sales / Doors %' },
+  follow_up_rate: { label:'Follow-Up Rate',  description:'Leads with follow-up %' },
+};
+
+const AUTOMATION_DEFS = [
+  { key:'come-back-reminders',   label:'Come-back reminders',     desc:'Remind reps to revisit come-back outcomes' },
+  { key:'lead-follow-up-alerts', label:'Lead follow-up alerts',   desc:'Alert when leads have no follow-up in 48h' },
+  { key:'appointment-reminders', label:'Appointment reminders',   desc:'Notify reps before scheduled appointments' },
+  { key:'stale-lead-warnings',   label:'Stale-lead warnings',     desc:'Flag leads with no activity in 7 days' },
+  { key:'rep-inactivity-alerts', label:'Rep inactivity alerts',   desc:'Alert managers when a rep has no activity' },
+  { key:'manager-coaching',      label:'Manager coaching alerts', desc:'Surface coaching opportunities automatically' },
+];
+
 // ── STATUS DEFINITIONS ────────────────────────────────────────
 const STATUSES = [
   { key:'unvisited',     label:'Unvisited',      color:'#4A6278',
@@ -3323,6 +4288,7 @@ let _odRefreshTimer = null;
 
 // Route to owner dashboard vs rep mobile app
 function routeByRole() {
+  // Only called from rep PIN login — owners always go through loadUserContext
   const role = _membership?.role || 'rep';
   if (['owner', 'admin'].includes(role)) {
     showScreen('owner');
@@ -4110,6 +5076,206 @@ function fmtNum(n) {
     </div><!-- /od-content -->
   </div><!-- /od-main -->
 </div><!-- /screen-owner -->
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     ONBOARDING WIZARD — screen-wizard
+     7 steps: Industry → Goals → Profile → Statuses → Fields → Metrics → Automations → Review
+════════════════════════════════════════════════════════════════ -->
+<div id="screen-wizard" class="screen">
+  <div class="wiz-wrap">
+
+    <!-- Logo -->
+    <div style="display:flex;justify-content:center;margin-bottom:32px">
+      <div class="kt-logo">
+        <div class="kt-logo-wordmark" style="font-size:24px">
+          <span class="knock">KNOCK</span><span class="track"> TRACK</span>
+        </div>
+        <div class="kt-logo-line" style="width:100%"></div>
+      </div>
+    </div>
+
+    <!-- Progress bar (7 steps) -->
+    <div class="wiz-progress" id="wiz-progress" aria-label="Setup progress">
+      <div class="wiz-progress-step" id="wiz-ps-1"></div>
+      <div class="wiz-progress-step" id="wiz-ps-2"></div>
+      <div class="wiz-progress-step" id="wiz-ps-3"></div>
+      <div class="wiz-progress-step" id="wiz-ps-4"></div>
+      <div class="wiz-progress-step" id="wiz-ps-5"></div>
+      <div class="wiz-progress-step" id="wiz-ps-6"></div>
+      <div class="wiz-progress-step" id="wiz-ps-7"></div>
+    </div>
+
+    <div class="wiz-step-label" id="wiz-step-label">STEP 1 OF 7</div>
+    <div id="wiz-error" class="wiz-error"></div>
+
+    <!-- ── STEP 1: Industry ── -->
+    <div class="wiz-step active" id="wiz-step-1">
+      <div class="wiz-title">WHAT INDUSTRY ARE YOU IN?</div>
+      <div class="wiz-subtitle">We'll configure your workspace with the right statuses, fields, and metrics for how your team works.</div>
+      <div class="wiz-grid-2" id="wiz-industry-grid">
+        <!-- Populated by JS -->
+      </div>
+      <!-- Other industry -->
+      <div id="wiz-other-fields" style="display:none">
+        <div class="wiz-form" style="margin-top:-8px">
+          <div class="wiz-field-group">
+            <label class="form-label">Industry name</label>
+            <input type="text" id="wiz-other-name" placeholder="e.g. Security Systems" style="margin-top:6px">
+          </div>
+          <div class="wiz-field-group">
+            <label class="form-label">Brief description (optional)</label>
+            <input type="text" id="wiz-other-desc" placeholder="What does your team sell at the door?" style="margin-top:6px">
+          </div>
+        </div>
+      </div>
+      <div class="wiz-footer">
+        <button class="wiz-btn-next" id="wiz-next-1" onclick="wizNext(1)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 2: Goals ── -->
+    <div class="wiz-step" id="wiz-step-2">
+      <div class="wiz-title">WHAT'S YOUR PRIMARY GOAL?</div>
+      <div class="wiz-subtitle">This helps us prioritize what metrics your team sees and what your dashboard highlights.</div>
+      <div class="wiz-grid-2" id="wiz-goals-grid">
+        <!-- Populated by JS -->
+      </div>
+      <div class="wiz-footer">
+        <button class="wiz-btn-back" onclick="wizBack(2)">← Back</button>
+        <button class="wiz-btn-next" id="wiz-next-2" onclick="wizNext(2)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 3: Company profile ── -->
+    <div class="wiz-step" id="wiz-step-3">
+      <div class="wiz-title">TELL US ABOUT YOUR COMPANY</div>
+      <div class="wiz-subtitle">This personalizes your setup and helps with territory planning.</div>
+      <div class="wiz-form">
+        <div class="wiz-row">
+          <div class="wiz-field-group">
+            <label class="form-label">Company website (optional)</label>
+            <input type="url" id="wiz-website" placeholder="https://" style="margin-top:6px">
+          </div>
+          <div class="wiz-field-group">
+            <label class="form-label">Office phone (optional)</label>
+            <input type="tel" id="wiz-phone" placeholder="(555) 000-0000" style="margin-top:6px">
+          </div>
+        </div>
+        <div class="wiz-field-group">
+          <label class="form-label">Primary market / region</label>
+          <input type="text" id="wiz-region" placeholder="e.g. Greater Houston, Texas" style="margin-top:6px">
+        </div>
+        <div class="wiz-row">
+          <div class="wiz-field-group">
+            <label class="form-label">Company size</label>
+            <select id="wiz-size" style="margin-top:6px">
+              <option value="">— Select —</option>
+              <option value="solo">Just me</option>
+              <option value="small">2–10 reps</option>
+              <option value="medium">11–50 reps</option>
+              <option value="large">51–200 reps</option>
+              <option value="enterprise">200+ reps</option>
+            </select>
+          </div>
+          <div class="wiz-field-group">
+            <label class="form-label">Number of offices</label>
+            <select id="wiz-offices" style="margin-top:6px">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4–10</option>
+              <option value="11">10+</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="wiz-footer">
+        <button class="wiz-btn-back" onclick="wizBack(3)">← Back</button>
+        <button class="wiz-btn-next" onclick="wizNext(3)">Continue →</button>
+      </div>
+      <div class="wiz-skip" onclick="wizSkip(3)">Skip this step</div>
+    </div>
+
+    <!-- ── STEP 4: Statuses (pin outcomes) ── -->
+    <div class="wiz-step" id="wiz-step-4">
+      <div class="wiz-title">YOUR KNOCK OUTCOMES</div>
+      <div class="wiz-subtitle">These are the outcomes your reps will log at each door. We've set these up based on your industry — you can customize them later.</div>
+      <div class="wiz-status-list" id="wiz-status-list">
+        <!-- Populated by JS -->
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:20px">
+        ✓ You can rename, reorder, add, or archive any of these from Settings after setup.
+      </div>
+      <div class="wiz-footer">
+        <button class="wiz-btn-back" onclick="wizBack(4)">← Back</button>
+        <button class="wiz-btn-next" onclick="wizNext(4)">Looks good →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 5: Lead fields ── -->
+    <div class="wiz-step" id="wiz-step-5">
+      <div class="wiz-title">LEAD DATA COLLECTION</div>
+      <div class="wiz-subtitle">These fields appear when your rep logs a lead or appointment. We've selected the most relevant ones for your industry.</div>
+      <div class="wiz-field-list" id="wiz-field-list">
+        <!-- Populated by JS -->
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:20px">
+        ✓ Additional fields and custom fields can be added from Settings after setup.
+      </div>
+      <div class="wiz-footer">
+        <button class="wiz-btn-back" onclick="wizBack(5)">← Back</button>
+        <button class="wiz-btn-next" onclick="wizNext(5)">Looks good →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 6: Dashboard metrics ── -->
+    <div class="wiz-step" id="wiz-step-6">
+      <div class="wiz-title">WHAT DO YOU WANT TO TRACK?</div>
+      <div class="wiz-subtitle">Choose the metrics that matter most to your business. These will appear on your Owner Dashboard. You can always change these later.</div>
+      <div class="wiz-metric-grid" id="wiz-metric-grid">
+        <!-- Populated by JS -->
+      </div>
+      <div class="wiz-footer">
+        <button class="wiz-btn-back" onclick="wizBack(6)">← Back</button>
+        <button class="wiz-btn-next" onclick="wizNext(6)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 7: Automations ── -->
+    <div class="wiz-step" id="wiz-step-7">
+      <div class="wiz-title">SMART AUTOMATIONS</div>
+      <div class="wiz-subtitle">These run in the background and surface insights, reminders, and coaching moments for your team. You can configure each one after setup.</div>
+      <div class="wiz-check-grid" id="wiz-auto-grid">
+        <!-- Populated by JS -->
+      </div>
+      <div class="wiz-footer">
+        <button class="wiz-btn-back" onclick="wizBack(7)">← Back</button>
+        <button class="wiz-btn-next" onclick="wizNext(7)">Continue →</button>
+      </div>
+      <div class="wiz-skip" onclick="wizSkip(7)">Skip automations</div>
+    </div>
+
+    <!-- ── STEP 8: Review + Finish ── -->
+    <div class="wiz-step" id="wiz-step-8">
+      <div class="wiz-title">EVERYTHING LOOKS GREAT</div>
+      <div class="wiz-subtitle">Here's a summary of your workspace setup. Click Finish to apply everything and open your dashboard.</div>
+      <div id="wiz-review-body">
+        <!-- Populated by wizRenderReview() -->
+      </div>
+      <div class="wiz-footer" style="margin-top:8px">
+        <button class="wiz-btn-back" onclick="wizBack(8)">← Back</button>
+        <button class="wiz-btn-next" id="wiz-finish-btn" onclick="wizFinish()">🚀 Launch Dashboard</button>
+      </div>
+    </div>
+
+  <div style="text-align:center;margin-top:20px">
+    <span style="font-size:12px;color:var(--muted);cursor:pointer" onclick="wizSkipAll()">
+      Skip setup and go straight to dashboard →
+    </span>
+  </div>
+</div><!-- /wiz-wrap -->
+</div><!-- /screen-wizard -->
 
 </body>
 </html>
