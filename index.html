@@ -2703,6 +2703,9 @@ async function sbRpc(fn, params = {}) {
     body: JSON.stringify(params)
   });
   const txt = await res.text();
+  if (!res.ok) {
+    throw new Error(`Supabase RPC ${fn} failed (${res.status}): ${txt || res.statusText}`);
+  }
   return txt ? JSON.parse(txt) : null;
 }
 async function sbGetSession() {
@@ -2766,8 +2769,11 @@ async function loadUserContext(launchWizard = false) {
 
     // Load membership
     const memberships = await sbFetch(
-      `company_members?user_id=eq.${_session.user.id}&status=eq.active&limit=1`
+      `company_members?user_id=eq.${_session.user.id}&status=eq.active&limit=2`
     );
+    if ((memberships || []).length > 1) {
+      throw new Error('Multiple active workspaces found. Contact support before continuing.');
+    }
     _membership = memberships?.[0] || null;
 
     if (!_membership) {
@@ -2785,6 +2791,9 @@ async function loadUserContext(launchWizard = false) {
 
     // Load company statuses for rep pin sheet
     await loadCompanyStatuses();
+
+    // Load territories for both the rep experience and owner command center.
+    await loadCompanyZones();
 
     // ── Route decision ───────────────────────────────────────
     const role = _membership?.role || 'rep';
@@ -3139,9 +3148,13 @@ function populateHomePage() {
   // Metrics
   const goal = _membership?.daily_goal || 75;
   const doors = _knocks.length;
-  const convos = _knocks.filter(k => !['not-home','unvisited'].includes(k.status)).length;
-  const leads  = _knocks.filter(k => ['lead','quality-lead'].includes(k.status)).length;
-  const appts  = _knocks.filter(k => k.appointment).length;
+  const convos = _knocks.filter(k => statusCountsAs(
+    k.status,
+    'counts_as_conversation',
+    ['contact','lead','quality-lead','appointment','sold','enrolled']
+  )).length;
+  const leads  = _knocks.filter(k => statusCountsAs(k.status, 'creates_lead', ['lead','quality-lead'])).length;
+  const appts  = _knocks.filter(k => k.appointment || statusCountsAs(k.status, 'creates_appointment', ['appointment'])).length;
 
   setText('stat-doors',  doors);
   setText('stat-convos', convos);
@@ -3278,7 +3291,8 @@ function renderMapMarkers() {
   if (!_mainMapObj) return;
   _knocks.forEach(k => {
     if (!k.lat || !k.lng) return;
-    const s = STATUSES.find(x => x.key === k.status) || STATUSES[0];
+    const statuses = getActiveStatuses();
+    const s = statuses.find(x => x.key === k.status) || statuses[0];
     new google.maps.Marker({
       position: { lat: k.lat, lng: k.lng },
       map: _mainMapObj,
@@ -3300,7 +3314,7 @@ function openPinSheet() {
   // Build status grid
   const grid = document.getElementById('status-grid');
   if (grid) {
-    grid.innerHTML = STATUSES.filter(s => s.key !== 'unvisited').map(s => `
+    grid.innerHTML = getActiveStatuses().filter(s => s.key !== 'unvisited').map(s => `
       <button class="status-btn" onclick="selectStatus('${s.key}')" id="sbtn-${s.key}">
         <div class="status-icon-circle" style="background:${s.color}20;border:2px solid ${s.color}">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${s.color}" stroke-width="2">${s.svgPath}</svg>
@@ -3333,7 +3347,7 @@ function selectStatus(key) {
   document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('selected'));
   const btn = document.getElementById('sbtn-' + key);
   if (btn) {
-    const s = STATUSES.find(x => x.key === key);
+    const s = statusDefinition(key);
     btn.classList.add('selected');
     btn.style.borderColor = s?.color || '#fff';
   }
@@ -3372,7 +3386,8 @@ async function saveKnock() {
       _knocks.unshift(saved[0]);
       // Add marker to map
       if (_mainMapObj) {
-        const s = STATUSES.find(x => x.key === knock.status) || STATUSES[0];
+        const statuses = getActiveStatuses();
+        const s = statuses.find(x => x.key === knock.status) || statuses[0];
         new google.maps.Marker({
           position: { lat: knock.lat, lng: knock.lng },
           map: _mainMapObj,
@@ -3394,7 +3409,7 @@ async function saveKnock() {
 
 // ── LEADS PAGE ─────────────────────────────────────────────────
 function renderLeads() {
-  const leads = _knocks.filter(k => ['lead','quality-lead'].includes(k.status));
+  const leads = _knocks.filter(k => statusCountsAs(k.status, 'creates_lead', ['lead','quality-lead']));
   const list  = document.getElementById('leads-list');
   if (!list) return;
   if (!leads.length) {
@@ -3405,9 +3420,8 @@ function renderLeads() {
     </div>`;
     return;
   }
-  const s = STATUSES.find(x => x.key === 'quality-lead');
   list.innerHTML = leads.map(k => {
-    const st = STATUSES.find(x => x.key === k.status);
+    const st = statusDefinition(k.status);
     const t  = new Date(k.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
     return `<div class="lead-card">
       <div class="lead-status-dot" style="background:${st?.color || '#888'}"></div>
@@ -4027,7 +4041,51 @@ async function loadCompanyStatuses() {
 
 // Get effective statuses (company-specific or defaults)
 function getActiveStatuses() {
-  return window._companyStatuses || STATUSES;
+  const rows = window._companyStatuses;
+  if (!rows?.length) return STATUSES;
+  return rows.map(row => {
+    const fallback = STATUSES.find(s => s.key === row.key) || {};
+    return {
+      ...fallback,
+      ...row,
+      key: row.key,
+      label: row.label || fallback.label || row.key,
+      color: row.color || fallback.color || '#6B7280',
+      svgPath: fallback.svgPath || '<circle cx="12" cy="12" r="7"></circle>'
+    };
+  });
+}
+
+function statusDefinition(statusKey) {
+  return getActiveStatuses().find(s => s.key === statusKey);
+}
+
+function statusCountsAs(statusKey, flag, fallbackKeys = []) {
+  const status = statusDefinition(statusKey);
+  if (status && typeof status[flag] === 'boolean') return status[flag];
+  return fallbackKeys.includes(statusKey);
+}
+
+async function loadCompanyZones() {
+  if (!_membership?.company_id) return;
+  try {
+    const rows = await sbFetch(
+      `zones?company_id=eq.${_membership.company_id}&order=created_at.asc`
+    );
+    _zones = rows || [];
+    window._zones = _zones;
+  } catch (e) {
+    // Some earlier schemas do not include created_at. Retry without ordering.
+    try {
+      const rows = await sbFetch(`zones?company_id=eq.${_membership.company_id}`);
+      _zones = rows || [];
+      window._zones = _zones;
+    } catch (fallbackError) {
+      console.error('loadCompanyZones error:', fallbackError);
+      _zones = [];
+      window._zones = [];
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -4414,16 +4472,19 @@ function odRenderOverview() {
 
   // KPIs
   const doors  = knocks.length;
-  const leads  = knocks.filter(k => ['lead','quality-lead'].includes(k.status)).length;
-  const appts  = knocks.filter(k => k.appointment).length;
-  const sales  = knocks.filter(k => k.status === 'enrolled').length;
-  const reps   = total;
+  const leads  = knocks.filter(k => statusCountsAs(k.status, 'creates_lead', ['lead','quality-lead'])).length;
+  const appts  = knocks.filter(k => k.appointment || statusCountsAs(k.status, 'creates_appointment', ['appointment'])).length;
+  const sales  = knocks.filter(k => statusCountsAs(k.status, 'counts_as_sale', ['sold','enrolled','closed'])).length;
+  const activeRepNames = [...new Set(knocks.map(k => k.rep).filter(Boolean))];
+  const rosterReps = _allMembers.filter(m => m.role === 'rep').length;
+  const reps = activeRepNames.length;
+  const teamSize = Math.max(rosterReps, reps);
   const closeRate = doors > 0 ? ((sales / doors) * 100).toFixed(1) : '0.0';
   const leadRate  = doors > 0 ? ((leads / doors) * 100).toFixed(1) : '0.0';
 
-  setText('kpi-active-reps', `${reps} / ${reps}`);
+  setText('kpi-active-reps', `${reps} / ${teamSize}`);
   setText('kpi-reps-live', '● Live now');
-  setText('kpi-reps-status', `${reps} on team`);
+  setText('kpi-reps-status', `${teamSize} on team`);
   setText('kpi-doors',  fmtNum(doors));
   setText('kpi-doors-delta', doors > 0 ? `+${fmtNum(doors)} this ${_odFilter}` : 'No data yet');
   setText('kpi-leads',  fmtNum(leads));
@@ -4464,7 +4525,7 @@ function odRenderInsights(knocks, doors, leads, sales) {
 
   // Stale leads: reps with leads but no follow-up in 48h
   const repLeads = {};
-  knocks.filter(k => ['lead','quality-lead'].includes(k.status)).forEach(k => {
+  knocks.filter(k => statusCountsAs(k.status, 'creates_lead', ['lead','quality-lead'])).forEach(k => {
     if (!repLeads[k.rep]) repLeads[k.rep] = { count:0, oldest: k.time };
     repLeads[k.rep].count++;
     if (new Date(k.time) < new Date(repLeads[k.rep].oldest)) repLeads[k.rep].oldest = k.time;
@@ -4553,10 +4614,15 @@ function odRenderTeamMini(knocks) {
 function odRenderFunnelMini(knocks, doors, leads, appts, sales) {
   const el = document.getElementById('od-funnel-mini');
   if (!el) return;
+  const conversations = knocks.filter(k => statusCountsAs(
+    k.status,
+    'counts_as_conversation',
+    ['contact','lead','quality-lead','appointment','sold','enrolled']
+  )).length;
   const stages = [
     { label:'Doors', count: doors, rate: '100%' },
-    { label:'Conversations', count: knocks.filter(k=>!['not-home','unvisited'].includes(k.status)).length,
-      rate: doors>0?((knocks.filter(k=>!['not-home','unvisited'].includes(k.status)).length/doors)*100).toFixed(0)+'%':'—' },
+    { label:'Conversations', count: conversations,
+      rate: doors>0?((conversations/doors)*100).toFixed(0)+'%':'—' },
     { label:'Leads', count: leads, rate: doors>0?((leads/doors)*100).toFixed(1)+'%':'—' },
     { label:'Sales', count: sales, rate: leads>0?((sales/leads)*100).toFixed(1)+'%':'—' },
   ];
@@ -4617,11 +4683,11 @@ function odRenderTeamFull() {
 function odRenderLeadsFull() {
   const el = document.getElementById('od-leads-full');
   if (!el) return;
-  const leads = _allKnocks.filter(k => ['lead','quality-lead'].includes(k.status));
+  const leads = _allKnocks.filter(k => statusCountsAs(k.status, 'creates_lead', ['lead','quality-lead']));
   if (!leads.length) { el.innerHTML = '<p style="color:#9CA3AF;padding:20px">No leads in this period.</p>'; return; }
   const rows = leads.slice(0,100).map(k => {
     const t = new Date(k.time).toLocaleDateString();
-    const s = STATUSES.find(x=>x.key===k.status);
+    const s = statusDefinition(k.status);
     return `<tr>
       <td>${k.address || '—'}</td>
       <td>${k.rep || '—'}</td>
@@ -4658,7 +4724,7 @@ function odUpdateLiveMapMarkers() {
   // Clear existing markers (simple approach — recreate)
   _allKnocks.forEach(k => {
     if (!k.lat || !k.lng) return;
-    const s = STATUSES.find(x=>x.key===k.status);
+    const s = statusDefinition(k.status);
     new google.maps.Circle({
       center: { lat: k.lat, lng: k.lng },
       radius: 20,
@@ -4725,7 +4791,7 @@ function odInitFullMap() {
   });
   _allKnocks.forEach(k => {
     if (!k.lat||!k.lng) return;
-    const s = STATUSES.find(x=>x.key===k.status);
+    const s = statusDefinition(k.status);
     new google.maps.Marker({
       position:{lat:k.lat,lng:k.lng},
       map:_odFullMap,
