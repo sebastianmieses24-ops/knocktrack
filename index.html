@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="knocktrack-build" content="2026.08.09-map-v3">
 <title>Knock Track</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1860,6 +1864,11 @@ a { color: var(--green); text-decoration: none; }
 .od-primary-action{margin-top:14px;border:0;border-radius:8px;background:var(--od-green);color:#fff;padding:9px 13px;font-weight:800;cursor:pointer;}
 .od-secondary-action{margin-top:14px;border:1px solid var(--od-border);border-radius:8px;background:#fff;color:var(--od-text);padding:9px 13px;font-weight:700;cursor:pointer;}
 .od-section-card{background:#fff;border:1px solid var(--od-border);border-radius:12px;padding:20px;margin-top:16px;}
+.od-map-toolbar{position:absolute;top:14px;left:14px;right:64px;z-index:5;display:flex;align-items:center;gap:10px;flex-wrap:wrap;pointer-events:none;}
+.od-map-toolbar-card{background:rgba(255,255,255,.96);border:1px solid var(--od-border);border-radius:10px;padding:9px 12px;box-shadow:0 4px 14px rgba(15,23,42,.12);font-size:12px;font-weight:700;color:var(--od-text);pointer-events:auto;}
+.od-map-legend{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.od-map-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--od-text-3);}
+.od-map-legend-dot{width:8px;height:8px;border-radius:50%;}
 .od-insight-list{display:flex;flex-direction:column;gap:10px;margin-top:12px;}
 .od-insight-row{display:flex;align-items:flex-start;gap:12px;border:1px solid var(--od-border);border-radius:10px;padding:14px;}
 .od-insight-dot{width:10px;height:10px;border-radius:50%;background:var(--od-green);margin-top:5px;flex:0 0 auto;}
@@ -2627,6 +2636,7 @@ a { color: var(--green); text-decoration: none; }
 </div>
 
 <script>
+const KNOCKTRACK_BUILD = '2026.08.09-map-v3';
 // ═══════════════════════════════════════════════════════════════
 // KNOCK TRACK — APPLICATION CORE
 // Multi-tenant, Supabase Auth, RLS-enforced
@@ -4349,10 +4359,22 @@ function miniMapStyle() {
 
 // ── BOOT ──────────────────────────────────────────────────────
 window.initMap = function() {
-  // Google Maps API loaded
+  // Google Maps API loaded. Initialize whichever experience is visible.
   if (document.getElementById('screen-app').classList.contains('active') && _currentPage === 'map') {
     initMainMap();
   }
+  const ownerScreen = document.getElementById('screen-owner');
+  if (ownerScreen?.classList.contains('active')) {
+    odInitLiveMap();
+    if (_odPage === 'map') odInitFullMap();
+  }
+};
+
+window.gm_authFailure = function() {
+  _odLiveMapOk = false;
+  odSetMapMessage('Google Maps could not load. Check API billing and website restrictions.', true);
+  const fullMap = document.getElementById('od-full-map');
+  if (fullMap) fullMap.innerHTML = '<div style="display:grid;place-items:center;height:100%;padding:24px;text-align:center;color:#DC2626">Google Maps authorization failed. Add this deployed domain to the API key website restrictions and confirm Maps JavaScript API billing is enabled.</div>';
 };
 
 document.addEventListener('DOMContentLoaded', boot);
@@ -4366,6 +4388,8 @@ let _odFilter     = 'today';  // 'today' | 'week' | 'month'
 let _odPage       = 'overview';
 let _odLiveMap    = null;
 let _odLiveMapOk  = false;
+let _odLiveOverlays = [];
+let _odFullOverlays = [];
 let _allKnocks    = [];        // all company knocks for current filter
 let _allMembers   = [];        // all company_members rows
 let _allProfiles  = {};        // user_id → profile
@@ -4719,11 +4743,19 @@ function odRenderLeadsFull() {
 
 // ── Live Map ──────────────────────────────────────────────────
 function odInitLiveMap() {
-  if (_odLiveMapOk || typeof google === 'undefined') return;
+  if (_odLiveMapOk) {
+    odUpdateLiveMapMarkers();
+    return;
+  }
+  if (typeof google === 'undefined' || !google.maps) {
+    odSetMapMessage('Waiting for Google Maps…');
+    return;
+  }
   const container = document.getElementById('od-live-map');
   if (!container) return;
   _odLiveMapOk = true;
-  document.getElementById('od-map-ph').style.display = 'none';
+  const placeholder = document.getElementById('od-map-ph');
+  if (placeholder) placeholder.style.display = 'none';
   _odLiveMap = new google.maps.Map(container, {
     center: { lat:39.5, lng:-98.35 },
     zoom: 5,
@@ -4735,27 +4767,104 @@ function odInitLiveMap() {
   odUpdateLiveMapMarkers();
 }
 
+function odSetMapMessage(message, isError = false) {
+  const placeholder = document.getElementById('od-map-ph');
+  if (!placeholder) return;
+  placeholder.style.display = 'flex';
+  const label = placeholder.querySelector('span');
+  if (label) {
+    label.textContent = message;
+    label.style.color = isError ? '#DC2626' : '#6B7280';
+  }
+}
+
+function normalizeZonePath(zone) {
+  let path = zone?.path || zone?.coordinates || zone?.polygon || [];
+  if (typeof path === 'string') {
+    try { path = JSON.parse(path); } catch (e) { return []; }
+  }
+  if (path?.type === 'Polygon' && Array.isArray(path.coordinates)) {
+    path = path.coordinates[0].map(([lng, lat]) => ({ lat, lng }));
+  }
+  if (!Array.isArray(path)) return [];
+  return path.map(point => ({
+    lat: Number(point.lat ?? point.latitude ?? point[1]),
+    lng: Number(point.lng ?? point.lon ?? point.longitude ?? point[0])
+  })).filter(point => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+}
+
+function odZoneColor(index) {
+  return ['#22C55E','#06B6D4','#8B5CF6','#F59E0B','#3B82F6','#EC4899'][index % 6];
+}
+
+function odDrawZones(map, overlayStore) {
+  const zones = window._zones || [];
+  zones.forEach((zone, index) => {
+    const path = normalizeZonePath(zone);
+    if (path.length < 3) return;
+    const color = odZoneColor(index);
+    const polygon = new google.maps.Polygon({
+      paths: path,
+      map,
+      strokeColor: color,
+      strokeOpacity: 0.95,
+      strokeWeight: 2.5,
+      fillColor: color,
+      fillOpacity: 0.10,
+      clickable: true,
+      zIndex: 1
+    });
+    const center = {
+      lat: path.reduce((sum,p)=>sum+p.lat,0)/path.length,
+      lng: path.reduce((sum,p)=>sum+p.lng,0)/path.length
+    };
+    const label = zone.name || `Territory ${index + 1}`;
+    const assigned = zone.assigned_rep_name || zone.assignedRep || zone.assigned_rep || 'Unassigned';
+    const marker = new google.maps.Marker({
+      position:center,
+      map,
+      label:{text:label,color:'#111827',fontSize:'11px',fontWeight:'700'},
+      icon:{path:google.maps.SymbolPath.CIRCLE,scale:0},
+      zIndex:2
+    });
+    const info = new google.maps.InfoWindow({content:`<div style="font:13px Arial;padding:3px"><strong>${label}</strong><br>Assigned: ${assigned}</div>`});
+    polygon.addListener('click', event => info.open({map, position:event.latLng}));
+    marker.addListener('click', () => info.open({map, anchor:marker}));
+    overlayStore.push(polygon, marker, info);
+  });
+}
+
 function odUpdateLiveMapMarkers() {
   if (!_odLiveMap) return;
-  // Clear existing markers (simple approach — recreate)
+  _odLiveOverlays.forEach(item => { if (item?.setMap) item.setMap(null); if (item?.close) item.close(); });
+  _odLiveOverlays = [];
+  odDrawZones(_odLiveMap, _odLiveOverlays);
+
+  const bounds = new google.maps.LatLngBounds();
+  (window._zones || []).forEach(z => normalizeZonePath(z).forEach(point => bounds.extend(point)));
+
+  // Draw every filtered house outcome as a status-colored point.
   _allKnocks.forEach(k => {
     if (!k.lat || !k.lng) return;
     const s = statusDefinition(k.status);
-    new google.maps.Circle({
-      center: { lat: k.lat, lng: k.lng },
-      radius: 20,
+    const point = { lat:Number(k.lat), lng:Number(k.lng) };
+    if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return;
+    const pin = new google.maps.Circle({
+      center: point,
+      radius: 12,
       map: _odLiveMap,
       fillColor: s?.color || '#22C55E',
-      fillOpacity: 0.8,
-      strokeWeight: 0
+      fillOpacity: 0.92,
+      strokeColor:'#FFFFFF',
+      strokeWeight:1,
+      zIndex:3
     });
+    const info = new google.maps.InfoWindow({content:`<div style="font:13px Arial;padding:3px"><strong>${k.address || 'House'}</strong><br>${s?.label || k.status || 'Outcome'} · ${k.rep || 'Unassigned'}</div>`});
+    pin.addListener('click', event => info.open({map:_odLiveMap, position:event.latLng}));
+    _odLiveOverlays.push(pin, info);
+    bounds.extend(point);
   });
-  // Fit bounds if we have knocks
-  if (_allKnocks.length) {
-    const bounds = new google.maps.LatLngBounds();
-    _allKnocks.filter(k=>k.lat&&k.lng).forEach(k => bounds.extend({lat:k.lat,lng:k.lng}));
-    if (!bounds.isEmpty()) _odLiveMap.fitBounds(bounds, 40);
-  }
+  if (!bounds.isEmpty()) _odLiveMap.fitBounds(bounds, 40);
 }
 
 function odMapStyle() {
@@ -4882,7 +4991,7 @@ function odRenderSupport() {
 }
 
 async function odCopyDiagnostics() {
-  const details = `Knock Track diagnostics\nCompany: ${_company?.name || 'Unknown'}\nWorkspace: ${_membership?.company_id || 'Unknown'}\nRole: ${_membership?.role || 'Unknown'}\nFilter: ${_odFilter}\nKnocks loaded: ${_allKnocks.length}\nMembers loaded: ${_allMembers.length}\nZones loaded: ${(window._zones || []).length}`;
+  const details = `Knock Track diagnostics\nBuild: ${KNOCKTRACK_BUILD}\nCompany: ${_company?.name || 'Unknown'}\nWorkspace: ${_membership?.company_id || 'Unknown'}\nRole: ${_membership?.role || 'Unknown'}\nFilter: ${_odFilter}\nKnocks loaded: ${_allKnocks.length}\nMembers loaded: ${_allMembers.length}\nZones loaded: ${(window._zones || []).length}`;
   try {
     await navigator.clipboard.writeText(details);
     showToast('Diagnostics copied');
@@ -4893,27 +5002,65 @@ async function odCopyDiagnostics() {
 
 // Full map (owner view)
 let _odFullMap = null;
+function odRenderMapLegend() {
+  const zones = window._zones || [];
+  const summary = document.getElementById('od-map-summary');
+  if (summary) summary.textContent = `${zones.length} ${zones.length===1?'territory':'territories'} · ${_allKnocks.length} pins · ${_odFilter}`;
+  const legend = document.getElementById('od-map-legend');
+  if (legend) {
+    const usedKeys = [...new Set(_allKnocks.map(k=>k.status).filter(Boolean))];
+    legend.innerHTML = usedKeys.slice(0,6).map(key => {
+      const status = statusDefinition(key);
+      return `<span class="od-map-legend-item"><span class="od-map-legend-dot" style="background:${status?.color || '#6B7280'}"></span>${status?.label || key}</span>`;
+    }).join('');
+  }
+}
+
 function odInitFullMap() {
-  if (typeof google === 'undefined') return;
+  if (typeof google === 'undefined' || !google.maps) {
+    const container = document.getElementById('od-full-map');
+    if (container) container.innerHTML = '<div style="display:grid;place-items:center;height:100%;color:#6B7280">Waiting for Google Maps…</div>';
+    return;
+  }
   const container = document.getElementById('od-full-map');
   if (!container) return;
-  if (_odFullMap) { google.maps.event.trigger(_odFullMap,'resize'); return; }
-  _odFullMap = new google.maps.Map(container, {
-    center: { lat:39.5, lng:-98.35 }, zoom:5,
-    styles: odMapStyle(),
-    disableDefaultUI: false,
-    gestureHandling: 'greedy',
-    zoomControl: true, mapTypeControl: true
-  });
+  odRenderMapLegend();
+  if (!_odFullMap) {
+    container.innerHTML = '';
+    _odFullMap = new google.maps.Map(container, {
+      center: { lat:39.5, lng:-98.35 }, zoom:5,
+      styles: odMapStyle(),
+      disableDefaultUI: false,
+      gestureHandling: 'greedy',
+      zoomControl: true, mapTypeControl: true
+    });
+  } else {
+    google.maps.event.trigger(_odFullMap,'resize');
+  }
+  _odFullOverlays.forEach(item => { if (item?.setMap) item.setMap(null); if (item?.close) item.close(); });
+  _odFullOverlays = [];
+  odDrawZones(_odFullMap, _odFullOverlays);
+  const bounds = new google.maps.LatLngBounds();
+  (window._zones || []).forEach(z => normalizeZonePath(z).forEach(point => bounds.extend(point)));
   _allKnocks.forEach(k => {
     if (!k.lat||!k.lng) return;
     const s = statusDefinition(k.status);
-    new google.maps.Marker({
-      position:{lat:k.lat,lng:k.lng},
+    const point = {lat:Number(k.lat),lng:Number(k.lng)};
+    if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return;
+    const marker = new google.maps.Marker({
+      position:point,
       map:_odFullMap,
-      icon: makeMarkerSvg(s?.color||'#22C55E')
+      icon: makeMarkerSvg(s?.color||'#22C55E'),
+      title:`${k.address || 'House'} — ${s?.label || k.status || 'Outcome'}`,
+      optimized:true,
+      zIndex:3
     });
+    const info = new google.maps.InfoWindow({content:`<div style="font:13px Arial;padding:3px"><strong>${k.address || 'House'}</strong><br>${s?.label || k.status || 'Outcome'}<br>Rep: ${k.rep || 'Unassigned'}${k.notes ? `<br>Notes: ${k.notes}` : ''}</div>`});
+    marker.addListener('click', () => info.open({map:_odFullMap, anchor:marker}));
+    _odFullOverlays.push(marker, info);
+    bounds.extend(point);
   });
+  if (!bounds.isEmpty()) _odFullMap.fitBounds(bounds, 48);
 }
 
 function odRenderTerritoriesFull() {
@@ -4941,6 +5088,9 @@ async function odSetFilter(f) {
   if (btn) btn.classList.add('active');
   await odLoadData();
   odRenderOverview();
+  if (_odPage === 'map') odInitFullMap();
+  if (_odPage === 'ai') odRenderAIPage();
+  if (_odPage === 'reports') odRenderReports();
 }
 
 // ── Utility ───────────────────────────────────────────────────
@@ -5183,7 +5333,13 @@ function fmtNum(n) {
 
       <!-- MAP PAGE (owner full map) -->
       <div class="od-page" id="odpage-map">
-        <div id="od-full-map" style="width:100%;height:100%"></div>
+        <div style="position:relative;width:100%;height:100%">
+          <div class="od-map-toolbar">
+            <div class="od-map-toolbar-card" id="od-map-summary">Loading territories and pins…</div>
+            <div class="od-map-toolbar-card od-map-legend" id="od-map-legend"></div>
+          </div>
+          <div id="od-full-map" style="width:100%;height:100%"></div>
+        </div>
       </div>
 
       <!-- TEAM PAGE -->
