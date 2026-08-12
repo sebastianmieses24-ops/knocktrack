@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="knocktrack-build" content="2026.08.11-v7-rep-field-workflow">
+<meta name="knocktrack-build" content="2026.08.12-v8-dev-rep-access">
 <title>Knock Track</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -713,6 +713,8 @@ a { color: var(--green); text-decoration: none; }
   text-align: center;
 }
 .pin-switch a { color: var(--cyan); }
+.pin-dev-notice { width:100%;margin:0 0 18px;padding:11px 12px;border-radius:12px;border:1px solid rgba(245,158,11,.35);background:rgba(245,158,11,.1);color:#FCD34D;font-size:11px;font-weight:700;line-height:1.45;text-align:center; }
+.pin-dev-open { margin-top:14px; }
 
 /* ─────────────────────────────────────────────
    MAIN APP SHELL
@@ -1857,6 +1859,8 @@ a { color: var(--green); text-decoration: none; }
 .od-header-left  { display: flex; align-items: center; }
 .od-header-center{ display: flex; align-items: center; }
 .od-header-right { display: flex; align-items: center; gap: 12px; }
+.od-preview-rep-btn { padding:7px 11px;border:1px solid var(--od-border);border-radius:8px;background:#fff;color:var(--od-text);font-size:12px;font-weight:700;cursor:pointer; }
+.od-preview-rep-btn:hover { background:var(--od-green-light);color:var(--od-green); }
 
 .od-live-badge {
   display: flex;
@@ -2663,6 +2667,10 @@ a { color: var(--green); text-decoration: none; }
     </div>
     <div class="pin-company-name" id="pin-company-name">—</div>
 
+    <div class="pin-dev-notice" id="pin-dev-notice">
+      Development access is on. Select a representative and open the app—no PIN is required until launch.
+    </div>
+
     <!-- Rep selector -->
     <div style="width:100%;margin-bottom:20px">
       <label class="form-label" for="pin-rep-select">Select your name</label>
@@ -2674,7 +2682,7 @@ a { color: var(--green); text-decoration: none; }
     <div class="pin-avatar" id="pin-avatar">?</div>
     <div class="pin-rep-name" id="pin-rep-label"></div>
 
-    <div class="pin-dots" id="pin-dots" aria-label="PIN entry">
+    <div class="pin-dots" id="pin-dots" aria-label="PIN entry" style="display:none">
       <div class="pin-dot" id="pd0"></div>
       <div class="pin-dot" id="pd1"></div>
       <div class="pin-dot" id="pd2"></div>
@@ -2683,7 +2691,7 @@ a { color: var(--green); text-decoration: none; }
       <div class="pin-dot" id="pd5"></div>
     </div>
 
-    <div class="pin-keypad" role="group" aria-label="PIN keypad">
+    <div class="pin-keypad" id="pin-keypad" role="group" aria-label="PIN keypad" style="display:none">
       <button class="pin-key" onclick="pinKey('1')">1</button>
       <button class="pin-key" onclick="pinKey('2')">2</button>
       <button class="pin-key" onclick="pinKey('3')">3</button>
@@ -2702,6 +2710,10 @@ a { color: var(--green); text-decoration: none; }
         </svg>
       </button>
     </div>
+
+    <button class="btn-primary pin-dev-open" id="dev-open-rep-btn" onclick="openSelectedRepWithoutPin()" disabled>
+      Select a rep to continue
+    </button>
 
     <div class="pin-error" id="pin-error" aria-live="polite"></div>
     <div class="pin-switch">
@@ -2795,6 +2807,7 @@ a { color: var(--green); text-decoration: none; }
       <div class="kt-logo-line" style="width:100%;margin-top:2px"></div>
     </div>
     <div class="app-header-right">
+      <button class="header-icon-btn" id="dev-exit-rep-preview" onclick="exitDevelopmentRepPreview()" aria-label="Return to owner dashboard" title="Return to owner dashboard" style="display:none;width:auto;padding:0 9px;font-size:10px;font-weight:800">OWNER</button>
       <button class="header-icon-btn" onclick="appNotifications()" aria-label="Notifications">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -3092,7 +3105,9 @@ a { color: var(--green); text-decoration: none; }
 </div>
 
 <script>
-const KNOCKTRACK_BUILD = '2026.08.11-v7-rep-field-workflow';
+const KNOCKTRACK_BUILD = '2026.08.12-v8-dev-rep-access';
+// Temporary pre-launch switch. Change to false before production launch.
+const DEV_REP_PIN_BYPASS = true;
 // ═══════════════════════════════════════════════════════════════
 // KNOCK TRACK — APPLICATION CORE
 // Multi-tenant, Supabase Auth, RLS-enforced
@@ -3112,6 +3127,8 @@ let _knocks      = [];     // today's knocks for current user
 let _zones       = [];
 let _repPinBuf   = '';
 let _repSelected = null;
+let _devOwnerMembership = null;
+let _devOwnerProfile = null;
 let _miniMapObj  = null;
 let _mainMapObj  = null;
 let _miniLeafletMap = null;
@@ -3331,7 +3348,7 @@ async function refreshKnocks() {
   try {
     const rows = await sbFetch(
       `knocks?company_id=eq.${_membership.company_id}` +
-      `&created_by=eq.${_session.user.id}` +
+      `&created_by=eq.${window._devActingRepId || _session.user.id}` +
       `&time=gte.${today.toISOString()}` +
       `&order=time.desc&limit=200`
     );
@@ -3540,6 +3557,13 @@ async function showRepPinScreen() {
   await loadRepList();
 }
 
+async function showDevelopmentRepAccess() {
+  if (!DEV_REP_PIN_BYPASS) return;
+  _devOwnerMembership = { ..._membership };
+  _devOwnerProfile = _profile ? { ..._profile } : null;
+  await showRepPinScreen();
+}
+
 async function loadRepList() {
   try {
     const rows = await sbFetch(
@@ -3570,6 +3594,56 @@ function pinRepSelected() {
   document.getElementById('pin-avatar').textContent = name.charAt(0).toUpperCase() || '?';
   document.getElementById('pin-rep-label').textContent = name.toUpperCase();
   document.getElementById('pin-error').textContent = '';
+  const openButton = document.getElementById('dev-open-rep-btn');
+  if (openButton) {
+    openButton.disabled = !_repSelected;
+    openButton.textContent = _repSelected ? 'Open Rep App →' : 'Select a rep to continue';
+  }
+}
+
+async function openSelectedRepWithoutPin() {
+  if (!DEV_REP_PIN_BYPASS) {
+    document.getElementById('pin-error').textContent = 'PIN access is required.';
+    return;
+  }
+  if (!_repSelected) {
+    document.getElementById('pin-error').textContent = 'Select your name first';
+    return;
+  }
+  const button = document.getElementById('dev-open-rep-btn');
+  const selectedId = _repSelected;
+  if (button) { button.disabled = true; button.textContent = 'Opening…'; }
+  try {
+    const memberRows = await sbFetch(
+      `company_members?company_id=eq.${_membership.company_id}&user_id=eq.${selectedId}&status=eq.active&limit=1`
+    );
+    const profileRows = await sbFetch(`profiles?id=eq.${selectedId}&limit=1`);
+    if (!memberRows?.[0]) throw new Error('Representative is no longer active');
+    // Preview the selected rep while preserving the authenticated actor for writes.
+    _membership = { ...memberRows[0], role:'rep' };
+    _profile = profileRows?.[0] || _profile;
+    window._devActingRepId = selectedId;
+    await refreshKnocks();
+    await loadCompanyZones();
+    showScreen('app');
+    populateApp();
+    showToast('Development access · PIN bypassed');
+  } catch (error) {
+    console.error('openSelectedRepWithoutPin:', error);
+    document.getElementById('pin-error').textContent = error.message || 'Unable to open rep app';
+  } finally {
+    if (button) { button.disabled = !_repSelected; button.textContent = 'Open Rep App →'; }
+  }
+}
+
+async function exitDevelopmentRepPreview() {
+  window._devActingRepId = null;
+  if (_devOwnerMembership) _membership = _devOwnerMembership;
+  if (_devOwnerProfile) _profile = _devOwnerProfile;
+  _devOwnerMembership = null;
+  _devOwnerProfile = null;
+  showScreen('owner');
+  await odBoot();
 }
 
 function pinKey(k) {
@@ -3632,6 +3706,8 @@ function populateHeader() {
   const name = _profile?.display_name || _profile?.full_name || 'User';
   const el = document.getElementById('app-avatar');
   if (el) el.textContent = name.charAt(0).toUpperCase();
+  const exitPreview = document.getElementById('dev-exit-rep-preview');
+  if (exitPreview) exitPreview.style.display = window._devActingRepId ? 'block' : 'none';
 }
 
 function populateHomePage() {
@@ -6219,6 +6295,7 @@ function fmtNum(n) {
         </div>
       </div>
       <div class="od-header-right">
+        <button class="od-preview-rep-btn" type="button" onclick="showDevelopmentRepAccess()">Preview Rep App</button>
         <div class="od-live-badge" id="od-live-badge">
           <span class="od-live-dot"></span> LIVE
         </div>
