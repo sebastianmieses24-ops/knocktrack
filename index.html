@@ -2249,6 +2249,54 @@ a { color: var(--green); text-decoration: none; }
 }
 .od-table tr:hover td { background:var(--od-bg-2); }
 .od-page-h1{font-size:24px;font-weight:800;color:var(--od-text);margin:4px 0 20px;}
+.od-team-page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:20px;}
+.od-team-page-header .od-page-h1{margin-bottom:5px;}
+.od-team-page-copy{font-size:12px;line-height:1.55;color:var(--od-text-3);max-width:680px;}
+.od-team-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px;}
+.od-team-summary-card{border:1px solid var(--od-border);border-radius:10px;background:#fff;padding:14px 16px;}
+.od-team-summary-label{font-size:10px;font-weight:800;letter-spacing:1.2px;color:var(--od-text-4);text-transform:uppercase;}
+.od-team-summary-value{font-size:25px;font-weight:800;color:var(--od-text);margin-top:4px;}
+.od-team-person{display:flex;align-items:center;gap:10px;min-width:220px;}
+.od-team-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--od-green-light);color:var(--od-green);font-size:12px;font-weight:900;flex:0 0 auto;}
+.od-team-name{font-size:13px;font-weight:800;color:var(--od-text);}
+.od-team-meta{font-size:10px;color:var(--od-text-3);margin-top:2px;}
+.od-status-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;}
+.od-status-pill.active{background:#DCFCE7;color:#15803D;}
+.od-status-pill.inactive,.od-status-pill.suspended{background:#F3F4F6;color:#6B7280;}
+.od-status-pill.invited{background:#FEF3C7;color:#92400E;}
+.od-status-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.od-team-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;}
+.od-team-action{border:1px solid var(--od-border);border-radius:7px;background:#fff;color:var(--od-text-2);padding:6px 9px;font-size:10px;font-weight:800;cursor:pointer;}
+.od-team-action:hover{border-color:#BBF7D0;background:#F0FDF4;color:#15803D;}
+.od-team-action.danger:hover{border-color:#FECACA;background:#FEF2F2;color:#B91C1C;}
+.od-team-action:disabled{opacity:.45;cursor:not-allowed;}
+.od-empty-state{padding:44px 22px;text-align:center;border:1px dashed var(--od-border);border-radius:12px;background:var(--od-bg-2);}
+.od-empty-title{font-size:16px;font-weight:800;color:var(--od-text);}
+.od-empty-copy{font-size:12px;line-height:1.55;color:var(--od-text-3);margin:7px auto 16px;max-width:430px;}
+.od-inline-alert{border:1px solid #FDE68A;background:#FFFBEB;color:#92400E;border-radius:9px;padding:10px 12px;font-size:11px;font-weight:700;line-height:1.45;margin-bottom:14px;}
+.kt-modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.48);z-index:12000;padding:20px;align-items:center;justify-content:center;}
+.kt-modal-overlay.open{display:flex;}
+.kt-modal{width:min(620px,100%);max-height:calc(100vh - 40px);overflow:auto;background:#fff;border-radius:16px;box-shadow:0 24px 80px rgba(15,23,42,.24);color:#111827;font-family:'Montserrat',sans-serif;}
+.kt-modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px 14px;border-bottom:1px solid #E5E7EB;}
+.kt-modal-title{font-size:19px;font-weight:800;}
+.kt-modal-sub{font-size:11px;color:#6B7280;margin-top:4px;line-height:1.45;}
+.kt-modal-close{width:32px;height:32px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;color:#374151;font-size:20px;cursor:pointer;}
+.kt-modal-body{padding:20px 22px;}
+.kt-rep-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.kt-rep-field{display:flex;flex-direction:column;gap:6px;}
+.kt-rep-field.full{grid-column:1/-1;}
+.kt-rep-field label{font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:#6B7280;}
+.kt-rep-field input,.kt-rep-field select{width:100%;min-height:42px;border:1px solid #D1D5DB;border-radius:8px;background:#fff;color:#111827;padding:9px 11px;font:500 13px 'Montserrat',sans-serif;}
+.kt-rep-field input:focus,.kt-rep-field select:focus{outline:none;border-color:#22C55E;box-shadow:0 0 0 3px rgba(34,197,94,.12);}
+.kt-rep-field input:disabled{background:#F9FAFB;color:#9CA3AF;}
+.kt-rep-help{font-size:10px;line-height:1.45;color:#9CA3AF;}
+.kt-modal-error{display:none;margin-top:14px;border:1px solid #FECACA;background:#FEF2F2;color:#B91C1C;border-radius:8px;padding:10px 12px;font-size:11px;font-weight:700;line-height:1.45;}
+.kt-modal-error.show{display:block;}
+.kt-modal-footer{display:flex;align-items:center;justify-content:flex-end;gap:9px;padding:14px 22px 20px;}
+.kt-btn-quiet,.kt-btn-green{border-radius:8px;padding:10px 15px;font-size:12px;font-weight:800;cursor:pointer;}
+.kt-btn-quiet{border:1px solid #D1D5DB;background:#fff;color:#374151;}
+.kt-btn-green{border:1px solid #16A34A;background:#22C55E;color:#fff;}
+.kt-btn-green:disabled{opacity:.5;cursor:not-allowed;}
 .od-action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px;}
 .od-action-card{background:#fff;border:1px solid var(--od-border);border-radius:12px;padding:18px;box-shadow:0 1px 2px rgba(15,23,42,.04);}
 .od-action-title{font-size:14px;font-weight:800;color:var(--od-text);margin-bottom:6px;}
@@ -2266,7 +2314,7 @@ a { color: var(--green); text-decoration: none; }
 .od-insight-list{display:flex;flex-direction:column;gap:10px;margin-top:12px;}
 .od-insight-row{display:flex;align-items:flex-start;gap:12px;border:1px solid var(--od-border);border-radius:10px;padding:14px;}
 .od-insight-dot{width:10px;height:10px;border-radius:50%;background:var(--od-green);margin-top:5px;flex:0 0 auto;}
-@media (max-width:900px){.od-action-grid{grid-template-columns:1fr;}}
+@media (max-width:900px){.od-action-grid{grid-template-columns:1fr;}.od-team-summary{grid-template-columns:1fr;}.od-team-page-header{flex-direction:column;}.kt-rep-form-grid{grid-template-columns:1fr;}.kt-rep-field.full{grid-column:auto;}}
 
 /* ── SETTINGS ── */
 .od-settings-row {
@@ -2604,7 +2652,7 @@ a { color: var(--green); text-decoration: none; }
           <button class="btn-primary" id="signin-btn" onclick="doSignIn()">Sign in to workspace</button>
           <button class="btn-secondary" style="margin-top:2px" onclick="authTab('forgot')">Forgot your password?</button>
           <div class="auth-divider">or</div>
-          <button class="btn-secondary" onclick="showRepPinScreen()">Field representative? Use team PIN →</button>
+          <button class="btn-secondary" onclick="showRepAccessInfo()">Field representative? Rep access →</button>
         </div>
 
         <div id="auth-signup" class="auth-form hidden">
@@ -2623,7 +2671,7 @@ a { color: var(--green); text-decoration: none; }
           </div>
           <button class="btn-primary" id="signup-btn" onclick="doSignUp()">Create your workspace</button>
           <div class="auth-divider">or</div>
-          <button class="btn-secondary" onclick="showRepPinScreen()">Already on a team? Use your PIN →</button>
+          <button class="btn-secondary" onclick="showRepAccessInfo()">Already on a team? Rep access →</button>
         </div>
 
         <div id="auth-forgot" class="auth-form hidden">
@@ -3105,9 +3153,13 @@ a { color: var(--green); text-decoration: none; }
 </div>
 
 <script>
-const KNOCKTRACK_BUILD = '2026.08.12-v8-dev-rep-access';
-// Temporary pre-launch switch. Change to false before production launch.
-const DEV_REP_PIN_BYPASS = true;
+const KNOCKTRACK_BUILD = '2026.08.12-v9-company-rep-system';
+// UI capability only. Database authorization still comes from the authenticated
+// Owner/Admin session and same-company RPC checks. Never treat this flag as auth.
+const REP_ACCESS_CONFIG = Object.freeze({
+  ownerPreviewWithoutPin: true,
+  publicAnonymousBypass: false
+});
 // ═══════════════════════════════════════════════════════════════
 // KNOCK TRACK — APPLICATION CORE
 // Multi-tenant, Supabase Auth, RLS-enforced
@@ -3127,8 +3179,7 @@ let _knocks      = [];     // today's knocks for current user
 let _zones       = [];
 let _repPinBuf   = '';
 let _repSelected = null;
-let _devOwnerMembership = null;
-let _devOwnerProfile = null;
+let _actingRepPreview = null;
 let _miniMapObj  = null;
 let _mainMapObj  = null;
 let _miniLeafletMap = null;
@@ -3346,13 +3397,25 @@ async function refreshKnocks() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   try {
-    const rows = await sbFetch(
-      `knocks?company_id=eq.${_membership.company_id}` +
-      `&created_by=eq.${window._devActingRepId || _session.user.id}` +
-      `&time=gte.${today.toISOString()}` +
-      `&order=time.desc&limit=200`
-    );
-    _knocks = rows || [];
+    if (_actingRepPreview?.rep_id) {
+      const rows = await sbRpc('get_rep_preview_dashboard', {
+        p_company_id: _membership.company_id,
+        p_rep_id: _actingRepPreview.rep_id,
+        p_since: today.toISOString()
+      });
+      _knocks = rows || [];
+    } else {
+      const activityIdentity = ['rep', 'manager'].includes(_membership.role)
+        ? `rep_member_id=eq.${_membership.id}`
+        : `created_by=eq.${_session.user.id}`;
+      const rows = await sbFetch(
+        `knocks?company_id=eq.${_membership.company_id}` +
+        `&${activityIdentity}` +
+        `&time=gte.${today.toISOString()}` +
+        `&order=time.desc&limit=200`
+      );
+      _knocks = rows || [];
+    }
   } catch (e) {
     console.error('refreshKnocks error:', e);
   }
@@ -3482,6 +3545,10 @@ function showAuthScreen() {
   authTab('signin');
 }
 
+function showRepAccessInfo() {
+  showToast('During development, ask your Owner or Admin to open Team → Preview Rep App');
+}
+
 // ── SIGN OUT ─────────────────────────────────────────────────
 async function doSignOut() {
   await sbSignOut();
@@ -3546,9 +3613,9 @@ async function doAcceptInvite() {
 // ── REP PIN SCREEN ─────────────────────────────────────────────
 async function showRepPinScreen() {
   if (!_company) {
-    // Need to pick a company — for now load all active companies for rep login
-    // In production this would be a company-code / URL-based flow
-    showToast('Ask your manager for the company code');
+    // A name-only public selector is impersonation, not authentication. Keep the
+    // roster private until launch PIN/account exchange issues a real session.
+    showToast('Rep access is available from your company owner during development');
     return;
   }
   showScreen('rep-pin');
@@ -3558,31 +3625,46 @@ async function showRepPinScreen() {
 }
 
 async function showDevelopmentRepAccess() {
-  if (!DEV_REP_PIN_BYPASS) return;
-  _devOwnerMembership = { ..._membership };
-  _devOwnerProfile = _profile ? { ..._profile } : null;
+  if (!REP_ACCESS_CONFIG.ownerPreviewWithoutPin) return;
+  if (!['owner','admin'].includes(_membership?.role)) {
+    showToast('Owner or Admin access required');
+    return;
+  }
   await showRepPinScreen();
 }
 
 async function loadRepList() {
+  const sel = document.getElementById('pin-rep-select');
+  const err = document.getElementById('pin-error');
+  if (!sel || !_membership?.company_id) return;
+  _repSelected = null;
+  sel.disabled = true;
+  sel.replaceChildren(new Option('Loading representatives…', ''));
+  if (err) err.textContent = '';
   try {
-    const rows = await sbFetch(
-      `company_members?company_id=eq.${_membership?.company_id}&role=eq.rep&status=eq.active`
-    );
-    const sel = document.getElementById('pin-rep-select');
-    sel.innerHTML = '<option value="">— Choose rep —</option>';
-    if (rows) {
-      // Need display names — join with profiles
-      for (const r of rows) {
-        const pRows = await sbFetch(`profiles?id=eq.${r.user_id}&limit=1`);
-        const name = pRows?.[0]?.display_name || pRows?.[0]?.full_name || r.user_id;
-        const opt = document.createElement('option');
-        opt.value = r.user_id;
-        opt.textContent = name;
-        sel.appendChild(opt);
-      }
+    // Security-definer RPC returns only stable member ID + safe display fields,
+    // after verifying the caller is an active member of this exact company.
+    const rows = await sbRpc('list_active_company_reps', {
+      p_company_id: _membership.company_id
+    });
+    sel.replaceChildren(new Option('— Choose rep —', ''));
+    for (const rep of rows || []) {
+      const opt = document.createElement('option');
+      opt.value = rep.rep_id;
+      opt.textContent = `${rep.display_name}${rep.role === 'rep' ? '' : ` — ${rep.role}`}`;
+      sel.appendChild(opt);
     }
-  } catch (e) { console.error('loadRepList:', e); }
+    if (!rows?.length) {
+      sel.replaceChildren(new Option('No active reps found', ''));
+      if (err) err.textContent = 'No active reps found. Add a rep from Owner Portal → Team.';
+    }
+  } catch (e) {
+    console.error('loadRepList:', e);
+    sel.replaceChildren(new Option('Unable to load representatives', ''));
+    if (err) err.textContent = 'Rep roster could not load. Confirm the v9 database migration is installed and try again.';
+  } finally {
+    sel.disabled = false;
+  }
 }
 
 function pinRepSelected() {
@@ -3602,7 +3684,7 @@ function pinRepSelected() {
 }
 
 async function openSelectedRepWithoutPin() {
-  if (!DEV_REP_PIN_BYPASS) {
+  if (!REP_ACCESS_CONFIG.ownerPreviewWithoutPin || !['owner','admin'].includes(_membership?.role)) {
     document.getElementById('pin-error').textContent = 'PIN access is required.';
     return;
   }
@@ -3614,15 +3696,22 @@ async function openSelectedRepWithoutPin() {
   const selectedId = _repSelected;
   if (button) { button.disabled = true; button.textContent = 'Opening…'; }
   try {
-    const memberRows = await sbFetch(
-      `company_members?company_id=eq.${_membership.company_id}&user_id=eq.${selectedId}&status=eq.active&limit=1`
-    );
-    const profileRows = await sbFetch(`profiles?id=eq.${selectedId}&limit=1`);
-    if (!memberRows?.[0]) throw new Error('Representative is no longer active');
-    // Preview the selected rep while preserving the authenticated actor for writes.
-    _membership = { ...memberRows[0], role:'rep' };
-    _profile = profileRows?.[0] || _profile;
-    window._devActingRepId = selectedId;
+    // Revalidate stable rep ID, company, role and status server-side at Continue.
+    const rep = await sbRpc('get_company_rep_preview', {
+      p_company_id: _membership.company_id,
+      p_rep_id: selectedId
+    });
+    if (!rep?.rep_id) throw new Error('Representative is no longer active');
+    _actingRepPreview = {
+      rep_id: rep.rep_id,
+      company_id: rep.company_id,
+      role: rep.role,
+      status: rep.status,
+      display_name: rep.display_name,
+      first_name: rep.first_name,
+      last_name: rep.last_name,
+      daily_goal: rep.daily_goal || 75
+    };
     await refreshKnocks();
     await loadCompanyZones();
     showScreen('app');
@@ -3637,21 +3726,13 @@ async function openSelectedRepWithoutPin() {
 }
 
 async function exitDevelopmentRepPreview() {
-  window._devActingRepId = null;
-  if (_devOwnerMembership) _membership = _devOwnerMembership;
-  if (_devOwnerProfile) _profile = _devOwnerProfile;
-  _devOwnerMembership = null;
-  _devOwnerProfile = null;
+  _actingRepPreview = null;
   showScreen('owner');
   await odBoot();
 }
 
 function pinKey(k) {
-  if (!_repSelected) { document.getElementById('pin-error').textContent = 'Select your name first'; return; }
-  if (_repPinBuf.length >= 6) return;
-  _repPinBuf += k;
-  updatePinDots();
-  if (_repPinBuf.length === 6) validateRepPin();
+  document.getElementById('pin-error').textContent = 'Launch PIN authentication is not enabled yet.';
 }
 
 function pinDel() {
@@ -3667,32 +3748,10 @@ function updatePinDots() {
 }
 
 async function validateRepPin() {
-  document.getElementById('pin-error').textContent = '';
-  const sel = document.getElementById('pin-rep-select');
-  const repName = sel.options[sel.selectedIndex]?.text || '';
-  try {
-    const result = await sbRpc('validate_rep_pin', {
-      p_company_id:   _membership?.company_id,
-      p_display_name: repName,
-      p_pin:          _repPinBuf
-    });
-    if (result?.success) {
-      // Create a lightweight rep session (no Supabase auth JWT for reps)
-      // Store rep context in memory only (not localStorage for security)
-      _membership = { ..._membership, role: 'rep', user_id: result.user_id,
-                      daily_goal: result.daily_goal || 75 };
-      showScreen('app');
-      populateApp(); // Reps always get mobile app
-    } else {
-      document.getElementById('pin-error').textContent = result?.error || 'Invalid PIN';
-      _repPinBuf = '';
-      updatePinDots();
-    }
-  } catch (e) {
-    document.getElementById('pin-error').textContent = 'Error — try again';
-    _repPinBuf = '';
-    updatePinDots();
-  }
+  // Production PIN login must exchange an opaque rep ID + PIN at a rate-limited
+  // server endpoint and receive a real short-lived session. Never revive the
+  // old display-name RPC or a browser-only pseudo-session here.
+  document.getElementById('pin-error').textContent = 'Launch PIN authentication is not enabled yet.';
 }
 
 // ── APP POPULATION ─────────────────────────────────────────────
@@ -3703,17 +3762,17 @@ function populateApp() {
 }
 
 function populateHeader() {
-  const name = _profile?.display_name || _profile?.full_name || 'User';
+  const name = _actingRepPreview?.display_name || _profile?.display_name || _profile?.full_name || 'User';
   const el = document.getElementById('app-avatar');
   if (el) el.textContent = name.charAt(0).toUpperCase();
   const exitPreview = document.getElementById('dev-exit-rep-preview');
-  if (exitPreview) exitPreview.style.display = window._devActingRepId ? 'block' : 'none';
+  if (exitPreview) exitPreview.style.display = _actingRepPreview ? 'block' : 'none';
 }
 
 function populateHomePage() {
   const h = new Date().getHours();
   const greet = h < 12 ? 'GOOD MORNING,' : h < 17 ? 'GOOD AFTERNOON,' : 'GOOD EVENING,';
-  const firstName = (_profile?.display_name || _profile?.full_name || 'Rep').split(' ')[0].toUpperCase();
+  const firstName = (_actingRepPreview?.display_name || _profile?.display_name || _profile?.full_name || 'Rep').split(' ')[0].toUpperCase();
   const dateStr = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
 
   setText('home-greeting', greet);
@@ -3725,7 +3784,7 @@ function populateHomePage() {
   setText('home-zone', myZone ? (myZone.name || 'ASSIGNED ZONE').toUpperCase() : 'NO TERRITORY ASSIGNED');
 
   // Metrics
-  const goal = _membership?.daily_goal || 75;
+  const goal = _actingRepPreview?.daily_goal || _membership?.daily_goal || 75;
   const doors = _knocks.length;
   const convos = _knocks.filter(k => statusCountsAs(
     k.status,
@@ -3778,8 +3837,8 @@ function populateHomePage() {
 }
 
 function populateProfile() {
-  const name = _profile?.full_name || _profile?.display_name || 'User';
-  const role = (_membership?.role || 'rep').toUpperCase();
+  const name = _actingRepPreview?.display_name || _profile?.full_name || _profile?.display_name || 'User';
+  const role = (_actingRepPreview?.role || _membership?.role || 'rep').toUpperCase();
   const company = _company?.name || '—';
   setText('profile-name', name);
   setText('profile-role', role);
@@ -3789,7 +3848,7 @@ function populateProfile() {
   // Show admin panel for owner/admin
   const adminSection = document.getElementById('admin-section');
   if (adminSection) {
-    adminSection.style.display = ['owner','admin'].includes(_membership?.role) ? '' : 'none';
+    adminSection.style.display = !_actingRepPreview && ['owner','admin'].includes(_membership?.role) ? '' : 'none';
   }
 }
 
@@ -3900,14 +3959,15 @@ function initMainMap() {
 }
 
 function getRepAssignedZone() {
-  const uid = _session?.user?.id;
+  const uid = _actingRepPreview?.rep_id || _membership?.id || _session?.user?.id;
   const names = [
+    _actingRepPreview?.display_name,
     _profile?.display_name,
     _profile?.full_name,
-    (_profile?.display_name || _profile?.full_name || '').split(' ')[0]
+    (_actingRepPreview?.display_name || _profile?.display_name || _profile?.full_name || '').split(' ')[0]
   ].filter(Boolean).map(value => String(value).trim().toLowerCase());
   return _zones.find(zone => {
-    const candidates = [zone.assigned_rep, zone.assigned_rep_id, zone.assigned_to, zone.user_id, zone.rep_id]
+    const candidates = [zone.assigned_member_id, zone.assigned_rep, zone.assigned_rep_id, zone.assigned_to, zone.user_id, zone.rep_id]
       .filter(value => value !== null && value !== undefined);
     return candidates.some(value => value === uid || names.includes(String(value).trim().toLowerCase()));
   }) || null;
@@ -4319,6 +4379,10 @@ async function saveKnock() {
   }
   if (!Number.isFinite(_pendingLat) || !Number.isFinite(_pendingLng)) { showToast('No house selected'); return; }
   if (!_selectedStatus) { showToast('Choose an outcome first'); return; }
+  if (_actingRepPreview) {
+    showToast('Owner Preview is read-only. Sign in as the rep to save activity.');
+    return;
+  }
   if (!isPointInsideAssignedZone(_pendingLat,_pendingLng)) { showToast('House is outside your territory'); return; }
   const details=validatePinDetails();
   if (!details) return;
@@ -4332,6 +4396,7 @@ async function saveKnock() {
     const knock = {
       company_id: _membership.company_id,
       created_by: _session.user.id,
+      rep_member_id: _membership.id,
       lat: _pendingLat,
       lng: _pendingLng,
       address: _pendingAddr,
@@ -4405,8 +4470,8 @@ function renderLeads() {
     return `<div class="lead-card">
       <div class="lead-status-dot" style="background:${st?.color || '#888'}"></div>
       <div class="lead-info">
-        <div class="lead-name">${k.address || 'Unknown address'}</div>
-        <div class="lead-addr">${k.notes || st?.label || 'Lead'}</div>
+        <div class="lead-name">${odSafeText(k.address || 'Unknown address')}</div>
+        <div class="lead-addr">${odSafeText(k.notes || st?.label || 'Lead')}</div>
       </div>
       <div class="lead-time">${t}</div>
     </div>`;
@@ -4419,18 +4484,13 @@ async function renderRank() {
   if (!list) return;
   list.innerHTML = '<div class="empty-state"><div class="empty-state-sub">Loading…</div></div>';
   try {
-    // Get today's knocks by all company members
-    const today = new Date(); today.setHours(0,0,0,0);
-    const rows = await sbFetch(
-      `knocks?company_id=eq.${_membership.company_id}` +
-      `&time=gte.${today.toISOString()}&order=time.desc&limit=1000`
-    );
-    // Aggregate by rep
-    const counts = {};
-    (rows || []).forEach(k => {
-      counts[k.rep || 'Unknown'] = (counts[k.rep || 'Unknown'] || 0) + 1;
+    // Raw customer/lead rows remain private. The aggregate RPC exposes only
+    // same-company leaderboard totals and stable rep display names.
+    const rows = await sbRpc('get_company_rep_leaderboard', {
+      p_company_id: _membership.company_id,
+      p_period: 'today'
     });
-    const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+    const sorted = (rows || []).map(row => [row.display_name, Number(row.doors) || 0]);
     if (!sorted.length) {
       list.innerHTML = '<div class="empty-state"><div class="empty-state-title">No knocks today yet</div></div>';
       return;
@@ -4438,9 +4498,9 @@ async function renderRank() {
     list.innerHTML = sorted.map(([name, count], i) => `
       <div class="rank-card ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}">
         <div class="rank-num">${i+1}</div>
-        <div class="rank-avatar">${name.charAt(0).toUpperCase()}</div>
+        <div class="rank-avatar">${odSafeText(name.charAt(0).toUpperCase())}</div>
         <div class="rank-info">
-          <div class="rank-name">${name}</div>
+          <div class="rank-name">${odSafeText(name)}</div>
           <div class="rank-role">Field Rep</div>
         </div>
         <div class="rank-doors">${count}</div>
@@ -5451,23 +5511,28 @@ async function odLoadData() {
     );
     _allKnocks = rows || [];
 
-    // All members
-    const members = await sbFetch(
-      `company_members?company_id=eq.${cid}&status=eq.active`
-    );
+    // Full roster, including inactive members for lifecycle management. The RPC
+    // performs same-company authorization and returns no PIN hashes.
+    const members = await sbRpc('list_company_members', {
+      p_company_id: cid,
+      p_include_inactive: true
+    });
     _allMembers = members || [];
 
-    // Profiles for all members (batch)
-    const uids = _allMembers.map(m => m.user_id).join(',');
+    // Backward-compatible profile fallback for existing Auth-backed members.
+    const uids = [...new Set(_allMembers.map(m => m.user_id).filter(Boolean))].join(',');
+    _allProfiles = {};
     if (uids) {
       const profs = await sbFetch(`profiles?id=in.(${uids})`);
-      _allProfiles = {};
       (profs || []).forEach(p => { _allProfiles[p.id] = p; });
     }
 
     odUpdateTimestamp();
   } catch (e) {
     console.error('odLoadData error:', e);
+    const team = document.getElementById('od-team-full');
+    if (team) team.innerHTML = `<div class="od-empty-state"><div class="od-empty-title">Team data could not load</div><div class="od-empty-copy">${odSafeText(e.message || 'Confirm the v9 database migration is installed, then try again.')}</div></div>`;
+    showToast('Company data could not load — open Help & Support for diagnostics');
   }
 }
 
@@ -5489,7 +5554,8 @@ function odFilterRange() {
 // ── Render overview ───────────────────────────────────────────
 function odRenderOverview() {
   const knocks = _allKnocks;
-  const total  = _allMembers.length;
+  const activeMembers = _allMembers.filter(m => m.status === 'active');
+  const total  = activeMembers.length;
 
   // KPIs
   const doors  = knocks.length;
@@ -5497,7 +5563,7 @@ function odRenderOverview() {
   const appts  = knocks.filter(k => k.appointment || statusCountsAs(k.status, 'creates_appointment', ['appointment'])).length;
   const sales  = knocks.filter(k => statusCountsAs(k.status, 'counts_as_sale', ['sold','enrolled','closed'])).length;
   const activeRepNames = [...new Set(knocks.map(k => k.rep).filter(Boolean))];
-  const rosterReps = _allMembers.filter(m => m.role === 'rep').length;
+  const rosterReps = activeMembers.filter(m => m.role === 'rep').length;
   const reps = activeRepNames.length;
   const teamSize = Math.max(rosterReps, reps);
   const closeRate = doors > 0 ? ((sales / doors) * 100).toFixed(1) : '0.0';
@@ -5609,10 +5675,10 @@ function odRenderInsights(knocks, doors, leads, sales) {
         <span style="font-size:16px">${i.icon}</span>
       </div>
       <div class="od-ai-body">
-        <div class="od-ai-title">${i.title}</div>
-        <div class="od-ai-sub">${i.sub}</div>
+        <div class="od-ai-title">${odSafeText(i.title)}</div>
+        <div class="od-ai-sub">${odSafeText(i.sub)}</div>
       </div>
-      <div class="od-ai-action">${i.action}</div>
+      <div class="od-ai-action">${odSafeText(i.action)}</div>
     </div>`).join('');
 }
 
@@ -5626,8 +5692,8 @@ function odRenderTeamMini(knocks) {
   if (!sorted.length) { el.innerHTML = '<div class="od-mini-loading">No activity yet</div>'; return; }
   el.innerHTML = sorted.map(([name, doors]) =>
     `<div class="od-team-row">
-      <div class="od-team-av">${name.charAt(0).toUpperCase()}</div>
-      <div class="od-team-name">${name}</div>
+      <div class="od-team-av">${odSafeText(name.charAt(0).toUpperCase())}</div>
+      <div class="od-team-name">${odSafeText(name)}</div>
       <div class="od-team-doors">${doors}</div>
     </div>`).join('');
 }
@@ -5671,33 +5737,164 @@ function odRenderTerritoryMini(knocks) {
   el.innerHTML = sorted.map(([name, doors]) =>
     `<div class="od-terr-row">
       <div class="od-terr-dot"></div>
-      <div class="od-terr-name">${name}</div>
+      <div class="od-terr-name">${odSafeText(name)}</div>
       <div class="od-terr-doors">${doors}</div>
     </div>`).join('');
 }
 
 // ── Full Team page ─────────────────────────────────────────────
+function odMemberDisplayName(member) {
+  const profile = member?.user_id ? (_allProfiles[member.user_id] || {}) : {};
+  return member?.display_name ||
+    [member?.first_name, member?.last_name].filter(Boolean).join(' ') ||
+    profile.full_name || profile.display_name || 'Unnamed member';
+}
+
+function odMemberInitials(member) {
+  return odMemberDisplayName(member).split(/\s+/).slice(0, 2).map(part => part.charAt(0)).join('').toUpperCase() || '?';
+}
+
 function odRenderTeamFull() {
   const el = document.getElementById('od-team-full');
   if (!el) return;
-  if (!_allMembers.length) { el.innerHTML = '<p style="color:#9CA3AF;padding:20px">No team members found.</p>'; return; }
+  const activeReps = _allMembers.filter(m => m.role === 'rep' && m.status === 'active').length;
+  const inactiveReps = _allMembers.filter(m => m.role === 'rep' && ['inactive','suspended'].includes(m.status)).length;
+  setText('od-team-active-count', activeReps);
+  setText('od-team-inactive-count', inactiveReps);
+  setText('od-team-workspace', _company?.name || '—');
+  if (!_allMembers.length) {
+    el.innerHTML = `<div class="od-empty-state">
+      <div class="od-empty-title">No team members found</div>
+      <div class="od-empty-copy">Add your first representative. They will be saved to this workspace and immediately become available in Development Rep Preview.</div>
+      <button class="od-primary-action" type="button" onclick="odOpenRepModal()">+ Add Rep</button>
+    </div>`;
+    return;
+  }
   const repDoors = {};
-  _allKnocks.forEach(k => { if(k.rep) repDoors[k.rep] = (repDoors[k.rep]||0)+1; });
+  _allKnocks.forEach(k => {
+    if (k.rep_member_id) repDoors[k.rep_member_id] = (repDoors[k.rep_member_id] || 0) + 1;
+  });
   const rows = _allMembers.map(m => {
-    const p = _allProfiles[m.user_id] || {};
-    const name = p.full_name || p.display_name || m.user_id;
-    const doors = repDoors[name] || 0;
+    const name = odMemberDisplayName(m);
+    const doors = repDoors[m.rep_id || m.id] || 0;
+    const memberId = m.rep_id || m.id;
+    const status = ['active','inactive','suspended','invited'].includes(m.status) ? m.status : 'inactive';
+    const isRepManageable = ['rep','manager'].includes(m.role);
     return `<tr>
-      <td>${name}</td>
-      <td>${m.role.charAt(0).toUpperCase()+m.role.slice(1)}</td>
+      <td><div class="od-team-person"><div class="od-team-avatar">${odSafeText(odMemberInitials(m))}</div><div><div class="od-team-name">${odSafeText(name)}</div><div class="od-team-meta">ID ${odSafeText(memberId)}${m.email ? ` · ${odSafeText(m.email)}` : ''}</div></div></div></td>
+      <td>${odSafeText((m.role || 'rep').charAt(0).toUpperCase()+(m.role || 'rep').slice(1))}</td>
       <td>${fmtNum(doors)}</td>
-      <td><span style="background:#DCFCE7;color:#22C55E;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${m.status.toUpperCase()}</span></td>
+      <td><span class="od-status-pill ${odSafeText(status)}"><span class="od-status-dot"></span>${odSafeText(status)}</span></td>
+      <td><div class="od-team-actions">
+        <button class="od-team-action" type="button" onclick="odOpenRepModal('${odSafeText(memberId)}')" ${isRepManageable ? '' : 'disabled'}>View / Edit</button>
+        ${status === 'active'
+          ? `<button class="od-team-action danger" type="button" onclick="odSetRepStatus('${odSafeText(memberId)}','inactive')" ${isRepManageable ? '' : 'disabled'}>Deactivate</button>`
+          : `<button class="od-team-action" type="button" onclick="odSetRepStatus('${odSafeText(memberId)}','active')" ${isRepManageable ? '' : 'disabled'}>Reactivate</button>`}
+      </div></td>
     </tr>`;
   }).join('');
   el.innerHTML = `<table class="od-table">
-    <thead><tr><th>Name</th><th>Role</th><th>Doors</th><th>Status</th></tr></thead>
+    <thead><tr><th>Team member</th><th>Role</th><th>Doors</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
+}
+
+function odRepModalBackdrop(event) {
+  if (event.target?.id === 'rep-member-modal') odCloseRepModal();
+}
+
+function odOpenRepModal(memberId = '') {
+  if (!['owner','admin'].includes(_membership?.role)) {
+    showToast('Owner or Admin access required');
+    return;
+  }
+  const member = memberId ? _allMembers.find(m => (m.rep_id || m.id) === memberId) : null;
+  const existingName = member ? odMemberDisplayName(member) : '';
+  document.getElementById('rep-member-id').value = memberId;
+  document.getElementById('rep-first-name').value = member?.first_name || existingName.split(/\s+/)[0] || '';
+  document.getElementById('rep-last-name').value = member?.last_name || existingName.split(/\s+/).slice(1).join(' ');
+  document.getElementById('rep-role').value = member?.role === 'manager' ? 'manager' : 'rep';
+  document.getElementById('rep-company-display').value = _company?.name || '';
+  document.getElementById('rep-email').value = member?.email || '';
+  document.getElementById('rep-phone').value = member?.phone || '';
+  document.getElementById('rep-daily-goal').value = member?.daily_goal || 75;
+  document.getElementById('rep-member-modal-title').textContent = member ? 'Representative Details' : 'Add Representative';
+  document.getElementById('rep-member-modal-sub').textContent = member
+    ? `Stable Rep ID: ${memberId} · ${member?.status || 'active'}`
+    : 'This rep will be created inside the current workspace and appear in Development Rep Preview immediately.';
+  document.getElementById('rep-member-save').textContent = member ? 'Save Changes' : 'Create Rep';
+  const err = document.getElementById('rep-member-error');
+  err.textContent = ''; err.classList.remove('show');
+  document.getElementById('rep-member-modal').classList.add('open');
+  setTimeout(() => document.getElementById('rep-first-name')?.focus(), 30);
+}
+
+function odCloseRepModal() {
+  document.getElementById('rep-member-modal')?.classList.remove('open');
+}
+
+async function odSaveRep(event) {
+  event.preventDefault();
+  const memberId = document.getElementById('rep-member-id').value.trim();
+  const firstName = document.getElementById('rep-first-name').value.trim();
+  const lastName = document.getElementById('rep-last-name').value.trim();
+  const email = document.getElementById('rep-email').value.trim().toLowerCase();
+  const phone = document.getElementById('rep-phone').value.trim();
+  const role = document.getElementById('rep-role').value;
+  const dailyGoal = Math.max(1, Math.min(1000, Number(document.getElementById('rep-daily-goal').value) || 75));
+  const errorEl = document.getElementById('rep-member-error');
+  if (!firstName || !lastName) {
+    errorEl.textContent = 'First and last name are required.'; errorEl.classList.add('show'); return;
+  }
+  const button = document.getElementById('rep-member-save');
+  button.disabled = true; button.textContent = memberId ? 'Saving…' : 'Creating…';
+  errorEl.textContent = ''; errorEl.classList.remove('show');
+  try {
+    const params = {
+      p_company_id: _membership.company_id,
+      p_first_name: firstName,
+      p_last_name: lastName,
+      p_role: role,
+      p_email: email || null,
+      p_phone: phone || null,
+      p_daily_goal: dailyGoal
+    };
+    const result = memberId
+      ? await sbRpc('update_company_rep', { p_rep_id: memberId, ...params })
+      : await sbRpc('create_company_rep', params);
+    if (!result?.success) throw new Error(result?.error || 'The representative could not be saved.');
+    odCloseRepModal();
+    await odLoadData();
+    odRenderTeamFull();
+    await loadRepList();
+    showToast(memberId ? 'Representative updated ✓' : 'Representative added ✓');
+  } catch (error) {
+    console.error('odSaveRep:', error);
+    errorEl.textContent = error.message || 'Unable to save representative.';
+    errorEl.classList.add('show');
+  } finally {
+    button.disabled = false; button.textContent = memberId ? 'Save Changes' : 'Create Rep';
+  }
+}
+
+async function odSetRepStatus(repId, status) {
+  const action = status === 'active' ? 'reactivate' : 'deactivate';
+  if (!window.confirm(`Are you sure you want to ${action} this representative? Historical activity will be preserved.`)) return;
+  try {
+    const result = await sbRpc('set_company_rep_status', {
+      p_company_id: _membership.company_id,
+      p_rep_id: repId,
+      p_status: status
+    });
+    if (!result?.success) throw new Error(result?.error || `Unable to ${action} representative.`);
+    await odLoadData();
+    odRenderTeamFull();
+    await loadRepList();
+    showToast(`Representative ${status === 'active' ? 'reactivated' : 'deactivated'} ✓`);
+  } catch (error) {
+    console.error('odSetRepStatus:', error);
+    showToast(error.message || `Unable to ${action} representative`);
+  }
 }
 
 // ── Full Leads page ───────────────────────────────────────────
@@ -5710,9 +5907,9 @@ function odRenderLeadsFull() {
     const t = new Date(k.time).toLocaleDateString();
     const s = statusDefinition(k.status);
     return `<tr>
-      <td>${k.address || '—'}</td>
-      <td>${k.rep || '—'}</td>
-      <td><span style="background:${s?.color}20;color:${s?.color};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${s?.label||k.status}</span></td>
+      <td>${odSafeText(k.address || '—')}</td>
+      <td>${odSafeText(k.rep || '—')}</td>
+      <td><span style="background:${odSafeText(s?.color || '#6B7280')}20;color:${odSafeText(s?.color || '#6B7280')};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${odSafeText(s?.label||k.status)}</span></td>
       <td>${t}</td>
     </tr>`;
   }).join('');
@@ -5925,7 +6122,7 @@ function odDrawZones(map, overlayStore) {
       icon:{path:google.maps.SymbolPath.CIRCLE,scale:0},
       zIndex:2
     });
-    const info = new google.maps.InfoWindow({content:`<div style="font:13px Arial;padding:3px"><strong>${label}</strong><br>Assigned: ${assigned}</div>`});
+    const info = new google.maps.InfoWindow({content:`<div style="font:13px Arial;padding:3px"><strong>${odSafeText(label)}</strong><br>Assigned: ${odSafeText(assigned)}</div>`});
     polygon.addListener('click', event => info.open({map, position:event.latLng}));
     marker.addListener('click', () => info.open({map, anchor:marker}));
     overlayStore.push(polygon, marker, info);
@@ -5962,7 +6159,7 @@ function odUpdateLiveMapMarkers() {
       strokeWeight:1,
       zIndex:3
     });
-    const info = new google.maps.InfoWindow({content:`<div style="font:13px Arial;padding:3px"><strong>${k.address || 'House'}</strong><br>${s?.label || k.status || 'Outcome'} · ${k.rep || 'Unassigned'}</div>`});
+    const info = new google.maps.InfoWindow({content:`<div style="font:13px Arial;padding:3px"><strong>${odSafeText(k.address || 'House')}</strong><br>${odSafeText(s?.label || k.status || 'Outcome')} · ${odSafeText(k.rep || 'Unassigned')}</div>`});
     pin.addListener('click', event => info.open({map:_odLiveMap, position:event.latLng}));
     _odLiveOverlays.push(pin, info);
     bounds.extend(point);
@@ -6161,7 +6358,7 @@ function odInitFullMap() {
       optimized:true,
       zIndex:3
     });
-    const info = new google.maps.InfoWindow({content:`<div style="font:13px Arial;padding:3px"><strong>${k.address || 'House'}</strong><br>${s?.label || k.status || 'Outcome'}<br>Rep: ${k.rep || 'Unassigned'}${k.notes ? `<br>Notes: ${k.notes}` : ''}</div>`});
+    const info = new google.maps.InfoWindow({content:`<div style="font:13px Arial;padding:3px"><strong>${odSafeText(k.address || 'House')}</strong><br>${odSafeText(s?.label || k.status || 'Outcome')}<br>Rep: ${odSafeText(k.rep || 'Unassigned')}${k.notes ? `<br>Notes: ${odSafeText(k.notes)}` : ''}</div>`});
     marker.addListener('click', () => info.open({map:_odFullMap, anchor:marker}));
     _odFullOverlays.push(marker, info);
     bounds.extend(point);
@@ -6176,9 +6373,9 @@ function odRenderTerritoriesFull() {
   if (!zones.length) { el.innerHTML='<p style="color:#9CA3AF;padding:20px">No territories assigned yet.</p>'; return; }
   const rows = zones.map(z=>
     `<tr>
-      <td>${z.name||'—'}</td>
-      <td>${z.assignedRep||z.assigned_rep||'Unassigned'}</td>
-      <td>${z.drawnBy||z.drawn_by||'—'}</td>
+      <td>${odSafeText(z.name||'—')}</td>
+      <td>${odSafeText(z.assignedRep||z.assigned_rep||'Unassigned')}</td>
+      <td>${odSafeText(z.drawnBy||z.drawn_by||'—')}</td>
     </tr>`).join('');
   el.innerHTML=`<table class="od-table">
     <thead><tr><th>Territory</th><th>Assigned Rep</th><th>Created By</th></tr></thead>
@@ -6452,8 +6649,19 @@ function fmtNum(n) {
       <!-- TEAM PAGE -->
       <div class="od-page" id="odpage-team">
         <div class="od-page-scroll" style="padding:32px">
-          <div class="od-page-eyebrow">COMPANY</div>
-          <h1 class="od-page-h1">Team</h1>
+          <div class="od-team-page-header">
+            <div>
+              <div class="od-page-eyebrow">COMPANY</div>
+              <h1 class="od-page-h1">Team Members</h1>
+              <p class="od-team-page-copy">Create and manage the people in this workspace. Rep identity is tied to this company by a stable member ID—not by a typed name.</p>
+            </div>
+            <button class="od-primary-action" type="button" onclick="odOpenRepModal()" style="margin-top:0">+ Add Rep</button>
+          </div>
+          <div class="od-team-summary" aria-label="Team summary">
+            <div class="od-team-summary-card"><div class="od-team-summary-label">Active reps</div><div class="od-team-summary-value" id="od-team-active-count">—</div></div>
+            <div class="od-team-summary-card"><div class="od-team-summary-label">Inactive reps</div><div class="od-team-summary-value" id="od-team-inactive-count">—</div></div>
+            <div class="od-team-summary-card"><div class="od-team-summary-label">Workspace</div><div class="od-team-summary-value" id="od-team-workspace" style="font-size:16px;margin-top:9px">—</div></div>
+          </div>
           <div id="od-team-full" class="od-table-wrap">
             <div class="od-mini-loading">Loading team…</div>
           </div>
@@ -6544,6 +6752,39 @@ function fmtNum(n) {
     </div><!-- /od-content -->
   </div><!-- /od-main -->
 </div><!-- /screen-owner -->
+
+<!-- Owner/Admin: Add or edit a company rep. All writes go through authorized RPCs. -->
+<div class="kt-modal-overlay" id="rep-member-modal" role="dialog" aria-modal="true" aria-labelledby="rep-member-modal-title" onclick="odRepModalBackdrop(event)">
+  <div class="kt-modal">
+    <div class="kt-modal-header">
+      <div>
+        <div class="kt-modal-title" id="rep-member-modal-title">Add Representative</div>
+        <div class="kt-modal-sub" id="rep-member-modal-sub">The representative will be created inside the current workspace and will appear in Development Rep Preview immediately.</div>
+      </div>
+      <button class="kt-modal-close" type="button" onclick="odCloseRepModal()" aria-label="Close">×</button>
+    </div>
+    <form id="rep-member-form" onsubmit="odSaveRep(event)">
+      <div class="kt-modal-body">
+        <input type="hidden" id="rep-member-id">
+        <div class="kt-rep-form-grid">
+          <div class="kt-rep-field"><label for="rep-first-name">First name *</label><input id="rep-first-name" maxlength="80" autocomplete="off" required></div>
+          <div class="kt-rep-field"><label for="rep-last-name">Last name *</label><input id="rep-last-name" maxlength="80" autocomplete="off" required></div>
+          <div class="kt-rep-field"><label for="rep-role">Role</label><select id="rep-role"><option value="rep">Representative</option><option value="manager">Manager</option></select></div>
+          <div class="kt-rep-field"><label for="rep-company-display">Company / workspace</label><input id="rep-company-display" disabled></div>
+          <div class="kt-rep-field"><label for="rep-email">Email (optional in development)</label><input id="rep-email" type="email" maxlength="254" autocomplete="off" placeholder="rep@company.com"></div>
+          <div class="kt-rep-field"><label for="rep-phone">Phone (optional)</label><input id="rep-phone" type="tel" maxlength="32" autocomplete="off" placeholder="(555) 555-5555"></div>
+          <div class="kt-rep-field"><label for="rep-daily-goal">Daily door goal</label><input id="rep-daily-goal" type="number" min="1" max="1000" value="75"></div>
+          <div class="kt-rep-field"><label for="rep-pin-future">PIN</label><input id="rep-pin-future" value="Created securely at launch" disabled><div class="kt-rep-help">PINs will be hashed and verified server-side when launch authentication is enabled.</div></div>
+        </div>
+        <div class="kt-modal-error" id="rep-member-error" role="alert"></div>
+      </div>
+      <div class="kt-modal-footer">
+        <button class="kt-btn-quiet" type="button" onclick="odCloseRepModal()">Cancel</button>
+        <button class="kt-btn-green" id="rep-member-save" type="submit">Create Rep</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
