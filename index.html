@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="knocktrack-build" content="2026.08.09-v6-white-auth">
+<meta name="knocktrack-build" content="2026.08.11-v7-rep-field-workflow">
 <title>Knock Track</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1616,6 +1616,18 @@ a { color: var(--green); text-decoration: none; }
   text-align: center;
   line-height: 1.3;
 }
+.pin-details { display:none;margin:0 0 14px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--card-deep); }
+.pin-details.show { display:block; }
+.pin-details-title { color:var(--white);font-size:13px;font-weight:800;margin-bottom:12px; }
+.pin-form-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px; }
+.pin-form-grid .wide { grid-column:1/-1; }
+.pin-details input { width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--white);font-size:14px; }
+.pin-details input:focus { border-color:var(--green);outline:none; }
+.pin-field-error { display:none;color:#FCA5A5;font-size:11px;font-weight:700;margin-top:8px; }
+.pin-field-error.show { display:block; }
+.pin-zone-warning { display:none;margin:0 0 12px;padding:10px 12px;border-radius:10px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#FCD34D;font-size:11px;font-weight:700;line-height:1.4; }
+.pin-zone-warning.show { display:block; }
+@media (max-width:380px) { .pin-form-grid { grid-template-columns:1fr; } .pin-form-grid .wide { grid-column:auto; } }
 
 /* ─────────────────────────────────────────────
    SKELETON LOADING
@@ -3058,7 +3070,19 @@ a { color: var(--green); text-decoration: none; }
   <div class="sheet-handle"></div>
   <div class="sheet-title">Log This Door</div>
   <div id="pin-sheet-addr" style="font-size:13px;color:var(--secondary);text-align:center;margin-bottom:16px;min-height:18px"></div>
+  <div class="pin-zone-warning" id="pin-zone-warning">This house is outside your assigned territory. Move the pin inside your zone or contact your manager.</div>
   <div class="status-grid" id="status-grid"></div>
+  <div class="pin-details" id="pin-details">
+    <div class="pin-details-title" id="pin-details-title">Customer details</div>
+    <div class="pin-form-grid">
+      <div class="form-group"><label class="form-label" for="knock-first-name">First name</label><input id="knock-first-name" autocomplete="given-name" placeholder="First name"></div>
+      <div class="form-group"><label class="form-label" for="knock-last-name">Last name</label><input id="knock-last-name" autocomplete="family-name" placeholder="Last name"></div>
+      <div class="form-group"><label class="form-label" for="knock-phone">Phone</label><input id="knock-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(555) 555-5555"></div>
+      <div class="form-group"><label class="form-label" for="knock-email">Email</label><input id="knock-email" type="email" inputmode="email" autocomplete="email" placeholder="name@email.com"></div>
+      <div class="form-group wide" id="followup-field"><label class="form-label" for="knock-followup">Follow-up / appointment</label><input id="knock-followup" type="datetime-local"></div>
+    </div>
+    <div class="pin-field-error" id="pin-field-error"></div>
+  </div>
   <div class="form-group" style="margin-bottom:12px">
     <label class="form-label" for="knock-notes">Notes</label>
     <textarea id="knock-notes" rows="2" style="resize:none;margin-top:6px" placeholder="Optional notes…"></textarea>
@@ -3068,7 +3092,7 @@ a { color: var(--green); text-decoration: none; }
 </div>
 
 <script>
-const KNOCKTRACK_BUILD = '2026.08.09-v6-white-auth';
+const KNOCKTRACK_BUILD = '2026.08.11-v7-rep-field-workflow';
 // ═══════════════════════════════════════════════════════════════
 // KNOCK TRACK — APPLICATION CORE
 // Multi-tenant, Supabase Auth, RLS-enforced
@@ -3658,8 +3682,13 @@ function populateHomePage() {
   const bar = document.getElementById('goal-bar');
   if (bar) bar.style.width = barPct + '%';
 
-  // Appointment placeholder
-  setText('home-appt', 'No upcoming appointments');
+  // Next scheduled follow-up / appointment
+  const nextAppointment = _knocks
+    .filter(k => k.appointment && new Date(k.appointment).getTime() >= Date.now())
+    .sort((a,b) => new Date(a.appointment) - new Date(b.appointment))[0];
+  setText('home-appt', nextAppointment
+    ? `${new Date(nextAppointment.appointment).toLocaleString('en-US',{weekday:'short',hour:'numeric',minute:'2-digit'})} · ${nextAppointment.address || 'Follow-up'}`
+    : 'No upcoming appointments');
 
   // Start button
   const startBtn = document.getElementById('home-start-btn');
@@ -4022,6 +4051,8 @@ function openPinSheet(lat = null, lng = null) {
   _selectedStatus = null;
   showPendingDoorMarker();
   setText('pin-sheet-addr', 'Loading address…');
+  const outsideZone = !isPointInsideAssignedZone(_pendingLat, _pendingLng);
+  document.getElementById('pin-zone-warning')?.classList.toggle('show', outsideZone);
 
   // Build status grid
   const grid = document.getElementById('status-grid');
@@ -4035,6 +4066,11 @@ function openPinSheet(lat = null, lng = null) {
       </button>`).join('');
   }
   document.getElementById('knock-notes').value = '';
+  ['knock-first-name','knock-last-name','knock-phone','knock-email','knock-followup'].forEach(id => {
+    const input = document.getElementById(id); if (input) input.value = '';
+  });
+  document.getElementById('pin-details')?.classList.remove('show');
+  document.getElementById('pin-field-error')?.classList.remove('show');
   const saveButton = document.getElementById('save-knock-btn');
   if (saveButton) {
     saveButton.disabled = true;
@@ -4129,6 +4165,76 @@ function selectStatus(key) {
   const status = statusDefinition(key);
   if (_pendingGoogleMarker && status) _pendingGoogleMarker.setIcon(makeMarkerSvg(status.color,status.svgPath));
   if (_pendingLeafletMarker && status) _pendingLeafletMarker.setIcon(makeLeafletStatusIcon(status,true));
+  configurePinDetails(key);
+}
+
+function statusWorkflow(key) {
+  const status = statusDefinition(key) || {};
+  const text = `${key || ''} ${status.label || ''}`.toLowerCase();
+  const appointment = status.creates_appointment === true || /appointment/.test(text);
+  const comeback = /come[ -]?back|follow[ -]?up|callback|return/.test(text);
+  const sold = status.counts_as_sale === true || /sold|enrolled|closed/.test(text);
+  const lead = status.creates_lead === true || /lead/.test(text) || appointment || sold;
+  return { lead, appointment, comeback, sold, needsDetails:lead || comeback };
+}
+
+function configurePinDetails(key) {
+  const workflow = statusWorkflow(key);
+  document.getElementById('pin-details')?.classList.toggle('show', workflow.needsDetails);
+  setText('pin-details-title', workflow.appointment ? 'Appointment details' : workflow.comeback ? 'Schedule the return visit' : workflow.sold ? 'Customer / sale details' : 'Lead details');
+  const followup = document.getElementById('followup-field');
+  if (followup) followup.style.display = (workflow.appointment || workflow.comeback || workflow.lead) ? 'flex' : 'none';
+  const input = document.getElementById('knock-followup');
+  if (input && (workflow.appointment || workflow.comeback) && !input.value) {
+    const suggested = new Date(Date.now() + (workflow.appointment ? 24 : 2) * 60 * 60 * 1000);
+    suggested.setMinutes(Math.ceil(suggested.getMinutes()/15)*15,0,0);
+    input.value = new Date(suggested.getTime()-suggested.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  }
+}
+
+function distanceMeters(lat1,lng1,lat2,lng2) {
+  const rad = value => value * Math.PI / 180;
+  const dLat=rad(lat2-lat1), dLng=rad(lng2-lng1);
+  const a=Math.sin(dLat/2)**2+Math.cos(rad(lat1))*Math.cos(rad(lat2))*Math.sin(dLng/2)**2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function findNearbyKnock(lat,lng) {
+  return _knocks.find(k => Number.isFinite(Number(k.lat)) && Number.isFinite(Number(k.lng)) && distanceMeters(lat,lng,Number(k.lat),Number(k.lng)) < 12) || null;
+}
+
+function pointInsidePolygon(lat,lng,path) {
+  let inside=false;
+  for (let i=0,j=path.length-1;i<path.length;j=i++) {
+    const xi=path[i].lng, yi=path[i].lat, xj=path[j].lng, yj=path[j].lat;
+    const intersects=((yi>lat)!==(yj>lat)) && (lng < (xj-xi)*(lat-yi)/((yj-yi)||Number.EPSILON)+xi);
+    if (intersects) inside=!inside;
+  }
+  return inside;
+}
+
+function isPointInsideAssignedZone(lat,lng) {
+  const path=normalizeZonePath(getRepAssignedZone());
+  return path.length < 3 || pointInsidePolygon(lat,lng,path);
+}
+
+function validatePinDetails() {
+  const workflow=statusWorkflow(_selectedStatus);
+  const data={
+    first:document.getElementById('knock-first-name')?.value.trim() || '',
+    last:document.getElementById('knock-last-name')?.value.trim() || '',
+    phone:document.getElementById('knock-phone')?.value.trim() || '',
+    email:document.getElementById('knock-email')?.value.trim() || '',
+    followup:document.getElementById('knock-followup')?.value || ''
+  };
+  let message='';
+  if (workflow.lead && !data.first) message='Add the customer’s first name.';
+  else if (workflow.lead && !data.phone && !data.email) message='Add a phone number or email for this lead.';
+  else if ((workflow.appointment || workflow.comeback) && !data.followup) message='Choose the follow-up date and time.';
+  else if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) message='Enter a valid email address.';
+  const error=document.getElementById('pin-field-error');
+  if (error) { error.textContent=message; error.classList.toggle('show',Boolean(message)); }
+  return message ? null : data;
 }
 
 async function saveKnock() {
@@ -4137,6 +4243,11 @@ async function saveKnock() {
   }
   if (!Number.isFinite(_pendingLat) || !Number.isFinite(_pendingLng)) { showToast('No house selected'); return; }
   if (!_selectedStatus) { showToast('Choose an outcome first'); return; }
+  if (!isPointInsideAssignedZone(_pendingLat,_pendingLng)) { showToast('House is outside your territory'); return; }
+  const details=validatePinDetails();
+  if (!details) return;
+  const nearby=findNearbyKnock(_pendingLat,_pendingLng);
+  if (nearby && !window.confirm('This house was already logged today. Save another outcome anyway?')) return;
 
   const btn = document.getElementById('save-knock-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
@@ -4150,6 +4261,11 @@ async function saveKnock() {
       address: _pendingAddr,
       status: _selectedStatus,
       notes: document.getElementById('knock-notes').value.trim() || null,
+      first_name: details.first || null,
+      last_name: details.last || null,
+      phone: details.phone || null,
+      email: details.email || null,
+      appointment: details.followup ? new Date(details.followup).toISOString() : null,
       rep: _profile?.display_name || _profile?.full_name || '',
       time: new Date().toISOString(),
       history: []
@@ -4181,7 +4297,7 @@ async function saveKnock() {
       }
       populateHomePage();
       closeSheet();
-      showToast('Knock saved ✓');
+      showToast(`${statusDefinition(knock.status)?.label || 'Door'} saved ✓`);
     }
   } catch (e) {
     console.error('saveKnock error:', e);
@@ -4274,6 +4390,8 @@ function closeSheet() {
   _pendingLng = null;
   _pendingAddr = '';
   _selectedStatus = null;
+  document.getElementById('pin-zone-warning')?.classList.remove('show');
+  document.getElementById('pin-details')?.classList.remove('show');
 }
 
 // ── TOAST ────────────────────────────────────────────────────
